@@ -1,1 +1,2 @@
 add_subdirectory(simple_server)
+add_subdirectory(simple_client)
