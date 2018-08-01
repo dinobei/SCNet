@@ -32,7 +32,7 @@ else()
     endif()
     add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/coreutils)
     message("coreutils_include_directories: ${coreutils_include_directories}")
-    list(APPEND ${the_library}_library_dependencies ${PROJECT_BINARY_DIR}/third-party/coreutils/bin/${coreutils_lib_name})
+    list(APPEND ${the_library}_library_dependencies ${PROJECT_BINARY_DIR}/third-party/coreutils/bin/$<CONFIG>/${coreutils_lib_name})
     list(APPEND ${the_library}_include_directories ${PROJECT_SOURCE_DIR}/third-party/coreutils/coreutils)
 
     message("${the_library}_library_dependencies: ${${the_library}_library_dependencies}")
