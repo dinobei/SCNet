@@ -30,6 +30,9 @@ else()
     if(WIN32)
         set(coreutils_lib_name coreutils.lib)
     endif()
+
+    set(coreutils_BUILD_APPS OFF CACHE BOOL "build app off")
+
     add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/coreutils)
     message("coreutils_include_directories: ${coreutils_include_directories}")
     list(APPEND ${the_library}_library_dependencies ${PROJECT_BINARY_DIR}/third-party/coreutils/bin/$<CONFIG>/${coreutils_lib_name})
