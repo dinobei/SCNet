@@ -14,7 +14,9 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     int host_port= 9190;
     ijoon::JServerSocket servSocket(ijoon::IPv4);
     servSocket.option(ijoon::SOCK_REUSE, 1);
-    servSocket.initialize(host_port, 10);
+    if(!servSocket.initialize(host_port, 10)) {
+        exit(-1);
+    }
 
     while(!thread->isInterrupted()) {
         auto client = servSocket.accept();
