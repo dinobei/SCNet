@@ -8,8 +8,6 @@
 #include "base_session.h"
 
 namespace ijoon {
-    void initGlobalVariables();
-    
     class BaseServer {
     public:
         BaseServer();

@@ -1,5 +1,12 @@
 #ifndef __REGISTRY_H__
 #define __REGISTRY_H__
+#include <functional>
+#include <string>
+#include <google/protobuf/message.h>
+
+namespace ijoon {
+    void initGlobalVariables();
+}
 
 template <class SrcType, class ObjectPtrType, class... Args>
 class Registry

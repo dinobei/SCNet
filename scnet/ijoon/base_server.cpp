@@ -3,13 +3,6 @@
 #include <map>
 #include <fstream>
 #include <sys/stat.h>
-#include "registry.h"
-
-Registry<int, google::protobuf::Message* >* BaseMessageRegistry;
-void ijoon::initGlobalVariables() {
-     BaseMessageRegistry = new Registry<int, google::protobuf::Message* >();
-}
-
 
 ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
