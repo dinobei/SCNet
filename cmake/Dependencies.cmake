@@ -21,6 +21,7 @@ else()
 endif()
 
 find_package(coreutils QUIET)
+set(coreutils_BUILD_APPS OFF CACHE BOOL "build app off")
 if(Coreutils_FOUND)
     message("coreutils found : " ${coreutils_INCLUDE_DIRS})
 else()
@@ -30,8 +31,6 @@ else()
     if(WIN32)
         set(coreutils_lib_name coreutils.lib)
     endif()
-
-    set(coreutils_BUILD_APPS OFF CACHE BOOL "build app off")
 
     add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/coreutils)
     message("coreutils_include_directories: ${coreutils_include_directories}")
