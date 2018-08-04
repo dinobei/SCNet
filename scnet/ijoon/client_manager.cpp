@@ -54,38 +54,13 @@ bool ijoon::ClientManager::Control(int serverIndex, google::protobuf::Message *r
 inline ijoon::MessageHeader makeHeader(char *buf)
 {
     ijoon::MessageHeader header;
-    google::protobuf::io::ArrayInputStream ais(buf, PACKET_HEADER_SIZE);
+    google::protobuf::io::ArrayInputStream ais(buf, MAX_PACKET_HEADER_SIZE);
     google::protobuf::io::CodedInputStream coded_input(&ais);
     coded_input.ReadVarint32(&header.dataSize); // Decode the HDR and get the size
     coded_input.ReadVarint32(&header.packetType); // Decode the HDR and get the packet type
     coded_input.ReadVarint32(&header.cryptType); // Decode the Crypt
     
     return header;
-}
-
-inline void deSerializeResponse(google::protobuf::Message *response, char *buffer, int bufferSize, ijoon::MessageHeader header) {
-    // Assign ArrayInputStream with enough memory
-    google::protobuf::io::ArrayInputStream ais(buffer, bufferSize);
-    google::protobuf::io::CodedInputStream coded_input(&ais);
-
-    // Read an unsigned integer with Varint encoding, truncating to 32 bits.
-    coded_input.ReadVarint32(&header.dataSize);
-    coded_input.ReadVarint32(&header.packetType);
-    coded_input.ReadVarint32(&header.cryptType);
-
-    // After the message's length is read, PushLimit() is used to prevent the CodedInputStream
-    // from reading beyond that length.Limits are used when parsing length-delimited
-    // embedded messages
-    google::protobuf::io::CodedInputStream::Limit msgLimit = coded_input.PushLimit(header.dataSize);
-
-    // De-Serialize
-    response->ParseFromCodedStream(&coded_input);
-
-    // Once the embedded message has been parsed, PopLimit() is called to undo the limit
-    coded_input.PopLimit(msgLimit);
-
-    //Print the message
-//    cout<<"Message: "<<pbm->DebugString();
 }
 
 void *ijoon::clientThread(void *arg)
@@ -174,9 +149,11 @@ void *ijoon::recvResponseThread(void *arg)
             continue;
         }
 
-        if(!session->recvResponse()) {
+        google::protobuf::Message *response = session->recvResponse();
+        if(!response) {
             break;
         }
+        session->manager->onCallback(session->getServerIndex(), response);
     }
 
     session->recvThread = nullptr;
@@ -226,52 +203,69 @@ void *ijoon::sendRequestThread(void *arg)
     return NULL;
 }
 
-bool ijoon::ClientSession::sendRequest(google::protobuf::Message *request)
+bool ijoon::ClientSession::sendRequest(google::protobuf::Message *message)
 {
-    int size = request->ByteSize() + PACKET_HEADER_SIZE;
-    char buf[size];
+    int size = message->ByteSize() + MAX_PACKET_HEADER_SIZE;
+    char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
     google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteVarint32(request->ByteSize());
-    coded_output.WriteVarint32(BaseMessageRegistry->GetType(request->GetTypeName()));
-    coded_output.WriteVarint32((google::protobuf::uint32)0);
+    coded_output.WriteVarint32(message->ByteSize());
+    coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName()));
+    coded_output.WriteVarint32(0);
     
-    request->SerializeToCodedStream(&coded_output);
-
-    if(!this->clntSock->safeSend(buf, 0, size, 0))
-    {
-        // Error sending data, errno
+    message->SerializeToCodedStream(&coded_output);
+    
+    if(!this->clntSock->safeSend(buf, 0, coded_output.ByteCount(), 0)) {
+        delete[] buf;
         return false;
     }
     
+    delete []buf;
     return true;
 }
 
-bool ijoon::ClientSession::recvResponse()
+google::protobuf::Message *ijoon::ClientSession::recvResponse()
 {
-    char headerBuffer[PACKET_HEADER_SIZE];
-    if(!this->clntSock->safeRecv(headerBuffer, 0, PACKET_HEADER_SIZE, MSG_PEEK))
-    {
-        return false;
+    char headerBuffer[MAX_PACKET_HEADER_SIZE] = {0,};
+    
+    // read header
+    int readingHeaderSize = 0;
+    int receivedHeaderComponent = 0;
+    
+    while(true) {
+        if(!this->clntSock->safeRecv(headerBuffer, readingHeaderSize++, 1, 0)) {
+            return nullptr;
+        }
+        
+        if(headerBuffer[readingHeaderSize-1] > 127) {
+            continue;
+        }
+        
+        if(++receivedHeaderComponent == HEADER_ELEMENTS) {
+            break;
+        }
     }
 
     ijoon::MessageHeader header = makeHeader(headerBuffer);
-
-    const int responseSize = header.dataSize + PACKET_HEADER_SIZE;
-    char *responseBuffer = new char[responseSize]; // size of the payload and hdr
+    
+    // read contents
+    const int responseSize = header.dataSize;
+    char *responseBuffer = new char[responseSize];
 
     // Read the entire buffer including the header
     if(!this->clntSock->safeRecv(responseBuffer, 0, responseSize, 0))
     {
         delete []responseBuffer;
-        return false;
+        return nullptr;
     }
 
     google::protobuf::Message *response = BaseMessageRegistry->Create(header.packetType);
-
-    deSerializeResponse(response, responseBuffer, responseSize, header);
-    this->manager->onCallback(this->getServerIndex(), response);
-    delete response;
+    if(response == nullptr) {
+        ijn_print(DP_INFO, "Unknown packet type(=%d)", header.packetType);
+        return nullptr;
+    }
+    
+    response->ParseFromArray(responseBuffer, header.dataSize);
     delete []responseBuffer;
-    return true;
+    return response;
 }

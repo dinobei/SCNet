@@ -10,7 +10,9 @@ namespace ijoon {
     #define PACKET_DATA_LENGTH              4
     #define PACKET_CMD_TYPE                 4
     #define PACKET_CRYPT_TYPE               4
-    #define PACKET_HEADER_SIZE              PACKET_DATA_LENGTH + PACKET_CMD_TYPE + PACKET_CRYPT_TYPE
+    
+    #define HEADER_ELEMENTS                 3
+    #define MAX_PACKET_HEADER_SIZE          (7 * HEADER_ELEMENTS)
     
     struct MessageHeader {
         google::protobuf::uint32 dataSize;

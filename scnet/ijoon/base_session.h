@@ -16,7 +16,6 @@ namespace ijoon {
         ijoon::Thread *thread;
         std::shared_ptr<ijoon::JClientSocket> cs;
         inline MessageHeader makeHeader(char *buf);
-        inline void deSerializeMessage(google::protobuf::Message *message, char *buffer, int bufferSize, MessageHeader header);
     };
 }
 

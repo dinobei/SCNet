@@ -61,7 +61,7 @@ namespace ijoon
         
     public: // Send request & recv response
         bool sendRequest(google::protobuf::Message *request);
-        bool recvResponse();
+        google::protobuf::Message *recvResponse();
         
     public:
         int getServerIndex() {return this->servIndex;}
