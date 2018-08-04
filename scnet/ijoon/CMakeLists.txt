@@ -11,11 +11,11 @@ set(${the_library}_include_directories ${${the_library}_include_directories} PAR
 
 include_directories(${${the_library}_include_directories})
 
+add_library(${the_library} ${the_library_type} ${${the_library}_source_files} ${${the_library}_header_files})
+target_link_libraries(${the_library} ${${the_library}_library_dependencies})
+
 if(WIN32)
 	set_target_properties(${the_library} PROPERTIES COMPILE_FLAGS "/wd4819")
 endif()
-
-add_library(${the_library} ${the_library_type} ${${the_library}_source_files} ${${the_library}_header_files})
-target_link_libraries(${the_library} ${${the_library}_library_dependencies})
 
 target_include_directories(${the_library} PUBLIC ${${the_library}_include_directories})
