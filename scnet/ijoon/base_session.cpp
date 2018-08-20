@@ -7,7 +7,7 @@ void ijoon::BaseSession::startThread(FuncPointer func, std::string name, void *p
 }
 
 bool ijoon::BaseSession::send(google::protobuf::Message *message) {
-    int size = message->ByteSize() + MAX_PACKET_HEADER_SIZE;
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSize();
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
     google::protobuf::io::CodedOutputStream coded_output(&aos);
@@ -16,7 +16,6 @@ bool ijoon::BaseSession::send(google::protobuf::Message *message) {
     coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName())); // packet type
     coded_output.WriteVarint32(0); // message type
     coded_output.WriteVarint32(0); // crypt type
-    coded_output.WriteVarint32(0); // reserved
     
     message->SerializeToCodedStream(&coded_output);
     
@@ -92,6 +91,5 @@ ijoon::MessageHeader ijoon::BaseSession::makeHeader(char *buf) {
     coded_input.ReadVarint32(&header.packetType); // Decode the HDR and get the packet type
     coded_input.ReadVarint32(&header.messageType); // Decode the message type
     coded_input.ReadVarint32(&header.cryptType); // Decode the crypt
-    coded_input.ReadVarint32(&header.reserved); // Decode the reserved
     return header;
 }
