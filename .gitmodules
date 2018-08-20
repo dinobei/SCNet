@@ -1,9 +1,9 @@
 [submodule "third-party/SCNet-pb"]
 	path = third-party/SCNet-pb
-	url = http://dinobei@works.ijoon.net/Developer/SCNet-pb
+	url = http://works.ijoon.net/Developer/SCNet-pb
 [submodule "third-party/protobuf"]
 	path = third-party/protobuf
 	url = https://github.com/google/protobuf.git
 [submodule "third-party/coreutils"]
 	path = third-party/coreutils
-	url = http://dinobei@works.ijoon.net/Developer/coreutils
+	url = http://works.ijoon.net/Developer/coreutils
