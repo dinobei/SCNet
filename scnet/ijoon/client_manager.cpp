@@ -58,6 +58,7 @@ inline ijoon::MessageHeader makeHeader(char *buf)
     google::protobuf::io::CodedInputStream coded_input(&ais);
     coded_input.ReadVarint32(&header.dataSize); // Decode the HDR and get the size
     coded_input.ReadVarint32(&header.packetType); // Decode the HDR and get the packet type
+    coded_input.ReadVarint32(&header.messageType); // Decode the message type
     coded_input.ReadVarint32(&header.cryptType); // Decode the Crypt
     
     return header;
@@ -205,12 +206,14 @@ void *ijoon::sendRequestThread(void *arg)
 
 bool ijoon::ClientSession::sendRequest(google::protobuf::Message *message)
 {
-    int size = message->ByteSize() + MAX_PACKET_HEADER_SIZE;
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE+ message->ByteSize();
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
     google::protobuf::io::CodedOutputStream coded_output(&aos);
+    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
     coded_output.WriteVarint32(message->ByteSize());
     coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName()));
+    coded_output.WriteVarint32(0); // message type
     coded_output.WriteVarint32(0);
     
     message->SerializeToCodedStream(&coded_output);
@@ -226,6 +229,16 @@ bool ijoon::ClientSession::sendRequest(google::protobuf::Message *message)
 
 google::protobuf::Message *ijoon::ClientSession::recvResponse()
 {
+    char magicPacket[2] = {0,};
+    // read magic packet
+    if(!this->clntSock->safeRecv(magicPacket, 0, MAGIC_PACKET_LENGTH, 0)) {
+        return nullptr;
+    }
+    
+    if(magicPacket[0] != MAGIC_PACKET[0] || magicPacket[1] != MAGIC_PACKET[1]) {
+        return nullptr;
+    }
+    
     char headerBuffer[MAX_PACKET_HEADER_SIZE] = {0,};
     
     // read header
