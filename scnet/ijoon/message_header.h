@@ -7,16 +7,17 @@
 #include <ijoon/coreutils.h>
 
 namespace ijoon {
-    #define PACKET_DATA_LENGTH              4
-    #define PACKET_CMD_TYPE                 4
-    #define PACKET_CRYPT_TYPE               4
+    #define MAGIC_PACKET_LENGTH             2
+    const char MAGIC_PACKET[2] = {'I', 'J'};
     
-    #define HEADER_ELEMENTS                 3
+    #define HEADER_ELEMENTS                 5
     #define MAX_PACKET_HEADER_SIZE          (7 * HEADER_ELEMENTS)
     
     struct MessageHeader {
         google::protobuf::uint32 dataSize;
         google::protobuf::uint32 packetType;
+        google::protobuf::uint32 messageType;
         google::protobuf::uint32 cryptType;
+        google::protobuf::uint32 reserved;
     };
 }

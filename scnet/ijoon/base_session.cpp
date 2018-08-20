@@ -11,9 +11,12 @@ bool ijoon::BaseSession::send(google::protobuf::Message *message) {
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
     google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteVarint32(message->ByteSize());
-    coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName()));
-    coded_output.WriteVarint32(0);
+    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
+    coded_output.WriteVarint32(message->ByteSize()); // data size
+    coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName())); // packet type
+    coded_output.WriteVarint32(0); // message type
+    coded_output.WriteVarint32(0); // crypt type
+    coded_output.WriteVarint32(0); // reserved
     
     message->SerializeToCodedStream(&coded_output);
     
@@ -27,6 +30,16 @@ bool ijoon::BaseSession::send(google::protobuf::Message *message) {
 }
 
 google::protobuf::Message *ijoon::BaseSession::recv() {
+    char magicPacket[2] = {0,};
+    // read magic packet
+    if(!this->cs->safeRecv(magicPacket, 0, MAGIC_PACKET_LENGTH, 0)) {
+        return nullptr;
+    }
+
+    if(magicPacket[0] != MAGIC_PACKET[0] || magicPacket[1] != MAGIC_PACKET[1]) {
+        return nullptr;
+    }
+
     char headerBuffer[MAX_PACKET_HEADER_SIZE] = {0,};
     
     // read header
@@ -77,6 +90,8 @@ ijoon::MessageHeader ijoon::BaseSession::makeHeader(char *buf) {
     google::protobuf::io::CodedInputStream coded_input(&ais);
     coded_input.ReadVarint32(&header.dataSize); // Decode the HDR and get the size
     coded_input.ReadVarint32(&header.packetType); // Decode the HDR and get the packet type
-    coded_input.ReadVarint32(&header.cryptType); // Decode the Crypt
+    coded_input.ReadVarint32(&header.messageType); // Decode the message type
+    coded_input.ReadVarint32(&header.cryptType); // Decode the crypt
+    coded_input.ReadVarint32(&header.reserved); // Decode the reserved
     return header;
 }
