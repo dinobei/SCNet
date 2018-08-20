@@ -5,7 +5,9 @@
 
 /* implemented proto messages */
 #include "packet.pb.h"
-using namespace simple;
+#include "packet_type.pb.h"
+#include "get_image.pb.h"
+using namespace example;
 
 namespace ijoon {
     

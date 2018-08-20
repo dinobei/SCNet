@@ -1,5 +1,14 @@
 #include "embodied_server.h"
 
+#include <sys/stat.h>
+
+long GetFileSize(std::string filename)
+{
+    struct stat stat_buf;
+    int rc = stat(filename.c_str(), &stat_buf);
+    return rc == 0 ? stat_buf.st_size : -1;
+}
+
 void ijoon::EmbodiedServer::onClientServiceCallback(BaseSession *session, google::protobuf::Message *message) {
     google::protobuf::uint32 type = BaseMessageRegistry->GetType(message->GetTypeName());
     EmbodiedSession *eSess = static_cast<ijoon::EmbodiedSession*>(session);
@@ -7,32 +16,71 @@ void ijoon::EmbodiedServer::onClientServiceCallback(BaseSession *session, google
     ijn_print(DP_INFO, "client's identifier is %d", eSess->getIdentifier());
     
     switch(type) {
-        case simple::PacketType::packetType1:
+        case example::PacketType::packetType1:
         {
-            simple::packet_1 *pkt1 = static_cast<simple::packet_1*>(message);
+            example::Packet1 *pkt1 = static_cast<example::Packet1*>(message);
             ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType1), number=%d", pkt1->number());
             eSess->send(pkt1);
         }
             break;
-        case simple::PacketType::packetType2:
+        case example::PacketType::packetType2:
         {
-            simple::packet_2 *pkt2 = static_cast<simple::packet_2*>(message);
-            ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType2), number=%d", pkt2->number());
+            example::Packet2 *pkt2 = static_cast<example::Packet2*>(message);
+            ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType2), str=%s", pkt2->str().c_str());
             eSess->send(pkt2);
         }
             break;
-        case simple::PacketType::packetType3:
+        case example::PacketType::packetType3:
         {
-            simple::packet_3 *pkt3 = static_cast<simple::packet_3*>(message);
-            ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType3), number=%d", pkt3->number());
+            example::Packet3 *pkt3 = static_cast<example::Packet3*>(message);
+            ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType3), boolValue=%s", pkt3->boolvalue() ? "true" : "false");
             eSess->send(pkt3);
         }
             break;
-        case simple::PacketType::packetType4:
+        case example::PacketType::packetType4:
         {
-            simple::packet_4 *pkt4 = static_cast<simple::packet_4*>(message);
-            ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType4), number=%d", pkt4->number());
+            example::Packet4 *pkt4 = static_cast<example::Packet4*>(message);
+            ijn_print(DP_DEBUG, "EmbodiedServer's callback() called (packetType4), doubleValue=%lf, floatValue=%f", pkt4->doublevalue(), pkt4->floatvalue());
             eSess->send(pkt4);
+        }
+            break;
+        case example::PacketType::imageRequest:
+        {
+            example::ImageRequest *request = static_cast<example::ImageRequest*>(message);
+            
+            
+
+            int size = GetFileSize(request->name());
+            ijn_print(DP_DEBUG, "requested image name: %s, size: %d", request->name().c_str(), size);
+            
+            if(size < 0) {
+                break;
+            }
+            
+            FILE *fp = fopen(request->name().c_str(), "rb");
+            char *buf = new char[size];
+            fread(buf, size, 1, fp);
+            fclose(fp);
+            
+            example::ImageResponse *response = new example::ImageResponse();
+            example::ImageHeader *imageHeader = response->mutable_header();
+            imageHeader->set_width(1920);
+            imageHeader->set_height(1080);
+            imageHeader->set_name(request->name());
+            imageHeader->set_size(size);
+            
+            response->set_imagebuffer(buf, size);
+            
+            bool ret = eSess->send(response);
+            ijn_print(DP_DEBUG, "ret : %s", ret? "true" : "false");
+            
+            delete []buf;
+        }
+            break;
+        case example::PacketType::arrayMessageType:
+        {
+            example::ArrayMessage *request = static_cast<example::ArrayMessage*>(message);
+            eSess->send(request);
         }
             break;
         default:

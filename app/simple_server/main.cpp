@@ -2,10 +2,13 @@
 
 int main(int argv, char** argc) {
     ijoon::initGlobalVariables();
-    IJN_REGISTER_MESSAGES(simple, simple::PacketType::packetType1, packet_1);
-    IJN_REGISTER_MESSAGES(simple, simple::PacketType::packetType2, packet_2);
-    IJN_REGISTER_MESSAGES(simple, simple::PacketType::packetType3, packet_3);
-    IJN_REGISTER_MESSAGES(simple, simple::PacketType::packetType4, packet_4);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::packetType1, Packet1);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::packetType2, Packet2);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::packetType3, Packet3);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::packetType4, Packet4);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::arrayMessageType, ArrayMessage);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::imageRequest, ImageRequest);
+    IJN_REGISTER_MESSAGES(example, example::PacketType::imageResponse, ImageResponse);
     
     ijoon::EmbodiedServer myServer;
     myServer.start();
