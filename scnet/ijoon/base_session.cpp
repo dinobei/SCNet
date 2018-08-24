@@ -61,25 +61,27 @@ google::protobuf::Message *ijoon::BaseSession::recv() {
     
     ijoon::MessageHeader header = makeHeader(headerBuffer);
     
-    // read contents
-    const int responseSize = header.dataSize;
-    char *responseBuffer = new char[responseSize];
-    
-    // Read the entire buffer including the header
-    if(!this->cs->safeRecv(responseBuffer, 0, responseSize, 0)) {
-        delete []responseBuffer;
-        return nullptr;
-    }
-    
     google::protobuf::Message *response = BaseMessageRegistry->Create(header.packetType);
     if(response == nullptr) {
         ijn_print(DP_INFO, "Unknown packet type(=%d)", header.packetType);
         return nullptr;
     }
-
-    response->ParseFromArray(responseBuffer, header.dataSize);
     
-    delete []responseBuffer;
+    // read contents
+    const int responseSize = header.dataSize;
+    if(responseSize > 0) {
+        char *responseBuffer = new char[responseSize];
+        
+        // Read the entire buffer including the header
+        if(!this->cs->safeRecv(responseBuffer, 0, responseSize, 0)) {
+            delete []responseBuffer;
+            return nullptr;
+        }
+        
+        response->ParseFromArray(responseBuffer, header.dataSize);
+        delete []responseBuffer;
+    }
+    
     return response;
 }
 
