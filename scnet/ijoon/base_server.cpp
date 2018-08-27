@@ -60,6 +60,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
         }
 
         server->onClientServiceCallback(sess, message);
+        delete message;
     }
     
     server->removeClient(thread->getName());
