@@ -28,6 +28,28 @@ bool ijoon::BaseSession::send(google::protobuf::Message *message) {
     return true;
 }
 
+bool ijoon::BaseSession::send(std::shared_ptr<google::protobuf::Message> message) {
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSize();
+    char *buf = new char[size];
+    google::protobuf::io::ArrayOutputStream aos(buf,size);
+    google::protobuf::io::CodedOutputStream coded_output(&aos);
+    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
+    coded_output.WriteVarint32(message->ByteSize()); // data size
+    coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName())); // packet type
+    coded_output.WriteVarint32(0); // message type
+    coded_output.WriteVarint32(0); // crypt type
+    
+    message->SerializeToCodedStream(&coded_output);
+    
+    if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
+        delete[] buf;
+        return false;
+    }
+    
+    delete []buf;
+    return true;
+}
+
 google::protobuf::Message *ijoon::BaseSession::recv() {
     char magicPacket[2] = {0,};
     // read magic packet
