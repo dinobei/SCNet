@@ -30,4 +30,7 @@ option (scnet_USE_PROTOBUF_LITE "Use protobuf lite" FALSE)
 
 add_subdirectory(${the_library})
 
-add_subdirectory(app)
+option (scnet_BUILD_APP "Build application" TRUE)
+if(scnet_BUILD_APP)
+    add_subdirectory(app)
+endif()
