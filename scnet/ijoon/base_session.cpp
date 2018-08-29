@@ -72,7 +72,7 @@ google::protobuf::Message *ijoon::BaseSession::recv() {
             return nullptr;
         }
         
-        if(headerBuffer[readingHeaderSize-1] > 127) {
+        if((headerBuffer[readingHeaderSize-1]&0xFF) > 127) {
             continue;
         }
         

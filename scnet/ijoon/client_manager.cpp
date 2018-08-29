@@ -250,7 +250,7 @@ google::protobuf::Message *ijoon::ClientSession::recvResponse()
             return nullptr;
         }
         
-        if(headerBuffer[readingHeaderSize-1] > 127) {
+        if((headerBuffer[readingHeaderSize-1]&0xFF) > 127) {
             continue;
         }
         
@@ -261,24 +261,26 @@ google::protobuf::Message *ijoon::ClientSession::recvResponse()
 
     ijoon::MessageHeader header = makeHeader(headerBuffer);
     
-    // read contents
-    const int responseSize = header.dataSize;
-    char *responseBuffer = new char[responseSize];
-
-    // Read the entire buffer including the header
-    if(!this->clntSock->safeRecv(responseBuffer, 0, responseSize, 0))
-    {
-        delete []responseBuffer;
-        return nullptr;
-    }
-
     google::protobuf::Message *response = BaseMessageRegistry->Create(header.packetType);
     if(response == nullptr) {
         ijn_print(DP_INFO, "Unknown packet type(=%d)", header.packetType);
         return nullptr;
     }
     
-    response->ParseFromArray(responseBuffer, header.dataSize);
-    delete []responseBuffer;
+    // read contents
+    const int responseSize = header.dataSize;
+    if(responseSize > 0) {
+        char *responseBuffer = new char[responseSize];
+        
+        // Read the entire buffer including the header
+        if(!this->clntSock->safeRecv(responseBuffer, 0, responseSize, 0)) {
+            delete []responseBuffer;
+            return nullptr;
+        }
+        
+        response->ParseFromArray(responseBuffer, header.dataSize);
+        delete []responseBuffer;
+    }
+    
     return response;
 }
