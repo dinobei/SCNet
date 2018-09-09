@@ -10,7 +10,7 @@
 namespace ijoon {
     class BaseServer {
     public:
-        BaseServer();
+        BaseServer(int port);
         ~BaseServer();
         
         bool start();
@@ -21,6 +21,8 @@ namespace ijoon {
         
         bool addClient(BaseSession *sess);
         bool removeClient(std::string key);
+        
+        int getServerPort();
         
         // Server lifecycle
         virtual void onServerStarted() {};
@@ -38,5 +40,6 @@ namespace ijoon {
     private:
         std::map<std::string, BaseSession *> clientMap;
         Thread *thread;
+        int port;
     };
 }

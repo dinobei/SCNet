@@ -11,10 +11,9 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     server->onServerStarted();
     
     // change to user input
-    int host_port= 9190;
     ijoon::JServerSocket servSocket(ijoon::IPv4);
     servSocket.option(ijoon::SOCK_REUSE, 1);
-    if(!servSocket.initialize(host_port, 10)) {
+    if(!servSocket.initialize(server->getServerPort(), 10)) {
         exit(-1);
     }
 
@@ -75,11 +74,16 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     
 }
 
-ijoon::BaseServer::BaseServer() {
+ijoon::BaseServer::BaseServer(int port) {
     initRandomString();
+    this->port = port;
 }
 
 ijoon::BaseServer::~BaseServer() {
+}
+
+int ijoon::BaseServer::getServerPort() {
+    return this->port;
 }
 
 bool ijoon::BaseServer::start() {
