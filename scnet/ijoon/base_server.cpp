@@ -42,7 +42,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     server->onClientServiceStarted(sess);
     
     while(1) {
-        int fd_num = sess->event(30 * 1000);
+        int fd_num = sess->event(server->getRecvTimeoutMs());
         if(fd_num < 0) {
             server->onClientServiceDisconnected(sess);
             break;
@@ -74,9 +74,10 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     
 }
 
-ijoon::BaseServer::BaseServer(int port) {
+ijoon::BaseServer::BaseServer(int port, int recvTimeoutMs) {
     initRandomString();
     this->port = port;
+    this->recvTimeoutMs = recvTimeoutMs;
 }
 
 ijoon::BaseServer::~BaseServer() {
@@ -84,6 +85,10 @@ ijoon::BaseServer::~BaseServer() {
 
 int ijoon::BaseServer::getServerPort() {
     return this->port;
+}
+
+int ijoon::BaseServer::getRecvTimeoutMs() {
+    return this->recvTimeoutMs;
 }
 
 bool ijoon::BaseServer::start() {

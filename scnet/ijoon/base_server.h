@@ -10,7 +10,7 @@
 namespace ijoon {
     class BaseServer {
     public:
-        BaseServer(int port);
+        BaseServer(int port, int recvTimeoutMs);
         ~BaseServer();
         
         bool start();
@@ -23,6 +23,7 @@ namespace ijoon {
         bool removeClient(std::string key);
         
         int getServerPort();
+        int getRecvTimeoutMs();
         
         // Server lifecycle
         virtual void onServerStarted() {};
@@ -41,5 +42,6 @@ namespace ijoon {
         std::map<std::string, BaseSession *> clientMap;
         Thread *thread;
         int port;
+        int recvTimeoutMs;
     };
 }
