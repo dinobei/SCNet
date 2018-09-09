@@ -87,6 +87,10 @@ int ijoon::BaseServer::getServerPort() {
 }
 
 bool ijoon::BaseServer::start() {
+    if(this->thread != nullptr) {
+        return false;
+    }
+    
     this->thread = new ijoon::Thread(ServerMainThread, "Main Thread");
     thread->start(this);
     return true;
