@@ -78,6 +78,7 @@ ijoon::BaseServer::BaseServer(int port, int recvTimeoutMs) {
     initRandomString();
     this->port = port;
     this->recvTimeoutMs = recvTimeoutMs;
+    this->thread = nullptr;
 }
 
 ijoon::BaseServer::~BaseServer() {
