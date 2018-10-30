@@ -1,6 +1,6 @@
 
 # protobuf library
-find_package(protobuf QUIET)
+find_package(Protobuf QUIET)
 if(Protobuf_FOUND)
     message("protobuf found : " ${Protobuf_INCLUDE_DIRS})
 
