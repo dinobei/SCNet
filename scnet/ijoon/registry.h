@@ -47,7 +47,7 @@ public:
         return registry_creater[key](args...);
     }
     
-    google::protobuf::uint32 GetType(const std::string key)
+    int GetType(const std::string key)
     {
         if(!HasGetter(key))
         {
