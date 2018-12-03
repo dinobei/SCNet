@@ -144,7 +144,7 @@ int main(int argv, char** argc)
         ijn_msleep(33);
         ImageRequest *imageRequest = new ImageRequest();
         imageRequest->set_name("hello.jpg");
-        manager.Control(serverIndex, arrayMessage);
+        manager.Control(serverIndex, imageRequest);
     }
 
     ijn_sleep(1);
