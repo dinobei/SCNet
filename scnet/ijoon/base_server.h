@@ -10,20 +10,23 @@
 namespace ijoon {
     class BaseServer {
     public:
-        BaseServer(int port, int recvTimeoutMs);
+        BaseServer(int port, int recvTimeoutMs, bool useMultiThread);
         ~BaseServer();
         
         bool start();
         bool stop();
         
         int clientSize();
-        BaseSession* session(std::string key);
+        BaseSession* session(NativeSocket nativeSocket);
         
-        bool addClient(BaseSession *sess);
-        bool removeClient(std::string key);
+        bool addClient(std::shared_ptr<JClientSocket> clientSocket, BaseSession *sess);
+        bool removeClient(std::shared_ptr<JClientSocket> clientSocket);
+        bool removeClient(NativeSocket nativeSocket);
         
         int getServerPort();
         int getRecvTimeoutMs();
+        
+        bool isMultiThreadBased() { return this->useMultiThread; }
         
         // Server lifecycle
         virtual void onServerStarted() {};
@@ -39,9 +42,10 @@ namespace ijoon {
         
 
     private:
-        std::map<std::string, BaseSession *> clientMap;
+        std::map<NativeSocket, BaseSession *> clientMap;
         Thread *thread;
         int port;
         int recvTimeoutMs;
+        bool useMultiThread;
     };
 }

@@ -12,6 +12,7 @@ namespace ijoon {
         google::protobuf::Message *recv();
         inline int event(int timeMs) {return this->cs->event(timeMs);}
         void startThread(FuncPointer func, std::string name, void *param);
+        std::shared_ptr<ijoon::JClientSocket> getClientSocket() {return this->cs;}
 
     private:
         ijoon::Thread *thread;

@@ -3,11 +3,12 @@
 #include <map>
 #include <fstream>
 #include <sys/stat.h>
+#include <sys/select.h>
 
 ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
     ijoon::BaseServer *server = (ijoon::BaseServer *)thread->getParam();
-    
+    ijn_print(DP_INFO, "server mode: %s\n", server->isMultiThreadBased()? "multithread based" : "multiplexing based");
     server->onServerStarted();
     
     // change to user input
@@ -17,12 +18,71 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         exit(-1);
     }
 
-    while(!thread->isInterrupted()) {
-        auto client = servSocket.accept();
-        std::cout << "Connected client: " << client->getAddress() << std::endl;
+    if(server->isMultiThreadBased()) {
+        while(!thread->isInterrupted()) {
+            auto client = servSocket.accept();
+            
+            auto sess = server->getSession(client);
+            server->addClient(client, sess);
+        }
+    }
+    else {
+        fd_set reads, cpy_reads;
+        struct timeval timeout;
+        int fd_max, fd_num;
+        FD_ZERO(&reads);
+        FD_SET(servSocket.getSocketIdentifier(), &reads);
+        
+        fd_max = servSocket.getSocketIdentifier();
+        while(!thread->isInterrupted()) {
+            cpy_reads = reads;
+            timeout.tv_sec = server->getRecvTimeoutMs() / 1000;
+            timeout.tv_usec = (server->getRecvTimeoutMs() % 1000) * 1000;
+            if( (fd_num = select(fd_max + 1, &cpy_reads, 0, 0, &timeout)) == -1)
+                break;
+            if(fd_num == 0)
+            {
+                server->onClientServiceTimeout(nullptr);
+                continue;
+            }
+            
+            for(int i = 0 ; i < fd_max+1 ; i++)
+            {
+                if(FD_ISSET(i, &cpy_reads))
+                {
+                    if(i == servSocket.getSocketIdentifier())
+                    {
+                        auto client = servSocket.accept();
+                        
+                        auto sess = server->getSession(client);
+                        server->addClient(client, sess);
+                        
+                        ijoon::NativeSocket clientSocketId = client->getSocketIdentifier();
+                        FD_SET(clientSocketId, &reads);
+                        if(fd_max < clientSocketId)
+                            fd_max = clientSocketId;
+                        
+                        server->onClientServiceStarted(sess);
+                    }
+                    else
+                    {
+                        auto sess = server->session(i);
+                        google::protobuf::Message *message = sess->recv();
+                        if(message == nullptr) {
+                            FD_CLR(i, &reads);
+                            
+                            server->removeClient(i);
+                            server->onClientServiceDisconnected(sess);
+                            continue;
+                        }
+                        
+                        server->onClientServiceCallback(sess, message);
+                        delete message;
+                    }
+                }
+            }
+        }
 
-        auto sess = server->getSession(client);
-        server->addClient(sess);
     }
     
     server->onServerStopped();
@@ -37,7 +97,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
 ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
     ijoon::BaseServer *server = (ijoon::BaseServer *)thread->getParam();
-    auto sess = server->session(thread->getName());
+    ijoon::NativeSocket nativeSocket = atoi(thread->getName().c_str());
+    auto sess = server->session(nativeSocket);
     
     server->onClientServiceStarted(sess);
     
@@ -62,7 +123,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
         delete message;
     }
     
-    server->removeClient(thread->getName());
+    server->removeClient(nativeSocket);
     
     server->onClientServiceStopped(sess);
     
@@ -74,11 +135,12 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     
 }
 
-ijoon::BaseServer::BaseServer(int port, int recvTimeoutMs) {
+ijoon::BaseServer::BaseServer(int port, int recvTimeoutMs, bool useMultiThread) {
     initRandomString();
     this->port = port;
     this->recvTimeoutMs = recvTimeoutMs;
     this->thread = nullptr;
+    this->useMultiThread = useMultiThread;
 }
 
 ijoon::BaseServer::~BaseServer() {
@@ -111,15 +173,16 @@ bool ijoon::BaseServer::stop() {
     return false;
 }
 
-bool ijoon::BaseServer::addClient(BaseSession *sess) {
+bool ijoon::BaseServer::addClient(std::shared_ptr<JClientSocket> clientSocket, BaseSession *sess) {
     int retryCnt = 10;
     do {
-        std::string key = generateRandomString(20);
-
-        if(this->clientMap.count(key) == 0) {
-            clientMap[key] = sess;
+        if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
+            clientMap[clientSocket->getSocketIdentifier()] = sess;
             
-            sess->startThread(ServerServiceThread, key, (void *)this);
+            if(isMultiThreadBased()) {
+                sess->startThread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()), this);
+            }
+            
             return true;
         }
     } while(--retryCnt);
@@ -127,14 +190,18 @@ bool ijoon::BaseServer::addClient(BaseSession *sess) {
     return false;
 }
 
-bool ijoon::BaseServer::removeClient(std::string key) {
-    if(this->clientMap.count(key) == 0)
+bool ijoon::BaseServer::removeClient(std::shared_ptr<JClientSocket> clientSocket) {
+    return removeClient(clientSocket->getSocketIdentifier());
+}
+
+bool ijoon::BaseServer::removeClient(NativeSocket nativeSocket) {
+    if(this->clientMap.count(nativeSocket) == 0)
         return false;
-
-    ijoon::BaseSession *sess = this->clientMap[key];
+    
+    ijoon::BaseSession *sess = this->clientMap[nativeSocket];
     delete sess;
-
-    this->clientMap.erase(key);
+    
+    this->clientMap.erase(nativeSocket);
     return true;
 }
 
@@ -142,7 +209,7 @@ int ijoon::BaseServer::clientSize() {
     return this->clientMap.size();
 }
 
-ijoon::BaseSession* ijoon::BaseServer::session(std::string key) {
-    assert(this->clientMap.count(key) != 0);
-    return this->clientMap[key];
+ijoon::BaseSession* ijoon::BaseServer::session(NativeSocket nativeSocket) {
+    assert(this->clientMap.count(nativeSocket) != 0);
+    return this->clientMap[nativeSocket];
 }

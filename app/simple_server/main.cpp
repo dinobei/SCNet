@@ -10,7 +10,7 @@ int main(int argv, char** argc) {
     IJN_REGISTER_MESSAGES(example, example::PacketType::imageRequest, ImageRequest);
     IJN_REGISTER_MESSAGES(example, example::PacketType::imageResponse, ImageResponse);
     
-    ijoon::EmbodiedServer myServer(9190, 30 * 1000);
+    ijoon::EmbodiedServer myServer(9190, 30 * 1000, false);
     myServer.start();
     getchar();
     

@@ -13,7 +13,7 @@ namespace ijoon {
     
     class EmbodiedServer : public BaseServer {
     public:
-        EmbodiedServer(int port, int recvTimeoutMs): BaseServer(port, recvTimeoutMs) {}
+        EmbodiedServer(int port, int recvTimeoutMs, bool useMultiThread): BaseServer(port, recvTimeoutMs, useMultiThread) {}
         ~EmbodiedServer() {}
         
         // Virtual functions of BaseServer
