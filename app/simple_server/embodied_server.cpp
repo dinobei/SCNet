@@ -81,6 +81,12 @@ void ijoon::EmbodiedServer::onClientServiceCallback(BaseSession *session, google
         {
             example::ArrayMessage *request = static_cast<example::ArrayMessage*>(message);
             eSess->send(request);
+            
+            ijn_print(DP_INFO, "received array size: %d, message: ", request->strarr_size());
+            for(int i = 0 ; i < request->strarr_size() ; i++) {
+                printf("%s ", request->strarr(i).c_str());
+            }
+            printf("\n");
         }
             break;
         default:
