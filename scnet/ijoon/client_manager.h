@@ -1,102 +1,49 @@
 #pragma once
-#include "message_header.h"
+/* std headers */
+#include <map>
+#include <functional>
+#include <assert.h>
 
-namespace ijoon
-{
-    #define MAX_CONNECTION               64
+/* custom headers */
+#include "session.h"
 
-    typedef void (*onAttachingPtr)(int serverIndex);
-    typedef void (*onAttachFailedPtr)(int serverIndex);
-    typedef void (*onAttachedPtr)(int serverIndex);
-    typedef void (*onDetachedPtr)(int serverIndex);
-    typedef void (*onDetachPtr)(int serverIndex);
-    typedef void (*onCallbackPtr)(int serverIndex, google::protobuf::Message *response);
-    
-    // Thread
-    void *clientThread(void *arg);
-    void *sendRequestThread(void *arg);
-    void *recvResponseThread(void *arg);
-    
-    class ClientManager;
-    
-    class ClientSession {
+namespace ijoon {
+    class ClientManager {
     public:
-        ClientSession(int servIndex, std::string servIp, int servPort, ClientManager *manager) {
-            this->servIndex = servIndex;
-            this->servIp = servIp;
-            this->servPort = servPort;
-            this->manager = manager;
-            
-            this->eventQueue = new ijoon::BlockingQueue<google::protobuf::Message *>();
-            
-            this->mainThread = new ijoon::Thread(clientThread, "mainThread");
-            this->mainThread->start(this);
-        }
-        
-        ~ClientSession() {
-            if(this->recvThread != nullptr) {
-                this->recvThread->interrupt();
-            }
-            
-            if(this->sendThread != nullptr) {
-                this->sendThread->interrupt();
-            }
-            
-            if(this->mainThread != nullptr) {
-                this->mainThread->interrupt();
-                this->mainThread->join();
-            }
-            
-            delete this->eventQueue;
-            this->eventQueue = NULL;
-        }
-    public:
-        ijoon::JClientSocket *clntSock;
-
-        ijoon::BlockingQueue<google::protobuf::Message *> *eventQueue;
-
-        ijoon::Thread *mainThread;
-        ijoon::Thread *sendThread;
-        ijoon::Thread *recvThread;
-        
-    public: // Send request & recv response
-        bool sendRequest(google::protobuf::Message *request);
-        google::protobuf::Message *recvResponse();
-        
-    public:
-        int getServerIndex() {return this->servIndex;}
-        std::string getServerIp() {return this->servIp;}
-        int getServerPort() {return this->servPort;}
-        
-    public:
-        ClientManager *manager;
-        
-    private:
-        int servIndex;
-        std::string servIp;
-        int servPort;
-    };
-
-
-    class ClientManager
-    {
-    public:
-        ClientManager();
+        ClientManager(int port, int recvTimeoutMs, bool useMultiThread);
         ~ClientManager();
+        
+        bool start();
+        bool stop();
+        
+        int clientSize();
+        Session* session(NativeSocket nativeSocket);
+        
+        bool addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess);
+        bool removeClient(std::shared_ptr<JClientSocket> clientSocket);
+        bool removeClient(NativeSocket nativeSocket);
+        
+        int getServerPort();
+        int getRecvTimeoutMs();
+        
+        bool isMultiThreadBased() { return this->useMultiThread; }
+        
+        // Server lifecycle
+        std::function<void()> onServerStarted;
+        std::function<void()> onServerStopped;
+        
+        // Client lifecycle
+        std::function<void(Session *)> onClientConnected;
+        std::function<void(Session *)> onClientServiceStarted;
+        std::function<void(Session *)> onClientServiceTimeout;
+        std::function<void(Session *)> onClientServiceDisconnected;
+        std::function<void(Session *)> onClientServiceStopped;
 
-        int Attach(std::string ip, int port);
-        bool Detach(int serverIndex);
-        bool Control(int serverIndex, google::protobuf::Message *request);
-        
-        
-    public: // Lifecycle callback
-        onAttachingPtr onAttaching;
-        onAttachFailedPtr onAttachFailed;
-        onAttachedPtr onAttached;
-        onDetachedPtr onDetached;
-        onDetachPtr onDetach;
-        onCallbackPtr onCallback;
     private:
-        std::map<int, ClientSession *> clientMap;
+        std::map<NativeSocket, Session *> clientMap;
+        Thread *thread;
+        int port;
+        int recvTimeoutMs;
+        bool useMultiThread;
     };
 }

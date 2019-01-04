@@ -1,5 +1,5 @@
 #include <ijoon/coreutils.h>
-#include "client_manager.h"
+#include "server.h"
 #include "registry.h"
 
 /* implemented proto messages */
@@ -8,130 +8,60 @@
 #include "get_image.pb.h"
 using namespace example;
 
-void callback(int serverIndex, google::protobuf::Message *response)
-{
-    google::protobuf::uint32 type = BaseMessageRegistry->GetType(response->GetTypeName());
+void onPacket1(ijoon::Server *server, Packet1 *pkt1);
+void onPacket2(ijoon::Server *server, Packet2 *pkt2);
+void onPacket3(ijoon::Server *server, Packet3 *pkt3);
+void onPacket4(ijoon::Server *server, Packet4 *pkt4);
+void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage);
+void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse);
 
-    switch (type) {
-        case PacketType::packetType1:
-        {
-            Packet1 *pkt = static_cast<Packet1 *>(response);
-            ijn_print(DP_INFO, "Response data is packetType1(%d), pkt->number(): %d", type, pkt->number());
-        }
-            break;
-        case PacketType::packetType2:
-        {
-            Packet2 *pkt = static_cast<Packet2 *>(response);
-            ijn_print(DP_INFO, "Response data is packetType2(%d), pkt->str().c_str(): %s", type, pkt->str().c_str());
-        }
-            break;
-        case PacketType::packetType3:
-        {
-            Packet3 *pkt = static_cast<Packet3 *>(response);
-            ijn_print(DP_INFO, "Response data is packetType3(%d), pkt->boolValue(): %s", type, pkt->boolvalue()?"true":"false");
-        }
-            break;
-        case PacketType::packetType4:
-        {
-            Packet4 *pkt = static_cast<Packet4 *>(response);
-            ijn_print(DP_INFO, "Response data is packetType4(%d), pkt->doubleValue(): %lf, pkt->floatValue(): %f", type, pkt->doublevalue(), pkt->floatvalue());
-        }
-            break;
-        case PacketType::arrayMessageType:
-        {
-            ArrayMessage *pkt = static_cast<ArrayMessage *>(response);
-            for(int i = 0 ; i < pkt->strarr_size() ; i++) {
-                ijn_print(DP_INFO, "%d) %s", i, pkt->strarr(i).c_str());
-            }
-        }
-            break;
-        case PacketType::imageResponse:
-        {
-            ijn_print(DP_DEBUG, "imageResponse called");
-            ImageResponse *pkt = static_cast<ImageResponse *>(response);
-            const char *imageBuffer = pkt->imagebuffer().c_str();
-            ImageHeader header = pkt->header();
-        }
-            break;
-        default:
-            break;
-    }
-}
-
-void attaching(int serverIndex) {
-    ijn_print(DP_INFO, "[%d] attaching", serverIndex);
-}
-
-void attachFailed(int serverIndex) {
-    ijn_print(DP_INFO, "[%d] attachFailed", serverIndex);
-}
-
-void attached(int serverIndex) {
-    ijn_print(DP_INFO, "[%d] attached", serverIndex);
-}
-
-void detached(int serverIndex) {
-    ijn_print(DP_INFO, "[%d] detached", serverIndex);
-}
-
-void detach(int serverIndex) {
-    ijn_print(DP_INFO, "[%d] detach", serverIndex);
-}
+void onAttaching(ijoon::Server *server);
+void attachFailed(ijoon::Server *server);
+void attached(ijoon::Server *server);
+void detached(ijoon::Server *server);
+void detach(ijoon::Server *server);
 
 int main(int argv, char** argc)
 {
     ijoon::initGlobalVariables();
-    IJN_REGISTER_MESSAGES(example, PacketType::packetType1, Packet1);
-    IJN_REGISTER_MESSAGES(example, PacketType::packetType2, Packet2);
-    IJN_REGISTER_MESSAGES(example, PacketType::packetType3, Packet3);
-    IJN_REGISTER_MESSAGES(example, PacketType::packetType4, Packet4);
-    IJN_REGISTER_MESSAGES(example, PacketType::arrayMessageType, ArrayMessage);
-    IJN_REGISTER_MESSAGES(example, PacketType::imageRequest, ImageRequest);
-    IJN_REGISTER_MESSAGES(example, PacketType::imageResponse, ImageResponse);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType1, Packet1, ijoon::Server, onPacket1);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType2, Packet2, ijoon::Server, onPacket2);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType3, Packet3, ijoon::Server, onPacket3);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType4, Packet4, ijoon::Server, onPacket4);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::arrayMessageType, ArrayMessage, ijoon::Server, onArrayMessage);
+    SCNET_MESSAGE_REGISTRATION(example, PacketType::imageRequest, ImageRequest);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::imageResponse, ImageResponse, ijoon::Server, onImageResponse);
     
-    ijoon::ClientManager manager;
-    manager.onCallback = callback;
-    manager.onAttaching = attaching;
-    manager.onAttachFailed = attachFailed;
-    manager.onAttached = attached;
-    manager.onDetached = detached;
-    manager.onDetach = detach;
-
-    const char* host_name="127.0.0.1";
-    int host_port= 9190;
-
-    int serverIndex = manager.Attach(host_name, host_port);
-    if(serverIndex < 0) {
-        ijn_print(DP_INFO, "can't connect to server");
-        return -1;
-    }
-
-    ijn_print(DP_INFO, "serverIndex : %d", serverIndex);
-
-    ijn_sleep(1);
+    ijoon::Server server("127.0.0.1", 9190, 1000);
+    server.onAttaching = onAttaching;
+    server.onAttachFailed = attachFailed;
+    server.onAttached = attached;
+    server.onDetached = detached;
+    server.onDetach = detach;
+    server.attach();
 
     int cnt = 300;
     while(cnt--) {
         ijn_msleep(33);
         Packet1 *packet1 = new Packet1();
         packet1->set_number(11);
-        manager.Control(serverIndex, packet1);
+        server.control(packet1);
 
         ijn_msleep(33);
         Packet2 *packet2 = new Packet2();
         packet2->set_str("this is sample string");
-        manager.Control(serverIndex, packet2);
+        server.control(packet2);
 
         ijn_msleep(33);
         Packet3 *packet3 = new Packet3();
         packet3->set_boolvalue(true);
-        manager.Control(serverIndex, packet3);
+        server.control(packet3);
 
         ijn_msleep(33);
         Packet4 *packet4 = new Packet4();
         packet4->set_doublevalue(5000.123);
         packet4->set_floatvalue(123.4f);
-        manager.Control(serverIndex, packet4);
+        server.control(packet4);
         
         ijn_msleep(33);
         ArrayMessage *arrayMessage = new ArrayMessage();
@@ -139,20 +69,71 @@ int main(int argv, char** argc)
         arrayMessage->add_strarr("is");
         arrayMessage->add_strarr("SCNet");
         arrayMessage->add_strarr("example");
-        manager.Control(serverIndex, arrayMessage);
+        server.control(arrayMessage);
         
         ijn_msleep(33);
         ImageRequest *imageRequest = new ImageRequest();
         imageRequest->set_name("hello.jpg");
-        manager.Control(serverIndex, imageRequest);
+        server.control(imageRequest);
     }
 
     ijn_sleep(1);
     ijn_print(DP_INFO, "Press Enter to detach");
     getchar();
 
-    manager.Detach(serverIndex);
+    server.detach();
     ijn_print(DP_INFO, "Press enter to quit");
     getchar();
     return 0;
+}
+
+void onPacket1(ijoon::Server *server, Packet1 *pkt1) {
+    ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
+}
+
+void onPacket2(ijoon::Server *server, Packet2 *pkt2) {
+    ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
+}
+
+void onPacket3(ijoon::Server *server, Packet3 *pkt3) {
+    ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
+}
+
+void onPacket4(ijoon::Server *server, Packet4 *pkt4) {
+    ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
+}
+
+void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage) {
+    ijn_print(DP_INFO, "[onArrayMessage()] received array size: %d, message: ", arrayMessage->strarr_size());
+    for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
+        printf("%s ", arrayMessage->strarr(i).c_str());
+    }
+    printf("\n");
+}
+
+void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse) {
+    const char *imageBuffer = imageResponse->imagebuffer().c_str();
+    ImageHeader header = imageResponse->header();
+    
+    ijn_print(DP_DEBUG, "[onImageResponse()] imageResponse received, name=%s, width=%d, height=%d, size=%d", header.name().c_str(), header.width(), header.height(), header.size());
+}
+
+void onAttaching(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] attaching", server->getIdentifier());
+}
+
+void attachFailed(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] attachFailed", server->getIdentifier());
+}
+
+void attached(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] attached", server->getIdentifier());
+}
+
+void detached(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] detached", server->getIdentifier());
+}
+
+void detach(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] detach", server->getIdentifier());
 }

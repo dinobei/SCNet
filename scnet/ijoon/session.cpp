@@ -1,12 +1,12 @@
-#include "base_session.h"
+#include "session.h"
 #include "registry.h"
 
-void ijoon::BaseSession::startThread(FuncPointer func, std::string name, void *param) {
+void ijoon::Session::startThread(FuncPointer func, std::string name, void *param) {
     this->thread = new ijoon::Thread(func, name);
     this->thread->start(param);
 }
 
-bool ijoon::BaseSession::send(google::protobuf::Message *message) {
+bool ijoon::Session::send(google::protobuf::Message *message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -34,7 +34,7 @@ bool ijoon::BaseSession::send(google::protobuf::Message *message) {
     return true;
 }
 
-bool ijoon::BaseSession::send(std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -62,15 +62,15 @@ bool ijoon::BaseSession::send(std::shared_ptr<google::protobuf::Message> message
     return true;
 }
 
-google::protobuf::Message *ijoon::BaseSession::recv() {
+bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
     char magicPacket[2] = {0,};
     // read magic packet
     if(!this->cs->safeRecv(magicPacket, 0, MAGIC_PACKET_LENGTH, 0)) {
-        return nullptr;
+        return false;
     }
 
     if(magicPacket[0] != MAGIC_PACKET[0] || magicPacket[1] != MAGIC_PACKET[1]) {
-        return nullptr;
+        return false;
     }
 
     char headerBuffer[MAX_PACKET_HEADER_SIZE] = {0,};
@@ -81,7 +81,7 @@ google::protobuf::Message *ijoon::BaseSession::recv() {
     
     while(true) {
         if(!this->cs->safeRecv(headerBuffer, readingHeaderSize++, 1, 0)) {
-            return nullptr;
+            return false;
         }
         
         if((headerBuffer[readingHeaderSize-1]&0xFF) > 127) {
@@ -93,16 +93,19 @@ google::protobuf::Message *ijoon::BaseSession::recv() {
         }
     }
     
-    ijoon::MessageHeader header = makeHeader(headerBuffer);
-    
-    google::protobuf::Message *response = BaseMessageRegistry->Create(header.packetType);
+    makeHeader(headerBuffer, messageHeader);
+    return true;
+}
+
+google::protobuf::Message *ijoon::Session::recvBody(ijoon::MessageHeader &messageHeader) {
+    google::protobuf::Message *response = BaseMessageRegistry->Create(messageHeader.packetType);
     if(response == nullptr) {
-        ijn_print(DP_INFO, "Unknown packet type(=%d)", header.packetType);
+        ijn_print(DP_INFO, "Unknown packet type(=%d)", messageHeader.packetType);
         return nullptr;
     }
     
     // read contents
-    const int responseSize = header.dataSize;
+    const int responseSize = messageHeader.dataSize;
     if(responseSize > 0) {
         char *responseBuffer = new char[responseSize];
         
@@ -112,20 +115,18 @@ google::protobuf::Message *ijoon::BaseSession::recv() {
             return nullptr;
         }
         
-        response->ParseFromArray(responseBuffer, header.dataSize);
+        response->ParseFromArray(responseBuffer, messageHeader.dataSize);
         delete []responseBuffer;
     }
     
     return response;
 }
 
-ijoon::MessageHeader ijoon::BaseSession::makeHeader(char *buf) {
-    MessageHeader header;
+void ijoon::Session::makeHeader(char *buf, MessageHeader &messageHeader) {
     google::protobuf::io::ArrayInputStream ais(buf, MAX_PACKET_HEADER_SIZE);
     google::protobuf::io::CodedInputStream coded_input(&ais);
-    coded_input.ReadVarint32(&header.dataSize); // Decode the HDR and get the size
-    coded_input.ReadVarint32(&header.packetType); // Decode the HDR and get the packet type
-    coded_input.ReadVarint32(&header.messageType); // Decode the message type
-    coded_input.ReadVarint32(&header.cryptType); // Decode the crypt
-    return header;
+    coded_input.ReadVarint32(&messageHeader.dataSize); // Decode the HDR and get the size
+    coded_input.ReadVarint32(&messageHeader.packetType); // Decode the HDR and get the packet type
+    coded_input.ReadVarint32(&messageHeader.messageType); // Decode the message type
+    coded_input.ReadVarint32(&messageHeader.cryptType); // Decode the crypt
 }

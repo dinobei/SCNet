@@ -1,286 +1,221 @@
 #include "client_manager.h"
+#include "utils.h"
+#include <map>
+#include <fstream>
+#include <sys/stat.h>
+#include <sys/select.h>
+
 #include "registry.h"
 
-ijoon::ClientManager::ClientManager()
-: onAttaching(nullptr), onAttachFailed(nullptr), onAttached(nullptr), onDetached(nullptr), onDetach(nullptr) {
+ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
+    ijoon::Thread *thread = (ijoon::Thread *)param;
+    ijoon::ClientManager *server = (ijoon::ClientManager *)thread->getParam();
+    ijn_print(DP_INFO, "server mode: %s\n", server->isMultiThreadBased()? "multithread based" : "multiplexing based");
+    server->onServerStarted();
+    
+    // change to user input
+    ijoon::JServerSocket servSocket(ijoon::IPv4);
+    servSocket.option(ijoon::SOCK_REUSE, 1);
+    if(!servSocket.initialize(server->getServerPort(), 10)) {
+        exit(-1);
+    }
+
+    if(server->isMultiThreadBased()) {
+        while(!thread->isInterrupted()) {
+            auto client = servSocket.accept();
+            
+            auto sess = new ijoon::Session(client);
+            server->addClient(client, sess);
+            server->onClientConnected(sess);
+        }
+    }
+    else {
+        fd_set reads, cpy_reads;
+        struct timeval timeout;
+        int fd_max, fd_num;
+        FD_ZERO(&reads);
+        FD_SET(servSocket.getSocketIdentifier(), &reads);
+        
+        fd_max = servSocket.getSocketIdentifier();
+        while(!thread->isInterrupted()) {
+            cpy_reads = reads;
+            timeout.tv_sec = server->getRecvTimeoutMs() / 1000;
+            timeout.tv_usec = (server->getRecvTimeoutMs() % 1000) * 1000;
+            if( (fd_num = select(fd_max + 1, &cpy_reads, 0, 0, &timeout)) == -1)
+                break;
+            if(fd_num == 0)
+            {
+                server->onClientServiceTimeout(nullptr);
+                continue;
+            }
+            
+            for(int i = 0 ; i < fd_max+1 ; i++)
+            {
+                if(FD_ISSET(i, &cpy_reads))
+                {
+                    if(i == servSocket.getSocketIdentifier())
+                    {
+                        auto client = servSocket.accept();
+                        
+                        auto sess = new ijoon::Session(client);
+                        server->addClient(client, sess);
+                        server->onClientConnected(sess);
+                        
+                        ijoon::NativeSocket clientSocketId = client->getSocketIdentifier();
+                        FD_SET(clientSocketId, &reads);
+                        if(fd_max < clientSocketId)
+                            fd_max = clientSocketId;
+                        
+                        server->onClientServiceStarted(sess);
+                    }
+                    else
+                    {
+                        auto sess = server->session(i);
+                        ijoon::MessageHeader messageHeader;
+                        if(!sess->recvHeader(messageHeader)) {
+                            FD_CLR(i, &reads);
+                            
+                            server->onClientServiceDisconnected(sess);
+                            server->removeClient(i);
+                            continue;
+                        }
+                        
+                        google::protobuf::Message *message = sess->recvBody(messageHeader);
+                        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
+                        delete message;
+                    }
+                }
+            }
+        }
+
+    }
+    
+    server->onServerStopped();
+    
+#ifdef _WIN32
+    return 0;
+#else
+    return nullptr;
+#endif
+}
+
+ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
+    ijoon::Thread *thread = (ijoon::Thread *)param;
+    ijoon::ClientManager *server = (ijoon::ClientManager *)thread->getParam();
+    ijoon::NativeSocket nativeSocket = atoi(thread->getName().c_str());
+    auto sess = server->session(nativeSocket);
+    
+    server->onClientServiceStarted(sess);
+    
+    while(1) {
+        int fd_num = sess->event(server->getRecvTimeoutMs());
+        if(fd_num < 0) {
+            server->onClientServiceDisconnected(sess);
+            break;
+        }
+        if(fd_num == 0) {
+            server->onClientServiceTimeout(sess);
+            continue;
+        }
+        
+        ijoon::MessageHeader messageHeader;
+        if(sess->recvHeader(messageHeader)) {
+            server->onClientServiceDisconnected(sess);
+            break;
+        }
+        
+        google::protobuf::Message *message = sess->recvBody(messageHeader);
+        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
+        delete message;
+    }
+    
+    server->removeClient(nativeSocket);
+    
+    server->onClientServiceStopped(sess);
+    
+#ifdef _WIN32
+    return 0;
+#else
+    return nullptr;
+#endif
+    
+}
+
+ijoon::ClientManager::ClientManager(int port, int recvTimeoutMs, bool useMultiThread) {
+    initRandomString();
+    this->port = port;
+    this->recvTimeoutMs = recvTimeoutMs;
+    this->thread = nullptr;
+    this->useMultiThread = useMultiThread;
 }
 
 ijoon::ClientManager::~ClientManager() {
 }
 
-int ijoon::ClientManager::Attach(std::string ip, int port)
-{
-    for(int i = 0 ; i < MAX_CONNECTION ; i++)
-    {
-        if(clientMap.count(i) == 0)
-        {
-            ClientSession *sess = new ClientSession(i, ip, port, this);
-            clientMap[i] = sess;
-            return i;
-        }
-    }
-
-    return -1;
+int ijoon::ClientManager::getServerPort() {
+    return this->port;
 }
 
-bool ijoon::ClientManager::Detach(int serverIndex)
-{
-    if(clientMap.count(serverIndex) == 0)
-    {
+int ijoon::ClientManager::getRecvTimeoutMs() {
+    return this->recvTimeoutMs;
+}
+
+bool ijoon::ClientManager::start() {
+    if(this->thread != nullptr) {
         return false;
     }
-
-    ClientSession *sess = clientMap[serverIndex];
-
-    clientMap.erase(sess->getServerIndex()); // The calling sequence must be followed. (erase() before delete())
-    delete sess;
-
-    return true;
-}
-
-bool ijoon::ClientManager::Control(int serverIndex, google::protobuf::Message *request)
-{
-    if(clientMap.count(serverIndex) == 0)
-    {
-        return false;
-    }
-
-    ClientSession *sess = clientMap[serverIndex];
-
-    sess->eventQueue->put(request);
-    return true;
-}
-
-inline ijoon::MessageHeader makeHeader(char *buf)
-{
-    ijoon::MessageHeader header;
-    google::protobuf::io::ArrayInputStream ais(buf, MAX_PACKET_HEADER_SIZE);
-    google::protobuf::io::CodedInputStream coded_input(&ais);
-    coded_input.ReadVarint32(&header.dataSize); // Decode the HDR and get the size
-    coded_input.ReadVarint32(&header.packetType); // Decode the HDR and get the packet type
-    coded_input.ReadVarint32(&header.messageType); // Decode the message type
-    coded_input.ReadVarint32(&header.cryptType); // Decode the Crypt
     
-    return header;
+    this->thread = new ijoon::Thread(ServerMainThread, "Main Thread");
+    thread->start(this);
+    return true;
 }
 
-void *ijoon::clientThread(void *arg)
-{
-    ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::ClientSession *sess = (ijoon::ClientSession *)thread->getParam();
-    ijoon::ClientManager *manager = sess->manager;
+bool ijoon::ClientManager::stop() {
+    if(this->thread != nullptr) {
+        this->thread->interrupt();
+        this->thread = nullptr;
+        return true;
+    }
+    return false;
+}
 
-    sess->clntSock = new ijoon::JClientSocket(ijoon::tcp);
-    while(!sess->mainThread->isInterrupted())
-    {
-        // CALLBACK::ATTACHING
-        if(manager->onAttaching != nullptr) {
-            manager->onAttaching(sess->getServerIndex());
-        }
-
-        char portStr[20];
-        sprintf(portStr, "%d", sess->getServerPort());
-
-        bool connected = sess->clntSock->connect(sess->getServerIp().c_str(), portStr, 3000);
-
-        if(!connected)
-        {
-            if(errno != EINPROGRESS)
-            {
-                // CALLBACK::ATTACH_FAILED
-                if(manager->onAttachFailed != nullptr) {
-                    manager->onAttachFailed(sess->getServerIndex());
-                }
-
-                sess->eventQueue->clear();
-                continue;
+bool ijoon::ClientManager::addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess) {
+    int retryCnt = 10;
+    do {
+        if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
+            clientMap[clientSocket->getSocketIdentifier()] = sess;
+            
+            if(isMultiThreadBased()) {
+                sess->startThread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()), this);
             }
+            
+            return true;
         }
+    } while(--retryCnt);
 
-        sess->sendThread = new ijoon::Thread(ijoon::sendRequestThread, "sendThread");
-        sess->sendThread->start((void *)sess);
-        sess->recvThread = new ijoon::Thread(ijoon::recvResponseThread, "recvThread");
-        sess->recvThread->start((void *)sess);
-
-        // CALLBACK::ATTACHED
-        if(manager->onAttached != nullptr) {
-            manager->onAttached(sess->getServerIndex());
-        }
-
-        if(sess->recvThread != nullptr) {
-            sess->recvThread->join();
-        }
-        if(sess->sendThread != nullptr) {
-            sess->sendThread->join();
-        }
-
-        // CALLBACK::DETACHED
-        if(manager->onDetached != nullptr) {
-            manager->onDetached(sess->getServerIndex());
-        }
-        
-        sess->eventQueue->clear(); // User may think that his request is ignored when received DISCONNECTED callback.
-    }
-
-    // CALLBACK::DETACH
-    if(manager->onDetach != nullptr) {
-        manager->onDetach(sess->getServerIndex());
-    }
-    
-    return NULL;
+    return false;
 }
 
-void *ijoon::recvResponseThread(void *arg)
-{
-    ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::ClientSession *session = (ijoon::ClientSession *)thread->getParam();
-
-    while(!thread->isInterrupted())
-    {
-        int fd_num = session->clntSock->event(5000);
-
-        if(fd_num == -1)
-        {
-            break; // select error
-        }
-
-        if(fd_num == 0)
-        {
-            ijn_print(DP_INFO, "Response timeout");
-            continue;
-        }
-
-        google::protobuf::Message *response = session->recvResponse();
-        if(!response) {
-            break;
-        }
-        session->manager->onCallback(session->getServerIndex(), response);
-    }
-
-    session->recvThread = nullptr;
-    
-    if(session->sendThread != nullptr) {
-        session->sendThread->interrupt();
-        session->eventQueue->interrupt();
-    }
-    
-    session->clntSock->close(ijoon::read);
-    
-    ijn_print(DP_INFO, "recvResponseThread Finished.");
-
-    return NULL;
+bool ijoon::ClientManager::removeClient(std::shared_ptr<JClientSocket> clientSocket) {
+    return removeClient(clientSocket->getSocketIdentifier());
 }
 
-void *ijoon::sendRequestThread(void *arg)
-{
-    ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::ClientSession *session = (ijoon::ClientSession *)thread->getParam();
-
-    while(!thread->isInterrupted())
-    {
-        google::protobuf::Message *request= (google::protobuf::Message *)session->eventQueue->get(50*1000);
-        if(request == NULL)
-        {
-            continue; // timeout
-        }
-
-        if(!session->sendRequest(request))
-        {
-            ijn_print(DP_DEBUG, "send failed");
-            break;
-        }
-    }
-
-    session->sendThread = nullptr;
-    
-    if(session->recvThread != nullptr) {
-        session->recvThread->interrupt();
-    }
-    
-    session->clntSock->close(ijoon::write);
-    
-    ijn_print(DP_INFO, "sendRequestThread Finished.");
-
-    return NULL;
-}
-
-bool ijoon::ClientSession::sendRequest(google::protobuf::Message *message)
-{
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE+ message->ByteSize();
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(message->ByteSize());
-    coded_output.WriteVarint32(BaseMessageRegistry->GetType(message->GetTypeName()));
-    coded_output.WriteVarint32(0); // message type
-    coded_output.WriteVarint32(0);
-    
-    message->SerializeToCodedStream(&coded_output);
-    
-    if(!this->clntSock->safeSend(buf, 0, coded_output.ByteCount(), 0)) {
-        delete[] buf;
+bool ijoon::ClientManager::removeClient(NativeSocket nativeSocket) {
+    if(this->clientMap.count(nativeSocket) == 0)
         return false;
-    }
     
-    delete []buf;
+    ijoon::Session *sess = this->clientMap[nativeSocket];
+    delete sess;
+    
+    this->clientMap.erase(nativeSocket);
     return true;
 }
 
-google::protobuf::Message *ijoon::ClientSession::recvResponse()
-{
-    char magicPacket[2] = {0,};
-    // read magic packet
-    if(!this->clntSock->safeRecv(magicPacket, 0, MAGIC_PACKET_LENGTH, 0)) {
-        return nullptr;
-    }
-    
-    if(magicPacket[0] != MAGIC_PACKET[0] || magicPacket[1] != MAGIC_PACKET[1]) {
-        return nullptr;
-    }
-    
-    char headerBuffer[MAX_PACKET_HEADER_SIZE] = {0,};
-    
-    // read header
-    int readingHeaderSize = 0;
-    int receivedHeaderComponent = 0;
-    
-    while(true) {
-        if(!this->clntSock->safeRecv(headerBuffer, readingHeaderSize++, 1, 0)) {
-            return nullptr;
-        }
-        
-        if((headerBuffer[readingHeaderSize-1]&0xFF) > 127) {
-            continue;
-        }
-        
-        if(++receivedHeaderComponent == HEADER_ELEMENTS) {
-            break;
-        }
-    }
+int ijoon::ClientManager::clientSize() {
+    return this->clientMap.size();
+}
 
-    ijoon::MessageHeader header = makeHeader(headerBuffer);
-    
-    google::protobuf::Message *response = BaseMessageRegistry->Create(header.packetType);
-    if(response == nullptr) {
-        ijn_print(DP_INFO, "Unknown packet type(=%d)", header.packetType);
-        return nullptr;
-    }
-    
-    // read contents
-    const int responseSize = header.dataSize;
-    if(responseSize > 0) {
-        char *responseBuffer = new char[responseSize];
-        
-        // Read the entire buffer including the header
-        if(!this->clntSock->safeRecv(responseBuffer, 0, responseSize, 0)) {
-            delete []responseBuffer;
-            return nullptr;
-        }
-        
-        response->ParseFromArray(responseBuffer, header.dataSize);
-        delete []responseBuffer;
-    }
-    
-    return response;
+ijoon::Session* ijoon::ClientManager::session(NativeSocket nativeSocket) {
+    assert(this->clientMap.count(nativeSocket) != 0);
+    return this->clientMap[nativeSocket];
 }
