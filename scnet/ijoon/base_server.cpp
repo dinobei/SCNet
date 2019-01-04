@@ -24,8 +24,9 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         while(!thread->isInterrupted()) {
             auto client = servSocket.accept();
             
-            auto sess = server->getSession(client);
+            auto sess = new ijoon::BaseSession(client);
             server->addClient(client, sess);
+            server->onClientConnected(sess);
         }
     }
     else {
@@ -56,8 +57,9 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     {
                         auto client = servSocket.accept();
                         
-                        auto sess = server->getSession(client);
+                        auto sess = new ijoon::BaseSession(client);
                         server->addClient(client, sess);
+                        server->onClientConnected(sess);
                         
                         ijoon::NativeSocket clientSocketId = client->getSocketIdentifier();
                         FD_SET(clientSocketId, &reads);
@@ -73,8 +75,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                         if(!sess->recvHeader(messageHeader)) {
                             FD_CLR(i, &reads);
                             
-                            server->removeClient(i);
                             server->onClientServiceDisconnected(sess);
+                            server->removeClient(i);
                             continue;
                         }
                         

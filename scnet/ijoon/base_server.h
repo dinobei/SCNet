@@ -29,15 +29,15 @@ namespace ijoon {
         bool isMultiThreadBased() { return this->useMultiThread; }
         
         // Server lifecycle
-        virtual void onServerStarted() {};
-        virtual void onServerStopped() {};
-        virtual BaseSession *getSession(std::shared_ptr<ijoon::JClientSocket> clntSocket) = 0;
+        std::function<void()> onServerStarted;
+        std::function<void()> onServerStopped;
         
         // Client lifecycle
-        virtual void onClientServiceStarted(BaseSession *session) {};
-        virtual void onClientServiceTimeout(BaseSession *session) {};
-        virtual void onClientServiceDisconnected(BaseSession *session) {};
-        virtual void onClientServiceStopped(BaseSession *session) {};
+        std::function<void(BaseSession *)> onClientConnected;
+        std::function<void(BaseSession *)> onClientServiceStarted;
+        std::function<void(BaseSession *)> onClientServiceTimeout;
+        std::function<void(BaseSession *)> onClientServiceDisconnected;
+        std::function<void(BaseSession *)> onClientServiceStopped;
 
     private:
         std::map<NativeSocket, BaseSession *> clientMap;
