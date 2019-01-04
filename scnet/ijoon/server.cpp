@@ -1,4 +1,4 @@
-#include "base_server.h"
+#include "server.h"
 #include "utils.h"
 #include <map>
 #include <fstream>
@@ -9,7 +9,7 @@
 
 ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
-    ijoon::BaseServer *server = (ijoon::BaseServer *)thread->getParam();
+    ijoon::Server *server = (ijoon::Server *)thread->getParam();
     ijn_print(DP_INFO, "server mode: %s\n", server->isMultiThreadBased()? "multithread based" : "multiplexing based");
     server->onServerStarted();
     
@@ -101,7 +101,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
 
 ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
-    ijoon::BaseServer *server = (ijoon::BaseServer *)thread->getParam();
+    ijoon::Server *server = (ijoon::Server *)thread->getParam();
     ijoon::NativeSocket nativeSocket = atoi(thread->getName().c_str());
     auto sess = server->session(nativeSocket);
     
@@ -141,7 +141,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     
 }
 
-ijoon::BaseServer::BaseServer(int port, int recvTimeoutMs, bool useMultiThread) {
+ijoon::Server::Server(int port, int recvTimeoutMs, bool useMultiThread) {
     initRandomString();
     this->port = port;
     this->recvTimeoutMs = recvTimeoutMs;
@@ -149,18 +149,18 @@ ijoon::BaseServer::BaseServer(int port, int recvTimeoutMs, bool useMultiThread) 
     this->useMultiThread = useMultiThread;
 }
 
-ijoon::BaseServer::~BaseServer() {
+ijoon::Server::~Server() {
 }
 
-int ijoon::BaseServer::getServerPort() {
+int ijoon::Server::getServerPort() {
     return this->port;
 }
 
-int ijoon::BaseServer::getRecvTimeoutMs() {
+int ijoon::Server::getRecvTimeoutMs() {
     return this->recvTimeoutMs;
 }
 
-bool ijoon::BaseServer::start() {
+bool ijoon::Server::start() {
     if(this->thread != nullptr) {
         return false;
     }
@@ -170,7 +170,7 @@ bool ijoon::BaseServer::start() {
     return true;
 }
 
-bool ijoon::BaseServer::stop() {
+bool ijoon::Server::stop() {
     if(this->thread != nullptr) {
         this->thread->interrupt();
         this->thread = nullptr;
@@ -179,7 +179,7 @@ bool ijoon::BaseServer::stop() {
     return false;
 }
 
-bool ijoon::BaseServer::addClient(std::shared_ptr<JClientSocket> clientSocket, BaseSession *sess) {
+bool ijoon::Server::addClient(std::shared_ptr<JClientSocket> clientSocket, BaseSession *sess) {
     int retryCnt = 10;
     do {
         if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
@@ -196,11 +196,11 @@ bool ijoon::BaseServer::addClient(std::shared_ptr<JClientSocket> clientSocket, B
     return false;
 }
 
-bool ijoon::BaseServer::removeClient(std::shared_ptr<JClientSocket> clientSocket) {
+bool ijoon::Server::removeClient(std::shared_ptr<JClientSocket> clientSocket) {
     return removeClient(clientSocket->getSocketIdentifier());
 }
 
-bool ijoon::BaseServer::removeClient(NativeSocket nativeSocket) {
+bool ijoon::Server::removeClient(NativeSocket nativeSocket) {
     if(this->clientMap.count(nativeSocket) == 0)
         return false;
     
@@ -211,11 +211,11 @@ bool ijoon::BaseServer::removeClient(NativeSocket nativeSocket) {
     return true;
 }
 
-int ijoon::BaseServer::clientSize() {
+int ijoon::Server::clientSize() {
     return this->clientMap.size();
 }
 
-ijoon::BaseSession* ijoon::BaseServer::session(NativeSocket nativeSocket) {
+ijoon::BaseSession* ijoon::Server::session(NativeSocket nativeSocket) {
     assert(this->clientMap.count(nativeSocket) != 0);
     return this->clientMap[nativeSocket];
 }

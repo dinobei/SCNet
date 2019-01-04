@@ -1,4 +1,4 @@
-#include "base_server.h"
+#include "server.h"
 #include <sys/stat.h>
 #include "registry.h"
 
@@ -115,7 +115,7 @@ int main(int argv, char** argc) {
     SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::imageRequest, ImageRequest, ijoon::BaseSession, onImageRequest);
     SCNET_MESSAGE_REGISTRATION(example, example::PacketType::imageResponse, ImageResponse);
 
-    ijoon::BaseServer server(9190, 30 * 1000, false);
+    ijoon::Server server(9190, 30 * 1000, false);
     server.onServerStarted = onServerStarted;
     server.onServerStopped = onServerStopped;
     server.onClientConnected = onClientConnected;
