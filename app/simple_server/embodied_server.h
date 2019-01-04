@@ -20,7 +20,6 @@ namespace ijoon {
         virtual void onServerStarted();
         virtual void onServerStopped();
         
-        virtual void onClientServiceCallback(BaseSession *session, google::protobuf::Message *message);
         virtual void onClientServiceStarted(BaseSession *session);
         virtual void onClientServiceTimeout(BaseSession *session);
         virtual void onClientServiceDisconnected(BaseSession *session);

@@ -38,8 +38,6 @@ namespace ijoon {
         virtual void onClientServiceTimeout(BaseSession *session) {};
         virtual void onClientServiceDisconnected(BaseSession *session) {};
         virtual void onClientServiceStopped(BaseSession *session) {};
-        virtual void onClientServiceCallback(BaseSession *session, google::protobuf::Message *message) = 0;
-        
 
     private:
         std::map<NativeSocket, BaseSession *> clientMap;
