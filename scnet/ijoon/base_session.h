@@ -5,7 +5,8 @@
 namespace ijoon {
     class BaseSession {
     public:
-        BaseSession(std::shared_ptr<ijoon::JClientSocket> cs) {this->cs = cs;}
+        BaseSession() : cs(std::shared_ptr<ijoon::JClientSocket>(new ijoon::JClientSocket(ijoon::tcp))) {}
+        BaseSession(std::shared_ptr<ijoon::JClientSocket> cs): cs(cs) {}
         ~BaseSession() {this->cs->close();};
         bool send(google::protobuf::Message *message);
         bool send(std::shared_ptr<google::protobuf::Message> message);
