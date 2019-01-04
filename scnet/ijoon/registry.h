@@ -1,5 +1,6 @@
 #ifndef __REGISTRY_H__
 #define __REGISTRY_H__
+#include "base_session.h"
 #include <functional>
 #include <string>
 #include <google/protobuf/message.h>
@@ -7,6 +8,32 @@
 namespace ijoon {
     void initGlobalVariables();
 }
+
+class AbstractCallbackWrapper {
+public:
+    virtual void callback(ijoon::BaseSession *session, google::protobuf::Message *message) {}
+};
+
+template <class T>
+class CallbackWrapper : public AbstractCallbackWrapper{
+public:
+    CallbackWrapper(std::function<void(ijoon::BaseSession *, T *)> _callbackFunc) {
+        callbackFunc = _callbackFunc;
+    }
+    ~CallbackWrapper() {}
+    
+    void callback(ijoon::BaseSession *session, google::protobuf::Message *message) override {
+        if(message == nullptr) {
+            callbackFunc(session, nullptr);
+            return;
+        }
+        
+        callbackFunc(session, static_cast<T *>(message));
+    }
+    
+public:
+    std::function<void(ijoon::BaseSession *, T *)> callbackFunc;
+};
 
 template <class SrcType, class ObjectPtrType, class... Args>
 class Registry
@@ -34,8 +61,18 @@ public:
         registry_getter[key] = type;
     }
     
+    void Register(const SrcType& key, AbstractCallbackWrapper *callbackWrapper)
+    {
+        if (HasCallbackWrapper(key)) {
+            printf("key already registered.\n");
+            std::exit(1);
+        }
+        registry_callback_wrapper[key] = callbackWrapper;
+    }
+    
     inline bool HasCreator(const SrcType& key) { return (registry_creater.count(key) != 0); }
     inline bool HasGetter(const std::string key) { return (registry_getter.count(key) != 0); }
+    inline bool HasCallbackWrapper(const SrcType& key) { return (registry_callback_wrapper.count(key) != 0); }
 
     ObjectPtrType Create(const SrcType& key, Args... args)
     {
@@ -56,10 +93,21 @@ public:
 
         return registry_getter[key];
     }
+    
+    AbstractCallbackWrapper *GetCallbackWrapper(const SrcType& key, Args... args)
+    {
+        if (!HasCallbackWrapper(key))
+        {
+            // Returns nullptr if the key is not registered.
+            return nullptr;
+        }
+        return registry_callback_wrapper[key];
+    }
 
 private:
     std::map<SrcType, Creator> registry_creater;
     std::map<std::string, google::protobuf::uint32> registry_getter;
+    std::map<SrcType, AbstractCallbackWrapper *> registry_callback_wrapper;
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>
@@ -81,6 +129,14 @@ public:
         registry->Register(key, type);
     }
     
+    Registerer(
+               Registry<SrcType, ObjectPtrType, Args...>* registry,
+               const SrcType key,
+               AbstractCallbackWrapper *callbackWrapper
+               ) {
+        registry->Register(key, callbackWrapper);
+    }
+    
     template <class DerivedType>
     static ObjectPtrType DefaultCreator(Args... args) {
         return ObjectPtrType(new DerivedType(args...));
@@ -89,18 +145,32 @@ public:
 
 extern Registry<int, google::protobuf::Message* >* BaseMessageRegistry;
 
-#define ANONYMOUS_VARIABLE_NAME(message) message##__LINE__##1
-#define ANONYMOUS_TYPE_NAME(message) message##__LINE__##2
+#define ANONYMOUS_VARIABLE_NAME1(message) message##__LINE__##1
+#define ANONYMOUS_VARIABLE_NAME2(message) message##__LINE__##2
+#define ANONYMOUS_VARIABLE_NAME3(message) message##__LINE__##3
 
-#define IJN_REGISTER_MESSAGES(ns, typeInt, message) \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME(message)( \
+#define SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(ns, typeInt, message, callbackFunc) \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(message)( \
                      BaseMessageRegistry, \
                      typeInt, \
                      Registerer<int, google::protobuf::Message* >::DefaultCreator<message>); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_TYPE_NAME(message)( \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(message)( \
                      BaseMessageRegistry, \
                      #ns "." #message, \
-                     typeInt)
+                     typeInt); \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME3(message)( \
+                    BaseMessageRegistry, \
+                    typeInt, \
+                    new CallbackWrapper<message>(callbackFunc))
 
+#define SCNET_MESSAGE_REGISTRATION(ns, typeInt, message) \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(message)( \
+                    BaseMessageRegistry, \
+                    typeInt, \
+                    Registerer<int, google::protobuf::Message* >::DefaultCreator<message>); \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(message)( \
+                    BaseMessageRegistry, \
+                    #ns "." #message, \
+                    typeInt)
 
 #endif
