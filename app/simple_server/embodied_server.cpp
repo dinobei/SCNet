@@ -124,7 +124,8 @@ ijoon::BaseSession *ijoon::EmbodiedServer::getSession(std::shared_ptr<ijoon::JCl
     // Derived class of BaseSession is available what you want.
     // Get identifier from database for example.
     int clientId = 777;
-    
+    clntSocket->option(SOCK_RCVTIMEO_MS, 500);
+    clntSocket->option(SOCK_SNDTIMEO_MS, 500);
     return new ijoon::EmbodiedSession(clntSocket, clientId);
 }
 
