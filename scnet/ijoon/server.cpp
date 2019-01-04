@@ -24,7 +24,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         while(!thread->isInterrupted()) {
             auto client = servSocket.accept();
             
-            auto sess = new ijoon::BaseSession(client);
+            auto sess = new ijoon::Session(client);
             server->addClient(client, sess);
             server->onClientConnected(sess);
         }
@@ -57,7 +57,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     {
                         auto client = servSocket.accept();
                         
-                        auto sess = new ijoon::BaseSession(client);
+                        auto sess = new ijoon::Session(client);
                         server->addClient(client, sess);
                         server->onClientConnected(sess);
                         
@@ -179,7 +179,7 @@ bool ijoon::Server::stop() {
     return false;
 }
 
-bool ijoon::Server::addClient(std::shared_ptr<JClientSocket> clientSocket, BaseSession *sess) {
+bool ijoon::Server::addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess) {
     int retryCnt = 10;
     do {
         if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
@@ -204,7 +204,7 @@ bool ijoon::Server::removeClient(NativeSocket nativeSocket) {
     if(this->clientMap.count(nativeSocket) == 0)
         return false;
     
-    ijoon::BaseSession *sess = this->clientMap[nativeSocket];
+    ijoon::Session *sess = this->clientMap[nativeSocket];
     delete sess;
     
     this->clientMap.erase(nativeSocket);
@@ -215,7 +215,7 @@ int ijoon::Server::clientSize() {
     return this->clientMap.size();
 }
 
-ijoon::BaseSession* ijoon::Server::session(NativeSocket nativeSocket) {
+ijoon::Session* ijoon::Server::session(NativeSocket nativeSocket) {
     assert(this->clientMap.count(nativeSocket) != 0);
     return this->clientMap[nativeSocket];
 }

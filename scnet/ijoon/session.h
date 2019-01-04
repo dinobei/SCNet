@@ -3,11 +3,11 @@
 #include "message_header.h"
 
 namespace ijoon {
-    class BaseSession {
+    class Session {
     public:
-        BaseSession() : cs(std::shared_ptr<ijoon::JClientSocket>(new ijoon::JClientSocket(ijoon::tcp))) {}
-        BaseSession(std::shared_ptr<ijoon::JClientSocket> cs): cs(cs) {}
-        ~BaseSession() {this->cs->close();};
+        Session() : cs(std::shared_ptr<ijoon::JClientSocket>(new ijoon::JClientSocket(ijoon::tcp))) {}
+        Session(std::shared_ptr<ijoon::JClientSocket> cs): cs(cs) {}
+        ~Session() {this->cs->close();};
         bool send(google::protobuf::Message *message);
         bool send(std::shared_ptr<google::protobuf::Message> message);
         bool recvHeader(MessageHeader &messageHeader);

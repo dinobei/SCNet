@@ -1,6 +1,6 @@
 #ifndef __REGISTRY_H__
 #define __REGISTRY_H__
-#include "base_session.h"
+#include "session.h"
 #include <functional>
 #include <string>
 #include <google/protobuf/message.h>
@@ -11,7 +11,7 @@ namespace ijoon {
 
 class AbstractCallbackWrapper {
 public:
-    virtual void callback(ijoon::BaseSession *session, google::protobuf::Message *message) {}
+    virtual void callback(ijoon::Session *session, google::protobuf::Message *message) {}
 };
 
 template <class S, class T>
@@ -22,7 +22,7 @@ public:
     }
     ~CallbackWrapper() {}
     
-    void callback(ijoon::BaseSession *session, google::protobuf::Message *message) override {
+    void callback(ijoon::Session *session, google::protobuf::Message *message) override {
         if(message == nullptr) {
             callbackFunc(static_cast<S *>(session), nullptr);
             return;

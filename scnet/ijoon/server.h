@@ -5,7 +5,7 @@
 #include <assert.h>
 
 /* custom headers */
-#include "base_session.h"
+#include "session.h"
 
 namespace ijoon {
     class Server {
@@ -17,9 +17,9 @@ namespace ijoon {
         bool stop();
         
         int clientSize();
-        BaseSession* session(NativeSocket nativeSocket);
+        Session* session(NativeSocket nativeSocket);
         
-        bool addClient(std::shared_ptr<JClientSocket> clientSocket, BaseSession *sess);
+        bool addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess);
         bool removeClient(std::shared_ptr<JClientSocket> clientSocket);
         bool removeClient(NativeSocket nativeSocket);
         
@@ -33,14 +33,14 @@ namespace ijoon {
         std::function<void()> onServerStopped;
         
         // Client lifecycle
-        std::function<void(BaseSession *)> onClientConnected;
-        std::function<void(BaseSession *)> onClientServiceStarted;
-        std::function<void(BaseSession *)> onClientServiceTimeout;
-        std::function<void(BaseSession *)> onClientServiceDisconnected;
-        std::function<void(BaseSession *)> onClientServiceStopped;
+        std::function<void(Session *)> onClientConnected;
+        std::function<void(Session *)> onClientServiceStarted;
+        std::function<void(Session *)> onClientServiceTimeout;
+        std::function<void(Session *)> onClientServiceDisconnected;
+        std::function<void(Session *)> onClientServiceStopped;
 
     private:
-        std::map<NativeSocket, BaseSession *> clientMap;
+        std::map<NativeSocket, Session *> clientMap;
         Thread *thread;
         int port;
         int recvTimeoutMs;

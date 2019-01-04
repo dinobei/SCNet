@@ -1,12 +1,12 @@
-#include "base_session.h"
+#include "session.h"
 #include "registry.h"
 
-void ijoon::BaseSession::startThread(FuncPointer func, std::string name, void *param) {
+void ijoon::Session::startThread(FuncPointer func, std::string name, void *param) {
     this->thread = new ijoon::Thread(func, name);
     this->thread->start(param);
 }
 
-bool ijoon::BaseSession::send(google::protobuf::Message *message) {
+bool ijoon::Session::send(google::protobuf::Message *message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -34,7 +34,7 @@ bool ijoon::BaseSession::send(google::protobuf::Message *message) {
     return true;
 }
 
-bool ijoon::BaseSession::send(std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -62,7 +62,7 @@ bool ijoon::BaseSession::send(std::shared_ptr<google::protobuf::Message> message
     return true;
 }
 
-bool ijoon::BaseSession::recvHeader(ijoon::MessageHeader &messageHeader) {
+bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
     char magicPacket[2] = {0,};
     // read magic packet
     if(!this->cs->safeRecv(magicPacket, 0, MAGIC_PACKET_LENGTH, 0)) {
@@ -97,7 +97,7 @@ bool ijoon::BaseSession::recvHeader(ijoon::MessageHeader &messageHeader) {
     return true;
 }
 
-google::protobuf::Message *ijoon::BaseSession::recvBody(ijoon::MessageHeader &messageHeader) {
+google::protobuf::Message *ijoon::Session::recvBody(ijoon::MessageHeader &messageHeader) {
     google::protobuf::Message *response = BaseMessageRegistry->Create(messageHeader.packetType);
     if(response == nullptr) {
         ijn_print(DP_INFO, "Unknown packet type(=%d)", messageHeader.packetType);
@@ -122,7 +122,7 @@ google::protobuf::Message *ijoon::BaseSession::recvBody(ijoon::MessageHeader &me
     return response;
 }
 
-void ijoon::BaseSession::makeHeader(char *buf, MessageHeader &messageHeader) {
+void ijoon::Session::makeHeader(char *buf, MessageHeader &messageHeader) {
     google::protobuf::io::ArrayInputStream ais(buf, MAX_PACKET_HEADER_SIZE);
     google::protobuf::io::CodedInputStream coded_input(&ais);
     coded_input.ReadVarint32(&messageHeader.dataSize); // Decode the HDR and get the size

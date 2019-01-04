@@ -4,17 +4,17 @@
 #include <assert.h>
 
 /* custom headers */
-#include "base_session.h"
+#include "session.h"
 
 namespace ijoon {
     void *clientMainThread(void *arg);
     void *sendThread(void *arg);
     void *recvThread(void *arg);
     
-    class Client: public BaseSession {
+    class Client: public Session {
     public:
-        Client(std::string ip, int port, int timeoutMillis): BaseSession(), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        Client(int identifier, std::string ip, int port, int timeoutMillis): BaseSession(), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        Client(std::string ip, int port, int timeoutMillis): Session(), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        Client(int identifier, std::string ip, int port, int timeoutMillis): Session(), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
         ~Client() {}
         
         // Server control method
