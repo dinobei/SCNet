@@ -8,10 +8,10 @@
 #include "session.h"
 
 namespace ijoon {
-    class Server {
+    class ClientManager {
     public:
-        Server(int port, int recvTimeoutMs, bool useMultiThread);
-        ~Server();
+        ClientManager(int port, int recvTimeoutMs, bool useMultiThread);
+        ~ClientManager();
         
         bool start();
         bool stop();
