@@ -1,27 +1,71 @@
-#include "embodied_server.h"
+#include "base_server.h"
 #include <sys/stat.h>
+#include "registry.h"
 
-void onPacket1(ijoon::EmbodiedSession *session, Packet1 *pkt1) {
+/* implemented proto messages */
+#include "packet.pb.h"
+#include "packet_type.pb.h"
+#include "get_image.pb.h"
+using namespace example;
+
+
+void onServerStarted() {
+    ijn_print(DP_INFO, "[onServerStarted()]");
+}
+
+void onServerStopped() {
+    ijn_print(DP_INFO, "[onServerStopped()]");
+}
+
+void onClientConnected(ijoon::BaseSession *session) {
+    session->getClientSocket()->option(ijoon::SOCK_RCVTIMEO_MS, 500);
+    session->getClientSocket()->option(ijoon::SOCK_SNDTIMEO_MS, 500);
+    ijn_print(DP_INFO, "[onClientConnected(ijoon::BaseSession *)] %d", session->getClientSocket()->getSocketIdentifier());
+}
+
+void onClientServiceStarted(ijoon::BaseSession *session) {
+    ijn_print(DP_INFO, "[onClientServiceStarted(ijoon::BaseSession *)] %d", session->getClientSocket()->getSocketIdentifier());
+}
+
+void onClientServiceStopped(ijoon::BaseSession *session) {
+    ijn_print(DP_INFO, "[onClientServiceStopped(ijoon::BaseSession *)] %d", session->getClientSocket()->getSocketIdentifier());
+}
+
+void onClientServiceTimeout(ijoon::BaseSession *session) {
+    if(session == nullptr) {
+        ijn_print(DP_INFO, "[onClientServiceTimeout(ijoon::BaseSession *)]");
+    }
+    else {
+        ijn_print(DP_INFO, "[onClientServiceTimeout(ijoon::BaseSession *)] %d", session->getClientSocket()->getSocketIdentifier());
+    }
+    
+}
+
+void onClientServiceDisconnected(ijoon::BaseSession *session) {
+    ijn_print(DP_INFO, "[onClientServiceDisconnected(ijoon::BaseSession *)] %d", session->getClientSocket()->getSocketIdentifier());
+}
+
+void onPacket1(ijoon::BaseSession *session, Packet1 *pkt1) {
     ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
     session->send(pkt1);
 }
 
-void onPacket2(ijoon::EmbodiedSession *session, Packet2 *pkt2) {
+void onPacket2(ijoon::BaseSession *session, Packet2 *pkt2) {
     ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
     session->send(pkt2);
 }
 
-void onPacket3(ijoon::EmbodiedSession *session, Packet3 *pkt3) {
+void onPacket3(ijoon::BaseSession *session, Packet3 *pkt3) {
     ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
     session->send(pkt3);
 }
 
-void onPacket4(ijoon::EmbodiedSession *session, Packet4 *pkt4) {
+void onPacket4(ijoon::BaseSession *session, Packet4 *pkt4) {
     ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
     session->send(pkt4);
 }
 
-void onArrayMessage(ijoon::EmbodiedSession *session, ArrayMessage *arrayMessage) {
+void onArrayMessage(ijoon::BaseSession *session, ArrayMessage *arrayMessage) {
     ijn_print(DP_INFO, "received array size: %d, message: ", arrayMessage->strarr_size());
     for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
         printf("%s ", arrayMessage->strarr(i).c_str());
@@ -32,7 +76,7 @@ void onArrayMessage(ijoon::EmbodiedSession *session, ArrayMessage *arrayMessage)
 }
 
 long GetFileSize(std::string filename);
-void onImageRequest(ijoon::EmbodiedSession *session, ImageRequest *imageRequest) {
+void onImageRequest(ijoon::BaseSession *session, ImageRequest *imageRequest) {
     int size = GetFileSize(imageRequest->name());
     ijn_print(DP_DEBUG, "requested image name: %s, size: %d", imageRequest->name().c_str(), size);
     
@@ -63,19 +107,26 @@ void onImageRequest(ijoon::EmbodiedSession *session, ImageRequest *imageRequest)
 
 int main(int argv, char** argc) {
     ijoon::initGlobalVariables();
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType1, Packet1, ijoon::EmbodiedSession, onPacket1);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType2, Packet2, ijoon::EmbodiedSession, onPacket2);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType3, Packet3, ijoon::EmbodiedSession, onPacket3);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType4, Packet4, ijoon::EmbodiedSession, onPacket4);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::arrayMessageType, ArrayMessage, ijoon::EmbodiedSession, onArrayMessage);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::imageRequest, ImageRequest, ijoon::EmbodiedSession, onImageRequest);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType1, Packet1, ijoon::BaseSession, onPacket1);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType2, Packet2, ijoon::BaseSession, onPacket2);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType3, Packet3, ijoon::BaseSession, onPacket3);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType4, Packet4, ijoon::BaseSession, onPacket4);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::arrayMessageType, ArrayMessage, ijoon::BaseSession, onArrayMessage);
+    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::imageRequest, ImageRequest, ijoon::BaseSession, onImageRequest);
     SCNET_MESSAGE_REGISTRATION(example, example::PacketType::imageResponse, ImageResponse);
 
-    ijoon::EmbodiedServer myServer(9190, 30 * 1000, false);
-    myServer.start();
+    ijoon::BaseServer server(9190, 30 * 1000, false);
+    server.onServerStarted = onServerStarted;
+    server.onServerStopped = onServerStopped;
+    server.onClientConnected = onClientConnected;
+    server.onClientServiceStarted = onClientServiceStarted;
+    server.onClientServiceStopped = onClientServiceStopped;
+    server.onClientServiceTimeout = onClientServiceTimeout;
+    server.onClientServiceDisconnected = onClientServiceDisconnected;
+    server.start();
     getchar();
     
-    myServer.stop();
+    server.stop();
     getchar();
     
     return 0;
