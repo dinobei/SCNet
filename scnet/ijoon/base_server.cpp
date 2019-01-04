@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 
+#include "registry.h"
+
 ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
     ijoon::BaseServer *server = (ijoon::BaseServer *)thread->getParam();
@@ -67,8 +69,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     else
                     {
                         auto sess = server->session(i);
-                        google::protobuf::Message *message = sess->recv();
-                        if(message == nullptr) {
+                        ijoon::MessageHeader messageHeader;
+                        if(!sess->recvHeader(messageHeader)) {
                             FD_CLR(i, &reads);
                             
                             server->removeClient(i);
@@ -76,7 +78,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                             continue;
                         }
                         
-                        server->onClientServiceCallback(sess, message);
+                        google::protobuf::Message *message = sess->recvBody(messageHeader);
+                        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
                         delete message;
                     }
                 }
@@ -113,13 +116,14 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             continue;
         }
         
-        google::protobuf::Message *message = sess->recv();
-        if(message == nullptr) {
+        ijoon::MessageHeader messageHeader;
+        if(sess->recvHeader(messageHeader)) {
             server->onClientServiceDisconnected(sess);
             break;
         }
-
-        server->onClientServiceCallback(sess, message);
+        
+        google::protobuf::Message *message = sess->recvBody(messageHeader);
+        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
         delete message;
     }
     
