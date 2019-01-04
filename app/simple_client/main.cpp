@@ -8,56 +8,18 @@
 #include "get_image.pb.h"
 using namespace example;
 
-void onPacket1(ijoon::Server *server, Packet1 *pkt1) {
-    ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
-}
+void onPacket1(ijoon::Server *server, Packet1 *pkt1);
+void onPacket2(ijoon::Server *server, Packet2 *pkt2);
+void onPacket3(ijoon::Server *server, Packet3 *pkt3);
+void onPacket4(ijoon::Server *server, Packet4 *pkt4);
+void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage);
+void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse);
 
-void onPacket2(ijoon::Server *server, Packet2 *pkt2) {
-    ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
-}
-
-void onPacket3(ijoon::Server *server, Packet3 *pkt3) {
-    ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
-}
-
-void onPacket4(ijoon::Server *server, Packet4 *pkt4) {
-    ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
-}
-
-void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage) {
-    ijn_print(DP_INFO, "[onArrayMessage()] received array size: %d, message: ", arrayMessage->strarr_size());
-    for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
-        printf("%s ", arrayMessage->strarr(i).c_str());
-    }
-    printf("\n");
-}
-
-void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse) {
-    const char *imageBuffer = imageResponse->imagebuffer().c_str();
-    ImageHeader header = imageResponse->header();
-    
-    ijn_print(DP_DEBUG, "[onImageResponse()] imageResponse received, name=%s, width=%d, height=%d, size=%d", header.name().c_str(), header.width(), header.height(), header.size());
-}
-
-void onAttaching(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] attaching", server->getIdentifier());
-}
-
-void attachFailed(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] attachFailed", server->getIdentifier());
-}
-
-void attached(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] attached", server->getIdentifier());
-}
-
-void detached(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] detached", server->getIdentifier());
-}
-
-void detach(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] detach", server->getIdentifier());
-}
+void onAttaching(ijoon::Server *server);
+void attachFailed(ijoon::Server *server);
+void attached(ijoon::Server *server);
+void detached(ijoon::Server *server);
+void detach(ijoon::Server *server);
 
 int main(int argv, char** argc)
 {
@@ -123,4 +85,55 @@ int main(int argv, char** argc)
     ijn_print(DP_INFO, "Press enter to quit");
     getchar();
     return 0;
+}
+
+void onPacket1(ijoon::Server *server, Packet1 *pkt1) {
+    ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
+}
+
+void onPacket2(ijoon::Server *server, Packet2 *pkt2) {
+    ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
+}
+
+void onPacket3(ijoon::Server *server, Packet3 *pkt3) {
+    ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
+}
+
+void onPacket4(ijoon::Server *server, Packet4 *pkt4) {
+    ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
+}
+
+void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage) {
+    ijn_print(DP_INFO, "[onArrayMessage()] received array size: %d, message: ", arrayMessage->strarr_size());
+    for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
+        printf("%s ", arrayMessage->strarr(i).c_str());
+    }
+    printf("\n");
+}
+
+void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse) {
+    const char *imageBuffer = imageResponse->imagebuffer().c_str();
+    ImageHeader header = imageResponse->header();
+    
+    ijn_print(DP_DEBUG, "[onImageResponse()] imageResponse received, name=%s, width=%d, height=%d, size=%d", header.name().c_str(), header.width(), header.height(), header.size());
+}
+
+void onAttaching(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] attaching", server->getIdentifier());
+}
+
+void attachFailed(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] attachFailed", server->getIdentifier());
+}
+
+void attached(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] attached", server->getIdentifier());
+}
+
+void detached(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] detached", server->getIdentifier());
+}
+
+void detach(ijoon::Server *server) {
+    ijn_print(DP_INFO, "[%d] detach", server->getIdentifier());
 }
