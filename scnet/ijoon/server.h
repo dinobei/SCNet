@@ -11,11 +11,11 @@ namespace ijoon {
     void *sendThread(void *arg);
     void *recvThread(void *arg);
     
-    class Client: public Session {
+    class Server: public Session {
     public:
-        Client(std::string ip, int port, int timeoutMillis): Session(), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        Client(int identifier, std::string ip, int port, int timeoutMillis): Session(), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        ~Client() {}
+        Server(std::string ip, int port, int timeoutMillis): Session(), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        Server(int identifier, std::string ip, int port, int timeoutMillis): Session(), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        ~Server() {}
         
         // Server control method
         void attach();
@@ -30,11 +30,11 @@ namespace ijoon {
         BlockingQueue<google::protobuf::Message *> *getEventQueue() { return eventQueue; }
         
         // Connection lifecycle
-        std::function<void(Client *)> onAttaching;
-        std::function<void(Client *)> onAttachFailed;
-        std::function<void(Client *)> onAttached;
-        std::function<void(Client *)> onDetached;
-        std::function<void(Client *)> onDetach;
+        std::function<void(Server *)> onAttaching;
+        std::function<void(Server *)> onAttachFailed;
+        std::function<void(Server *)> onAttached;
+        std::function<void(Server *)> onDetached;
+        std::function<void(Server *)> onDetach;
         
     public:
         Thread *mainThread;

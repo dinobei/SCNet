@@ -1,10 +1,10 @@
-#include "client.h"
+#include "server.h"
 #include "registry.h"
 
 void *ijoon::clientMainThread(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::Client *client = (ijoon::Client *)thread->getParam();
+    ijoon::Server *client = (ijoon::Server *)thread->getParam();
 
     char portStr[20];
     sprintf(portStr, "%d", client->getServerPort());
@@ -66,7 +66,7 @@ void *ijoon::clientMainThread(void *arg)
 void *ijoon::recvThread(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::Client *client = (ijoon::Client *)thread->getParam();
+    ijoon::Server *client = (ijoon::Server *)thread->getParam();
 
     while(!thread->isInterrupted())
     {
@@ -110,7 +110,7 @@ void *ijoon::recvThread(void *arg)
 void *ijoon::sendThread(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::Client *client = (ijoon::Client *)thread->getParam();
+    ijoon::Server *client = (ijoon::Server *)thread->getParam();
 
     while(!thread->isInterrupted())
     {
@@ -139,14 +139,14 @@ void *ijoon::sendThread(void *arg)
     return NULL;
 }
 
-void ijoon::Client::attach() {
+void ijoon::Server::attach() {
     this->eventQueue = new ijoon::BlockingQueue<google::protobuf::Message *>();
 
     this->mainThread = new ijoon::Thread(clientMainThread, "mainThread");
     this->mainThread->start(this);
 }
 
-void ijoon::Client::detach() {
+void ijoon::Server::detach() {
     if(this->recvThread != nullptr) {
         this->recvThread->interrupt();
     }
@@ -164,6 +164,6 @@ void ijoon::Client::detach() {
     this->eventQueue = NULL;
 }
 
-void ijoon::Client::control(google::protobuf::Message *message) {
+void ijoon::Server::control(google::protobuf::Message *message) {
     this->eventQueue->put(message);
 }
