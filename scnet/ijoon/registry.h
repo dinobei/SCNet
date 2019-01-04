@@ -14,25 +14,25 @@ public:
     virtual void callback(ijoon::BaseSession *session, google::protobuf::Message *message) {}
 };
 
-template <class T>
+template <class S, class T>
 class CallbackWrapper : public AbstractCallbackWrapper{
 public:
-    CallbackWrapper(std::function<void(ijoon::BaseSession *, T *)> _callbackFunc) {
+    CallbackWrapper(std::function<void(S *, T *)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~CallbackWrapper() {}
     
     void callback(ijoon::BaseSession *session, google::protobuf::Message *message) override {
         if(message == nullptr) {
-            callbackFunc(session, nullptr);
+            callbackFunc(static_cast<S *>(session), nullptr);
             return;
         }
         
-        callbackFunc(session, static_cast<T *>(message));
+        callbackFunc(static_cast<S *>(session), static_cast<T *>(message));
     }
     
 public:
-    std::function<void(ijoon::BaseSession *, T *)> callbackFunc;
+    std::function<void(S *, T *)> callbackFunc;
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>
@@ -149,28 +149,28 @@ extern Registry<int, google::protobuf::Message* >* BaseMessageRegistry;
 #define ANONYMOUS_VARIABLE_NAME2(message) message##__LINE__##2
 #define ANONYMOUS_VARIABLE_NAME3(message) message##__LINE__##3
 
-#define SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(ns, typeInt, message, callbackFunc) \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(message)( \
+#define SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(ns, typeInt, messageClassName, sessionClassName, callbackFunc) \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(messageClassName)( \
                      BaseMessageRegistry, \
                      typeInt, \
-                     Registerer<int, google::protobuf::Message* >::DefaultCreator<message>); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(message)( \
+                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(messageClassName)( \
                      BaseMessageRegistry, \
-                     #ns "." #message, \
+                     #ns "." #messageClassName, \
                      typeInt); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME3(message)( \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME3(messageClassName)( \
                     BaseMessageRegistry, \
                     typeInt, \
-                    new CallbackWrapper<message>(callbackFunc))
+                    new CallbackWrapper<sessionClassName, messageClassName>(callbackFunc))
 
-#define SCNET_MESSAGE_REGISTRATION(ns, typeInt, message) \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(message)( \
+#define SCNET_MESSAGE_REGISTRATION(ns, typeInt, messageClassName) \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(messageClassName)( \
                     BaseMessageRegistry, \
                     typeInt, \
-                    Registerer<int, google::protobuf::Message* >::DefaultCreator<message>); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(message)( \
+                    Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
+static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(messageClassName)( \
                     BaseMessageRegistry, \
-                    #ns "." #message, \
+                    #ns "." #messageClassName, \
                     typeInt)
 
 #endif
