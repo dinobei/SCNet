@@ -19,4 +19,9 @@ namespace ijoon {
         google::protobuf::uint32 messageType;
         google::protobuf::uint32 cryptType;
     };
+    
+    enum MESSAGE_TYPE {
+        PROTOBUF = 0,
+        RAWBYTE = 1,
+    };
 }

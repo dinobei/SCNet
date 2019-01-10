@@ -8,10 +8,14 @@ namespace ijoon {
         Session() : cs(std::shared_ptr<ijoon::JClientSocket>(new ijoon::JClientSocket(ijoon::tcp))) {}
         Session(std::shared_ptr<ijoon::JClientSocket> cs): cs(cs) {}
         ~Session() {this->cs->close();};
+        bool send(int packetType, char *message, unsigned int length);
         bool send(google::protobuf::Message *message);
         bool send(std::shared_ptr<google::protobuf::Message> message);
         bool recvHeader(MessageHeader &messageHeader);
-        google::protobuf::Message *recvBody(MessageHeader &messageHeader);
+        
+        google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader);
+        char *recvRawBody(MessageHeader &messageHeader);
+        
         inline int event(int timeMs) {return this->cs->event(timeMs);}
         void startThread(FuncPointer func, std::string name, void *param);
         std::shared_ptr<ijoon::JClientSocket> getClientSocket() {return this->cs;}

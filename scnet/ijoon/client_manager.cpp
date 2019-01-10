@@ -11,7 +11,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     ijoon::Thread *thread = (ijoon::Thread *)param;
     ijoon::ClientManager *server = (ijoon::ClientManager *)thread->getParam();
     ijn_print(DP_INFO, "server mode: %s\n", server->isMultiThreadBased()? "multithread based" : "multiplexing based");
-    server->onServerStarted();
+    if(server->onServerStarted != nullptr)
+        server->onServerStarted();
     
     // change to user input
     ijoon::JServerSocket servSocket(ijoon::IPv4);
@@ -26,7 +27,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
             
             auto sess = new ijoon::Session(client);
             server->addClient(client, sess);
-            server->onClientConnected(sess);
+            if(server->onClientConnected != nullptr)
+                server->onClientConnected(sess);
         }
     }
     else {
@@ -45,7 +47,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                 break;
             if(fd_num == 0)
             {
-                server->onClientServiceTimeout(nullptr);
+                if(server->onClientServiceTimeout != nullptr)
+                    server->onClientServiceTimeout(nullptr);
                 continue;
             }
             
@@ -59,14 +62,16 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                         
                         auto sess = new ijoon::Session(client);
                         server->addClient(client, sess);
-                        server->onClientConnected(sess);
+                        if(server->onClientConnected != nullptr)
+                            server->onClientConnected(sess);
                         
                         ijoon::NativeSocket clientSocketId = client->getSocketIdentifier();
                         FD_SET(clientSocketId, &reads);
                         if(fd_max < clientSocketId)
                             fd_max = clientSocketId;
                         
-                        server->onClientServiceStarted(sess);
+                        if(server->onClientServiceStarted != nullptr)
+                            server->onClientServiceStarted(sess);
                     }
                     else
                     {
@@ -75,14 +80,44 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                         if(!sess->recvHeader(messageHeader)) {
                             FD_CLR(i, &reads);
                             
-                            server->onClientServiceDisconnected(sess);
+                            if(server->onClientServiceDisconnected != nullptr)
+                                server->onClientServiceDisconnected(sess);
                             server->removeClient(i);
                             continue;
                         }
                         
-                        google::protobuf::Message *message = sess->recvBody(messageHeader);
-                        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
-                        delete message;
+
+
+                        switch (messageHeader.messageType) {
+                            case ijoon::MESSAGE_TYPE::PROTOBUF:
+                            {
+                                google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
+                                if(message == nullptr) continue;
+                                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                                if(callbackWrapper == nullptr) {
+                                    delete message;
+                                    break;
+                                }
+                                callbackWrapper->callback(sess, message);
+                                delete message;
+                                break;
+                            }
+                            case ijoon::MESSAGE_TYPE::RAWBYTE:
+                            {
+                                char *message = sess->recvRawBody(messageHeader);
+                                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                                if(callbackWrapper == nullptr) {
+                                    delete message;
+                                    break;
+                                }
+                                
+                                callbackWrapper->callback(sess, message, messageHeader.dataSize);
+                                delete message;
+                                break;
+                            }
+                            default:
+                                break;
+                        }
                     }
                 }
             }
@@ -90,7 +125,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
 
     }
     
-    server->onServerStopped();
+    if(server->onServerStopped != nullptr)
+        server->onServerStopped();
     
 #ifdef _WIN32
     return 0;
@@ -105,33 +141,65 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     ijoon::NativeSocket nativeSocket = atoi(thread->getName().c_str());
     auto sess = server->session(nativeSocket);
     
-    server->onClientServiceStarted(sess);
+    if(server->onClientServiceStarted != nullptr)
+        server->onClientServiceStarted(sess);
     
     while(1) {
         int fd_num = sess->event(server->getRecvTimeoutMs());
         if(fd_num < 0) {
-            server->onClientServiceDisconnected(sess);
+            if(server->onClientServiceDisconnected != nullptr)
+                server->onClientServiceDisconnected(sess);
             break;
         }
         if(fd_num == 0) {
-            server->onClientServiceTimeout(sess);
+            if(server->onClientServiceTimeout != nullptr)
+                server->onClientServiceTimeout(sess);
             continue;
         }
         
         ijoon::MessageHeader messageHeader;
         if(sess->recvHeader(messageHeader)) {
-            server->onClientServiceDisconnected(sess);
+            if(server->onClientServiceDisconnected != nullptr)
+                server->onClientServiceDisconnected(sess);
             break;
         }
         
-        google::protobuf::Message *message = sess->recvBody(messageHeader);
-        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
-        delete message;
+        switch (messageHeader.messageType) {
+            case ijoon::MESSAGE_TYPE::PROTOBUF:
+            {
+                google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
+                if(message == nullptr) break;
+                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                if(callbackWrapper == nullptr) {
+                    delete message;
+                    break;
+                }
+                callbackWrapper->callback(sess, message);
+                delete message;
+                break;
+            }
+            case ijoon::MESSAGE_TYPE::RAWBYTE:
+            {
+                char *message = sess->recvRawBody(messageHeader);
+                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                if(callbackWrapper == nullptr) {
+                    delete message;
+                    break;
+                }
+                
+                callbackWrapper->callback(sess, message, messageHeader.dataSize);
+                delete message;
+                break;
+            }
+            default:
+                break;
+        }
     }
     
     server->removeClient(nativeSocket);
     
-    server->onClientServiceStopped(sess);
+    if(server->onClientServiceStopped != nullptr)
+        server->onClientServiceStopped(sess);
     
 #ifdef _WIN32
     return 0;

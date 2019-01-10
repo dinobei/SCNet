@@ -26,15 +26,20 @@ void onArrayMessage(ijoon::Session *session, ArrayMessage *arrayMessage);
 long GetFileSize(std::string filename);
 void onImageRequest(ijoon::Session *session, ImageRequest *imageRequest);
 
+void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length);
+void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length);
+
 int main(int argv, char** argc) {
     ijoon::initGlobalVariables();
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType1, Packet1, ijoon::Session, onPacket1);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType2, Packet2, ijoon::Session, onPacket2);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType3, Packet3, ijoon::Session, onPacket3);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::packetType4, Packet4, ijoon::Session, onPacket4);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::arrayMessageType, ArrayMessage, ijoon::Session, onArrayMessage);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, example::PacketType::imageRequest, ImageRequest, ijoon::Session, onImageRequest);
-    SCNET_MESSAGE_REGISTRATION(example, example::PacketType::imageResponse, ImageResponse);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType1, Packet1, onPacket1);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType2, Packet2, onPacket2);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType3, Packet3, onPacket3);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType4, Packet4, onPacket4);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::arrayMessageType, ArrayMessage, onArrayMessage);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::imageRequest, ImageRequest, onImageRequest);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::imageResponse, ImageResponse, nullptr);
+    SCNET_RAW_MESSAGE_REGISTRATION(0, onRawByteArray);
+    SCNET_RAW_MESSAGE_REGISTRATION(1, onRawByteArray2);
 
     ijoon::ClientManager clientManager(9190, 30 * 1000, false);
     clientManager.onServerStarted = onServerStarted;
@@ -153,4 +158,28 @@ void onImageRequest(ijoon::Session *session, ImageRequest *imageRequest) {
     
     delete []buf;
     
+}
+
+void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length)
+{
+    char *message = nullptr;
+    if(buffer != nullptr) {
+        message = static_cast<char *>(buffer);
+    }
+    
+    message[length] = '\0';
+    ijn_print(DP_DEBUG, "onRawByteArray, length: %u %s", length, message);
+    session->send(0, (char *)buffer, length);
+}
+
+void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length)
+{
+    char *message = nullptr;
+    if(buffer != nullptr) {
+        message = static_cast<char *>(buffer);
+    }
+    
+    message[length] = '\0';
+    ijn_print(DP_DEBUG, "onRawByteArray2, length: %u %s", length, message);
+    session->send(1, (char *)buffer, length);
 }
