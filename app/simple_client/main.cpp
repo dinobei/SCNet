@@ -8,29 +8,33 @@
 #include "get_image.pb.h"
 using namespace example;
 
-void onPacket1(ijoon::Server *server, Packet1 *pkt1);
-void onPacket2(ijoon::Server *server, Packet2 *pkt2);
-void onPacket3(ijoon::Server *server, Packet3 *pkt3);
-void onPacket4(ijoon::Server *server, Packet4 *pkt4);
-void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage);
-void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse);
+void onPacket1(ijoon::Session *sess, Packet1 *pkt1);
+void onPacket2(ijoon::Session *sess, Packet2 *pkt2);
+void onPacket3(ijoon::Session *sess, Packet3 *pkt3);
+void onPacket4(ijoon::Session *sess, Packet4 *pkt4);
+void onArrayMessage(ijoon::Session *sess, ArrayMessage *arrayMessage);
+void onImageResponse(ijoon::Session *sess, ImageResponse *imageResponse);
+void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length);
+void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length);
 
-void onAttaching(ijoon::Server *server);
-void attachFailed(ijoon::Server *server);
-void attached(ijoon::Server *server);
-void detached(ijoon::Server *server);
-void detach(ijoon::Server *server);
+void onAttaching(ijoon::Session *sess);
+void attachFailed(ijoon::Session *sess);
+void attached(ijoon::Session *sess);
+void detached(ijoon::Session *sess);
+void detach(ijoon::Session *sess);
 
 int main(int argv, char** argc)
 {
     ijoon::initGlobalVariables();
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType1, Packet1, ijoon::Server, onPacket1);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType2, Packet2, ijoon::Server, onPacket2);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType3, Packet3, ijoon::Server, onPacket3);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::packetType4, Packet4, ijoon::Server, onPacket4);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::arrayMessageType, ArrayMessage, ijoon::Server, onArrayMessage);
-    SCNET_MESSAGE_REGISTRATION(example, PacketType::imageRequest, ImageRequest);
-    SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(example, PacketType::imageResponse, ImageResponse, ijoon::Server, onImageResponse);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::packetType1, Packet1, onPacket1);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::packetType2, Packet2, onPacket2);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::packetType3, Packet3, onPacket3);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::packetType4, Packet4, onPacket4);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::arrayMessageType, ArrayMessage, onArrayMessage);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::imageRequest, ImageRequest, nullptr);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, PacketType::imageResponse, ImageResponse, onImageResponse);
+    SCNET_RAW_MESSAGE_REGISTRATION(0, onRawByteArray);
+    SCNET_RAW_MESSAGE_REGISTRATION(1, onRawByteArray2);
     
     ijoon::Server server("127.0.0.1", 9190, 1000);
     server.onAttaching = onAttaching;
@@ -75,6 +79,14 @@ int main(int argv, char** argc)
         ImageRequest *imageRequest = new ImageRequest();
         imageRequest->set_name("hello.jpg");
         server.control(imageRequest);
+        
+        ijn_msleep(33);
+        char rawMessage[255] = "hello world";
+        server.control(0, rawMessage, strlen(rawMessage));
+        
+        ijn_msleep(33);
+        sprintf(rawMessage, "next world");
+        server.control(1, rawMessage, strlen(rawMessage));
     }
 
     ijn_sleep(1);
@@ -87,23 +99,23 @@ int main(int argv, char** argc)
     return 0;
 }
 
-void onPacket1(ijoon::Server *server, Packet1 *pkt1) {
+void onPacket1(ijoon::Session *sess, Packet1 *pkt1) {
     ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
 }
 
-void onPacket2(ijoon::Server *server, Packet2 *pkt2) {
+void onPacket2(ijoon::Session *sess, Packet2 *pkt2) {
     ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
 }
 
-void onPacket3(ijoon::Server *server, Packet3 *pkt3) {
+void onPacket3(ijoon::Session *sess, Packet3 *pkt3) {
     ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
 }
 
-void onPacket4(ijoon::Server *server, Packet4 *pkt4) {
+void onPacket4(ijoon::Session *sess, Packet4 *pkt4) {
     ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
 }
 
-void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage) {
+void onArrayMessage(ijoon::Session *sess, ArrayMessage *arrayMessage) {
     ijn_print(DP_INFO, "[onArrayMessage()] received array size: %d, message: ", arrayMessage->strarr_size());
     for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
         printf("%s ", arrayMessage->strarr(i).c_str());
@@ -111,29 +123,52 @@ void onArrayMessage(ijoon::Server *server, ArrayMessage *arrayMessage) {
     printf("\n");
 }
 
-void onImageResponse(ijoon::Server *server, ImageResponse *imageResponse) {
+void onImageResponse(ijoon::Session *sess, ImageResponse *imageResponse) {
     const char *imageBuffer = imageResponse->imagebuffer().c_str();
     ImageHeader header = imageResponse->header();
     
     ijn_print(DP_DEBUG, "[onImageResponse()] imageResponse received, name=%s, width=%d, height=%d, size=%d", header.name().c_str(), header.width(), header.height(), header.size());
 }
 
-void onAttaching(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] attaching", server->getIdentifier());
+void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length)
+{
+    char *message = nullptr;
+    if(buffer != nullptr) {
+        message = static_cast<char *>(buffer);
+    }
+    
+    message[length] = '\0';
+    ijn_print(DP_DEBUG, "onRawByteArray, length: %u %s", length, message);
 }
 
-void attachFailed(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] attachFailed", server->getIdentifier());
+void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length)
+{
+    char *message = nullptr;
+    if(buffer != nullptr) {
+        message = static_cast<char *>(buffer);
+    }
+    
+    message[length] = '\0';
+    ijn_print(DP_DEBUG, "onRawByteArray2, length: %u %s", length, message);
 }
 
-void attached(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] attached", server->getIdentifier());
+
+void onAttaching(ijoon::Session *sess) {
+    ijn_print(DP_INFO, "[%d] attaching", sess->getClientSocket()->getSocketIdentifier());
 }
 
-void detached(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] detached", server->getIdentifier());
+void attachFailed(ijoon::Session *sess) {
+    ijn_print(DP_INFO, "[%d] attachFailed", sess->getClientSocket()->getSocketIdentifier());
 }
 
-void detach(ijoon::Server *server) {
-    ijn_print(DP_INFO, "[%d] detach", server->getIdentifier());
+void attached(ijoon::Session *sess) {
+    ijn_print(DP_INFO, "[%d] attached", sess->getClientSocket()->getSocketIdentifier());
+}
+
+void detached(ijoon::Session *sess) {
+    ijn_print(DP_INFO, "[%d] detached", sess->getClientSocket()->getSocketIdentifier());
+}
+
+void detach(ijoon::Session *sess) {
+    ijn_print(DP_INFO, "[%d] detach", sess->getClientSocket()->getSocketIdentifier());
 }
