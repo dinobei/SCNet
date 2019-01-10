@@ -6,6 +6,28 @@ void ijoon::Session::startThread(FuncPointer func, std::string name, void *param
     this->thread->start(param);
 }
 
+bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
+    char *buf = new char[size];
+    google::protobuf::io::ArrayOutputStream aos(buf,size);
+    google::protobuf::io::CodedOutputStream coded_output(&aos);
+    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
+    coded_output.WriteVarint32(length); // data size
+    coded_output.WriteVarint32(packetType); // packet type
+    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::RAWBYTE); // message type
+    coded_output.WriteVarint32(0); // crypt type
+    
+    coded_output.WriteRaw(message, length);
+    
+    if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
+        delete[] buf;
+        return false;
+    }
+    
+    delete []buf;
+    return true;
+}
+
 bool ijoon::Session::send(google::protobuf::Message *message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
@@ -97,7 +119,7 @@ bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
     return true;
 }
 
-google::protobuf::Message *ijoon::Session::recvBody(ijoon::MessageHeader &messageHeader) {
+google::protobuf::Message *ijoon::Session::recvProtobufBody(MessageHeader &messageHeader) {
     google::protobuf::Message *response = BaseMessageRegistry->Create(messageHeader.packetType);
     if(response == nullptr) {
         ijn_print(DP_INFO, "Unknown packet type(=%d)", messageHeader.packetType);
@@ -120,6 +142,18 @@ google::protobuf::Message *ijoon::Session::recvBody(ijoon::MessageHeader &messag
     }
     
     return response;
+}
+
+char *ijoon::Session::recvRawBody(MessageHeader &messageHeader) {
+    const int responseSize = messageHeader.dataSize;
+    char *responseBuffer = new char[responseSize];
+    
+    if(!this->cs->safeRecv(responseBuffer, 0, responseSize, 0)) {
+        delete []responseBuffer;
+        return nullptr;
+    }
+    
+    return responseBuffer;
 }
 
 void ijoon::Session::makeHeader(char *buf, MessageHeader &messageHeader) {

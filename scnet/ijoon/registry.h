@@ -12,27 +12,49 @@ namespace ijoon {
 class AbstractCallbackWrapper {
 public:
     virtual void callback(ijoon::Session *session, google::protobuf::Message *message) {}
+    virtual void callback(ijoon::Session *session, char *message, unsigned int length) {}
 };
 
-template <class S, class T>
+template <class T>
 class CallbackWrapper : public AbstractCallbackWrapper{
 public:
-    CallbackWrapper(std::function<void(S *, T *)> _callbackFunc) {
+    CallbackWrapper(std::function<void(ijoon::Session *, T *)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~CallbackWrapper() {}
     
     void callback(ijoon::Session *session, google::protobuf::Message *message) override {
+        if(callbackFunc == nullptr) return;
         if(message == nullptr) {
-            callbackFunc(static_cast<S *>(session), nullptr);
+            callbackFunc(static_cast<ijoon::Session *>(session), nullptr);
             return;
         }
         
-        callbackFunc(static_cast<S *>(session), static_cast<T *>(message));
+        callbackFunc(static_cast<ijoon::Session *>(session), static_cast<T *>((void *)message));
     }
     
 public:
-    std::function<void(S *, T *)> callbackFunc;
+    std::function<void(ijoon::Session *, T *)> callbackFunc;
+};
+
+class RawCallbackWrapper : public AbstractCallbackWrapper{
+public:
+    RawCallbackWrapper(std::function<void(ijoon::Session *, void *, unsigned int)> _callbackFunc) {
+        callbackFunc = _callbackFunc;
+    }
+    ~RawCallbackWrapper() {}
+    
+    void callback(ijoon::Session *session, char *message, unsigned int length) override {
+        if(message == nullptr) {
+            callbackFunc(static_cast<ijoon::Session *>(session), nullptr, 0);
+            return;
+        }
+        
+        callbackFunc(static_cast<ijoon::Session *>(session), (void *)message, length);
+    }
+    
+public:
+    std::function<void(ijoon::Session *, void *, unsigned int)> callbackFunc;
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>
@@ -94,8 +116,10 @@ public:
         return registry_getter[key];
     }
     
-    AbstractCallbackWrapper *GetCallbackWrapper(const SrcType& key, Args... args)
+    AbstractCallbackWrapper *GetCallbackWrapper(const SrcType& messageTypeInt, const SrcType& packetTypeInt, Args... args)
     {
+        const SrcType& key = messageTypeInt * 100000 + packetTypeInt;
+        
         if (!HasCallbackWrapper(key))
         {
             // Returns nullptr if the key is not registered.
@@ -103,7 +127,7 @@ public:
         }
         return registry_callback_wrapper[key];
     }
-
+    
 private:
     std::map<SrcType, Creator> registry_creater;
     std::map<std::string, google::protobuf::uint32> registry_getter;
@@ -122,7 +146,7 @@ public:
     }
 
     Registerer(
-               Registry<int, ObjectPtrType, Args...>* registry,
+               Registry<SrcType, ObjectPtrType, Args...>* registry,
                const std::string key,
                google::protobuf::uint32 type
                ) {
@@ -131,9 +155,11 @@ public:
     
     Registerer(
                Registry<SrcType, ObjectPtrType, Args...>* registry,
-               const SrcType key,
+               const SrcType messageTypeInt,
+               const SrcType packetTypeInt,
                AbstractCallbackWrapper *callbackWrapper
                ) {
+        const SrcType key = messageTypeInt * 100000 + packetTypeInt;
         registry->Register(key, callbackWrapper);
     }
     
@@ -145,32 +171,37 @@ public:
 
 extern Registry<int, google::protobuf::Message* >* BaseMessageRegistry;
 
-#define ANONYMOUS_VARIABLE_NAME1(message) message##__LINE__##1
-#define ANONYMOUS_VARIABLE_NAME2(message) message##__LINE__##2
-#define ANONYMOUS_VARIABLE_NAME3(message) message##__LINE__##3
 
-#define SCNET_MESSAGE_REGISTRATION_WITH_RECV_CALLBACK(ns, typeInt, messageClassName, sessionClassName, callbackFunc) \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(messageClassName)( \
-                     BaseMessageRegistry, \
-                     typeInt, \
-                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(messageClassName)( \
-                     BaseMessageRegistry, \
-                     #ns "." #messageClassName, \
-                     typeInt); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME3(messageClassName)( \
-                    BaseMessageRegistry, \
-                    typeInt, \
-                    new CallbackWrapper<sessionClassName, messageClassName>(callbackFunc))
+// Reference: https://stackoverflow.com/a/17624752
+// This is some crazy magic that helps produce __BASE__247
+// Vanilla interpolation of __BASE__##__LINE__ would produce __BASE____LINE__
+// I still can't figure out why it works, but it has to do with macro resolution ordering
+#define PP_CAT(a, b) PP_CAT_I(a, b)
+#define PP_CAT_I(a, b) PP_CAT_II(~, a ## b)
+#define PP_CAT_II(p, res) res
+#define UNIQUE_NAME(base) PP_CAT(base, __LINE__)
 
-#define SCNET_MESSAGE_REGISTRATION(ns, typeInt, messageClassName) \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME1(messageClassName)( \
+// protobuf 메시지 등록용(송수신) + 수신콜백, 이름에 protobuf라는 내용을 넣어야하는지?
+#define SCNET_PROTOBUF_MESSAGE_REGISTRATION(ns, packetTypeInt, messageClassName, callbackFunc) \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     BaseMessageRegistry, \
-                    typeInt, \
+                    packetTypeInt, \
                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
-static Registerer<int, google::protobuf::Message* > ANONYMOUS_VARIABLE_NAME2(messageClassName)( \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
                     BaseMessageRegistry, \
                     #ns "." #messageClassName, \
-                    typeInt)
+                    packetTypeInt); \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
+                    BaseMessageRegistry, \
+                    ijoon::MESSAGE_TYPE::PROTOBUF, \
+                    packetTypeInt, \
+                    new CallbackWrapper<messageClassName>(callbackFunc))
+
+#define SCNET_RAW_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
+                    BaseMessageRegistry, \
+                    ijoon::MESSAGE_TYPE::RAWBYTE, \
+                    packetTypeInt, \
+                    new RawCallbackWrapper(callbackFunc))
 
 #endif

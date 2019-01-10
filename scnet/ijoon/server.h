@@ -11,30 +11,48 @@ namespace ijoon {
     void *sendThread(void *arg);
     void *recvThread(void *arg);
     
-    class Server: public Session {
+    class MessageWrapper {
     public:
-        Server(std::string ip, int port, int timeoutMillis): Session(), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        Server(int identifier, std::string ip, int port, int timeoutMillis): Session(), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        ~Server() {}
+        MessageWrapper(google::protobuf::Message *message): messageType(MESSAGE_TYPE::PROTOBUF), message(message) {
+            length = static_cast<google::protobuf::Message *>(message)->ByteSize();
+        }
+
+        MessageWrapper(int packetType, char *message, unsigned int length): messageType(MESSAGE_TYPE::RAWBYTE), packetType(packetType), message(message), length(length) {}
+        
+        ijoon::MESSAGE_TYPE messageType;
+        int packetType;
+        void *message;
+        unsigned int length;
+    };
+    
+    class Server {
+    public:
+        Server(std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        Server(int identifier, std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        ~Server() {
+            delete sess;
+        }
         
         // Server control method
         void attach();
         void detach();
         void control(google::protobuf::Message *message);
+        void control(int packetType, char *message, unsigned int length);
         
         // Getter for server
         std::string getServerIPAddress() { return serverIPAddress; }
         int getServerPort() { return serverPort; }
         int getIdentifier() { return identifier; }
         int getTimeoutMillis() { return timeoutMillis; }
-        BlockingQueue<google::protobuf::Message *> *getEventQueue() { return eventQueue; }
+        BlockingQueue<MessageWrapper *> *getEventQueue() { return eventQueue; }
+        Session *getSession() { return sess; }
         
         // Connection lifecycle
-        std::function<void(Server *)> onAttaching;
-        std::function<void(Server *)> onAttachFailed;
-        std::function<void(Server *)> onAttached;
-        std::function<void(Server *)> onDetached;
-        std::function<void(Server *)> onDetach;
+        std::function<void(Session *)> onAttaching;
+        std::function<void(Session *)> onAttachFailed;
+        std::function<void(Session *)> onAttached;
+        std::function<void(Session *)> onDetached;
+        std::function<void(Session *)> onDetach;
         
     public:
         Thread *mainThread;
@@ -42,9 +60,10 @@ namespace ijoon {
         Thread *recvThread;
         
     private:
+        Session *sess;
         int identifier;
         
-        BlockingQueue<google::protobuf::Message *> *eventQueue;
+        BlockingQueue<MessageWrapper *> *eventQueue;
         
         std::string serverIPAddress;
         int serverPort;

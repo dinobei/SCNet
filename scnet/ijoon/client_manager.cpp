@@ -86,9 +86,38 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                             continue;
                         }
                         
-                        google::protobuf::Message *message = sess->recvBody(messageHeader);
-                        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
-                        delete message;
+
+
+                        switch (messageHeader.messageType) {
+                            case ijoon::MESSAGE_TYPE::PROTOBUF:
+                            {
+                                google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
+                                if(message == nullptr) continue;
+                                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                                if(callbackWrapper == nullptr) {
+                                    delete message;
+                                    break;
+                                }
+                                callbackWrapper->callback(sess, message);
+                                delete message;
+                                break;
+                            }
+                            case ijoon::MESSAGE_TYPE::RAWBYTE:
+                            {
+                                char *message = sess->recvRawBody(messageHeader);
+                                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                                if(callbackWrapper == nullptr) {
+                                    delete message;
+                                    break;
+                                }
+                                
+                                callbackWrapper->callback(sess, message, messageHeader.dataSize);
+                                delete message;
+                                break;
+                            }
+                            default:
+                                break;
+                        }
                     }
                 }
             }
@@ -135,9 +164,36 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             break;
         }
         
-        google::protobuf::Message *message = sess->recvBody(messageHeader);
-        BaseMessageRegistry->GetCallbackWrapper(messageHeader.packetType)->callback(sess, message);
-        delete message;
+        switch (messageHeader.messageType) {
+            case ijoon::MESSAGE_TYPE::PROTOBUF:
+            {
+                google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
+                if(message == nullptr) break;
+                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                if(callbackWrapper == nullptr) {
+                    delete message;
+                    break;
+                }
+                callbackWrapper->callback(sess, message);
+                delete message;
+                break;
+            }
+            case ijoon::MESSAGE_TYPE::RAWBYTE:
+            {
+                char *message = sess->recvRawBody(messageHeader);
+                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                if(callbackWrapper == nullptr) {
+                    delete message;
+                    break;
+                }
+                
+                callbackWrapper->callback(sess, message, messageHeader.dataSize);
+                delete message;
+                break;
+            }
+            default:
+                break;
+        }
     }
     
     server->removeClient(nativeSocket);
