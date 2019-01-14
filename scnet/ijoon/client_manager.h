@@ -17,11 +17,11 @@ namespace ijoon {
         bool stop();
         
         int clientSize();
-        Session* session(NativeSocket nativeSocket);
+        Session* session(SocketIdentifier socketId);
         
-        bool addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess);
-        bool removeClient(std::shared_ptr<JClientSocket> clientSocket);
-        bool removeClient(NativeSocket nativeSocket);
+        bool addClient(std::shared_ptr<ClientTCPSocket> clientSocket, Session *sess);
+        bool removeClient(std::shared_ptr<ClientTCPSocket> clientSocket);
+        bool removeClient(SocketIdentifier socketId);
         
         int getServerPort();
         int getRecvTimeoutMs();
@@ -40,7 +40,7 @@ namespace ijoon {
         std::function<void(Session *)> onClientServiceStopped;
 
     private:
-        std::map<NativeSocket, Session *> clientMap;
+        std::map<SocketIdentifier, Session *> clientMap;
         Thread *thread;
         int port;
         int recvTimeoutMs;
