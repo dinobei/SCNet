@@ -19,9 +19,9 @@ namespace ijoon {
         int clientSize();
         Session* session(NativeSocket nativeSocket);
         
-        bool addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess);
-        bool removeClient(std::shared_ptr<JClientSocket> clientSocket);
         bool removeClient(NativeSocket nativeSocket);
+        bool addClient(std::shared_ptr<ClientTCPSocket> clientSocket, Session *sess);
+        bool removeClient(std::shared_ptr<ClientTCPSocket> clientSocket);
         
         int getServerPort();
         int getRecvTimeoutMs();

@@ -247,7 +247,7 @@ bool ijoon::ClientManager::stop() {
     return false;
 }
 
-bool ijoon::ClientManager::addClient(std::shared_ptr<JClientSocket> clientSocket, Session *sess) {
+bool ijoon::ClientManager::addClient(std::shared_ptr<ClientTCPSocket> clientSocket, Session *sess) {
     int retryCnt = 10;
     do {
         if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
@@ -264,7 +264,7 @@ bool ijoon::ClientManager::addClient(std::shared_ptr<JClientSocket> clientSocket
     return false;
 }
 
-bool ijoon::ClientManager::removeClient(std::shared_ptr<JClientSocket> clientSocket) {
+bool ijoon::ClientManager::removeClient(std::shared_ptr<ClientTCPSocket> clientSocket) {
     return removeClient(clientSocket->getSocketIdentifier());
 }
 
