@@ -15,7 +15,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         server->onServerStarted();
     
     // change to user input
-    ijoon::JServerSocket servSocket(ijoon::IPv4);
+    ijoon::ServerTCPSocket servSocket(ijoon::IPv4);
     servSocket.option(ijoon::SOCK_REUSE, 1);
     if(!servSocket.initialize(server->getServerPort(), 10)) {
         exit(-1);
