@@ -31,13 +31,13 @@ void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length)
 
 int main(int argv, char** argc) {
     ijoon::initGlobalVariables();
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType1, Packet1, onPacket1);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType2, Packet2, onPacket2);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType3, Packet3, onPacket3);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::packetType4, Packet4, onPacket4);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::arrayMessageType, ArrayMessage, onArrayMessage);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::imageRequest, ImageRequest, onImageRequest);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, example::PacketType::imageResponse, ImageResponse, nullptr);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, packetType1, Packet1, onPacket1);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, packetType2, Packet2, onPacket2);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, packetType3, Packet3, onPacket3);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, packetType4, Packet4, onPacket4);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, arrayMessageType, ArrayMessage, onArrayMessage);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, imageRequest, ImageRequest, onImageRequest);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(example, imageResponse, ImageResponse, nullptr);
     SCNET_RAW_MESSAGE_REGISTRATION(0, onRawByteArray);
     SCNET_RAW_MESSAGE_REGISTRATION(1, onRawByteArray2);
 
