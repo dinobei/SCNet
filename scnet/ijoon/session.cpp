@@ -1,11 +1,6 @@
 #include "session.h"
 #include "registry.h"
 
-void ijoon::Session::startThread(FuncPointer func, std::string name, void *param) {
-    this->thread = new ijoon::Thread(func, name);
-    this->thread->start(param);
-}
-
 bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
     char *buf = new char[size];

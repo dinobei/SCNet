@@ -181,7 +181,6 @@ extern Registry<int, google::protobuf::Message* >* BaseMessageRegistry;
 #define PP_CAT_II(p, res) res
 #define UNIQUE_NAME(base) PP_CAT(base, __LINE__)
 
-// protobuf 메시지 등록용(송수신) + 수신콜백, 이름에 protobuf라는 내용을 넣어야하는지?
 #define SCNET_PROTOBUF_MESSAGE_REGISTRATION(ns, packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     BaseMessageRegistry, \

@@ -251,7 +251,8 @@ bool ijoon::ClientManager::addClient(std::shared_ptr<ClientTCPSocket> clientSock
             clientMap[clientSocket->getSocketIdentifier()] = sess;
             
             if(isMultiThreadBased()) {
-                sess->startThread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()), this);
+                ijoon::Thread *thread = new ijoon::Thread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()));
+                thread->start(this);
             }
             
             return true;

@@ -17,11 +17,9 @@ namespace ijoon {
         char *recvRawBody(MessageHeader &messageHeader);
         
         inline int event(int timeMs) {return this->cs->event(timeMs);}
-        void startThread(FuncPointer func, std::string name, void *param);
         std::shared_ptr<ijoon::ClientTCPSocket> getClientSocket() {return this->cs;}
 
     private:
-        ijoon::Thread *thread;
         std::shared_ptr<ijoon::ClientTCPSocket> cs;
         inline void makeHeader(char *buf, MessageHeader &messageHeader);
     };
