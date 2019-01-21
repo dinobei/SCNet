@@ -70,7 +70,7 @@ void *ijoon::recvThread(void *arg)
 
     while(!thread->isInterrupted())
     {
-        int fd_num = server->getSession()->event(5000);
+        int fd_num = server->getSession()->getClientSocket()->event(5000);
 
         if(fd_num == -1)
         {

@@ -16,7 +16,6 @@ namespace ijoon {
         google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader);
         char *recvRawBody(MessageHeader &messageHeader);
         
-        inline int event(int timeMs) {return this->cs->event(timeMs);}
         std::shared_ptr<ijoon::ClientTCPSocket> getClientSocket() {return this->cs;}
 
     private:

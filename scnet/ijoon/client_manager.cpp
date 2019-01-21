@@ -142,7 +142,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
         server->onClientServiceStarted(sess);
     
     while(1) {
-        int fd_num = sess->event(server->getRecvTimeoutMs());
+        int fd_num = sess->getClientSocket()->event(server->getRecvTimeoutMs());
         if(fd_num < 0) {
             if(server->onClientServiceDisconnected != nullptr)
                 server->onClientServiceDisconnected(sess);
