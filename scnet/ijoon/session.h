@@ -5,8 +5,8 @@
 namespace ijoon {
     class Session {
     public:
-        Session() : cs(std::shared_ptr<ijoon::ClientTCPSocket>(new ijoon::ClientTCPSocket())) {}
-        Session(std::shared_ptr<ijoon::ClientTCPSocket> cs): cs(cs) {}
+        Session() : cs(std::shared_ptr<ijoon::TCPSocket>(new ijoon::TCPSocket())) {}
+        Session(std::shared_ptr<ijoon::TCPSocket> cs): cs(cs) {}
         ~Session() {this->cs->close();};
         bool send(int packetType, char *message, unsigned int length);
         bool send(google::protobuf::Message *message);
@@ -16,11 +16,11 @@ namespace ijoon {
         google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader);
         char *recvRawBody(MessageHeader &messageHeader);
         
-        std::shared_ptr<ijoon::ClientTCPSocket> getClientSocket() {return this->cs;}
+        std::shared_ptr<ijoon::TCPSocket> getClientSocket() {return this->cs;}
 
     private:
-        std::shared_ptr<ijoon::ClientTCPSocket> cs;
         inline void makeHeader(char *buf, MessageHeader &messageHeader);
+        std::shared_ptr<ijoon::TCPSocket> cs;
     };
 }
 
