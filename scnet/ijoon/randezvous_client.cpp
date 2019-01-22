@@ -248,15 +248,11 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 std::string data;
                 
                 ijoon::Peer publicPeer(vec[0], vec[1]);
-                data = vec[0];
-                data += seperator;
-                data += vec[1];
+                data = "1";
                 ijoon::send(client->socket, publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_REQUEST, (char *)data.c_str(), data.length());
                 
                 ijoon::Peer privatePeer(vec[2], vec[3]);
-                data = vec[2];
-                data += seperator;
-                data += vec[3];
+                data = "0";
                 ijoon::send(client->socket, privatePeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_REQUEST, (char *)data.c_str(), data.length());
                 
                 continue;
@@ -265,23 +261,18 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             {
                 ijn_print(DP_DEBUG, "received UDP_HOLE_PUNCHING_REQUEST");
                 
-                // 홀펀칭이 되어 나에게 Peer의 메시지가 도착한 것. 연결 성공했으므로
-                // UDP_HOLE_PUNCHING_RESPONSE를 보냄
                 std::vector<std::string> vec;
                 char *token = std::strtok(body, &seperator);
                 while (token != NULL) {
                     vec.push_back(token);
                     token = std::strtok(NULL, &seperator);
                 }
-                if(vec.size() != 2) {
+                if(vec.size() != 1) {
                     ijn_print(DP_ERROR, "[UDP_HOLE_PUNCHING_REQUEST] invalid parameters");
                     break;
                 }
                 
-                std::string data;
-                data = vec[0];
-                data += seperator;
-                data += vec[1];
+                std::string data = vec[0];
                 ijoon::send(client->socket, peer, messageHeader.connectionID, UDP_HOLE_PUNCHING_RESPONSE, (char *)data.c_str(), data.length());
                 continue;
             }
@@ -297,25 +288,26 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     vec.push_back(token);
                     token = std::strtok(NULL, &seperator);
                 }
-                if(vec.size() != 2) {
+                if(vec.size() != 1) {
                     ijn_print(DP_ERROR, "[UDP_HOLE_PUNCHING_RESPONSE] invalid parameters");
                     break;
                 }
                 
+                const bool isPublic = atoi(vec[0].c_str()) ? true : false;
+                
                 ijn_print(DP_ERROR, "peer.getIP()=%s, peer.getPort()=%d", peer.getIP().c_str(), peer.getPort());
                 auto randezvousSession = client->randezvousSessionMap[messageHeader.connectionID];
-                if( peer.getIP().compare(vec[0]) == 0 &&
-                    peer.getPort() == atoi(vec[1].c_str()) ) {
+                if(isPublic) {
                     // public connection (common connection)
-                    randezvousSession->setPublicPeer(vec[0], vec[1]);
+                    randezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
                     
-                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected public, from %s:%s", vec[0].c_str(), vec[1].c_str());
+                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected public, from %s:%d", peer.getIP().c_str(), peer.getPort());
                 }
                 else {
                     // private connection (equal net, or hole punching)
-                    randezvousSession->setPrivatePeer(vec[0], vec[1]);
+                    randezvousSession->setPrivatePeer(peer.getIP(), std::to_string(peer.getPort()));
                     
-                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected private, from %s:%s", vec[0].c_str(), vec[1].c_str());
+                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected private, from %s:%d", peer.getIP().c_str(), peer.getPort());
                 }
                 
                 continue;

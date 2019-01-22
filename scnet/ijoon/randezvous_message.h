@@ -26,8 +26,8 @@ namespace ijoon {
         
         // pri/pri
         UDP_HOLE_PUNCHING, // * SP's public ip, public port, private ip, private port to TP (The opposite is also the case.)
-        UDP_HOLE_PUNCHING_REQUEST, // * requested-ip, requested-port
-        UDP_HOLE_PUNCHING_RESPONSE, // * requested-ip, requested-port
+        UDP_HOLE_PUNCHING_REQUEST, // * isPublic (1=true, 0=false)
+        UDP_HOLE_PUNCHING_RESPONSE, // * isPublic (1=true, 0=false)
         
         // relay
         RELAY_SERVICE_REQUEST, // * SP pubilc ip, SP public port, TP public ip, TP public port
