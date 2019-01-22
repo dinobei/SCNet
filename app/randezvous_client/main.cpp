@@ -60,14 +60,11 @@ int main(int argc, char** argv) {
             std::string message = vec[2];
             
             auto randezvousSession = client.randezvousSessionMap[connectionID];
+            if(randezvousSession == nullptr) {
+                ijn_print(DP_ERROR, "invalid connectionID");
+                continue;
+            }
             randezvousSession->send(123, (char *)message.c_str(), message.length());
-            
-//            int cnt = 10;
-//            while(cnt++ < 200) {
-//                char buf[255] = {0,};
-//                sprintf(buf, "%d", cnt);
-//                randezvousSession->send(123, buf, strlen(buf));
-//            }
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
