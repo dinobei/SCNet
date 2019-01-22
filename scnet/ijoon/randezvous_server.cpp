@@ -1,6 +1,7 @@
 #include "randezvous_server.h"
 #include "randezvous_message.h"
 #include "message_header.h"
+#include <cstring>
 
 extern char seperator;
 

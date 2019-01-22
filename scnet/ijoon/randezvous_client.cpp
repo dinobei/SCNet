@@ -3,7 +3,7 @@
 #include "message_header.h"
 #include "session.h"
 #include <ifaddrs.h>
-
+#include <cstring>
 #include "registry.h"
 
 extern char seperator;

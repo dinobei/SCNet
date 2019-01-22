@@ -4,6 +4,7 @@
 #include "registry.h"
 #include <map>
 #include <string>
+#include <cstring>
 
 using namespace std;
 
