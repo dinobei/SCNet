@@ -110,7 +110,7 @@ bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
         }
     }
     
-    makeHeader(headerBuffer, messageHeader);
+    ijoon::makeHeader(headerBuffer, messageHeader);
     return true;
 }
 
@@ -151,11 +151,59 @@ char *ijoon::Session::recvRawBody(MessageHeader &messageHeader) {
     return responseBuffer;
 }
 
-void ijoon::Session::makeHeader(char *buf, MessageHeader &messageHeader) {
-    google::protobuf::io::ArrayInputStream ais(buf, MAX_PACKET_HEADER_SIZE);
-    google::protobuf::io::CodedInputStream coded_input(&ais);
-    coded_input.ReadVarint32(&messageHeader.dataSize); // Decode the HDR and get the size
-    coded_input.ReadVarint32(&messageHeader.packetType); // Decode the HDR and get the packet type
-    coded_input.ReadVarint32(&messageHeader.messageType); // Decode the message type
-    coded_input.ReadVarint32(&messageHeader.cryptType); // Decode the crypt
+bool ijoon::RandezvousSession::send(int packetType, char *message, unsigned int length) {
+    if(this->isSetPrivatePeer) {
+        printf("sent to private peer\n");
+        return ijoon::send(socket, privatePeer, connectionID, packetType, message, length);
+    }
+    else if(this->isSetPublicPeer) {
+        printf("sent to public peer\n");
+        return ijoon::send(socket, publicPeer, connectionID, packetType, message, length);
+    }
+    else if(this->isSetRelayPeer) {
+        printf("sent to relay peer\n");
+        return ijoon::sendRelay(socket, relayPeer, connectionID, packetType, message, length);
+    }
+    
+    printf("send failed\n");
+    return false;
+}
+
+bool ijoon::RandezvousSession::send(google::protobuf::Message *message) {
+    // note: implement this
+    return false;
+}
+
+bool ijoon::RandezvousSession::send(std::shared_ptr<google::protobuf::Message> message) {
+    // note: implement this
+    return false;
+}
+
+void ijoon::RandezvousSession::setPrivatePeer(std::string ip, std::string port) {
+    this->privatePeer.setIP(ip);
+    this->privatePeer.setPort(port);
+    this->isSetPrivatePeer = true;
+}
+
+void ijoon::RandezvousSession::setPublicPeer(std::string ip, std::string port) {
+    this->publicPeer.setIP(ip);
+    this->publicPeer.setPort(port);
+    this->isSetPublicPeer = true;
+}
+void ijoon::RandezvousSession::setRelayPeer(std::string ip, std::string port) {
+    this->relayPeer.setIP(ip);
+    this->relayPeer.setPort(port);
+    this->isSetRelayPeer = true;
+}
+
+void ijoon::RandezvousSession::clearPrivatePeer() {
+    this->isSetPrivatePeer = false;
+}
+
+void ijoon::RandezvousSession::clearPublicPeer() {
+    this->isSetPublicPeer = false;
+}
+
+void ijoon::RandezvousSession::clearRelayPeer() {
+    this->isSetRelayPeer = false;
 }

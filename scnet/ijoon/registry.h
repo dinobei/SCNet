@@ -11,50 +11,51 @@ namespace ijoon {
 
 class AbstractCallbackWrapper {
 public:
-    virtual void callback(ijoon::Session *session, google::protobuf::Message *message) {}
-    virtual void callback(ijoon::Session *session, char *message, unsigned int length) {}
+    virtual void callback(ijoon::BaseSession *session, google::protobuf::Message *message) {}
+    virtual void callback(ijoon::BaseSession *session, char *message, unsigned int length) {}
 };
 
-template <class T>
+template <class S, class T>
 class CallbackWrapper : public AbstractCallbackWrapper{
 public:
-    CallbackWrapper(std::function<void(ijoon::Session *, T *)> _callbackFunc) {
+    CallbackWrapper(std::function<void(S *, T *)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~CallbackWrapper() {}
     
-    void callback(ijoon::Session *session, google::protobuf::Message *message) override {
+    void callback(ijoon::BaseSession *session, google::protobuf::Message *message) override {
         if(callbackFunc == nullptr) return;
         if(message == nullptr) {
-            callbackFunc(static_cast<ijoon::Session *>(session), nullptr);
+            callbackFunc(static_cast<S *>(session), nullptr);
             return;
         }
         
-        callbackFunc(static_cast<ijoon::Session *>(session), static_cast<T *>((void *)message));
+        callbackFunc(static_cast<S *>(session), static_cast<T *>((void *)message));
     }
     
 public:
-    std::function<void(ijoon::Session *, T *)> callbackFunc;
+    std::function<void(S *, T *)> callbackFunc;
 };
 
+template <class S>
 class RawCallbackWrapper : public AbstractCallbackWrapper{
 public:
-    RawCallbackWrapper(std::function<void(ijoon::Session *, void *, unsigned int)> _callbackFunc) {
+    RawCallbackWrapper(std::function<void(S *, void *, unsigned int)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~RawCallbackWrapper() {}
     
-    void callback(ijoon::Session *session, char *message, unsigned int length) override {
+    void callback(ijoon::BaseSession *session, char *message, unsigned int length) override {
         if(message == nullptr) {
-            callbackFunc(static_cast<ijoon::Session *>(session), nullptr, 0);
+            callbackFunc(static_cast<S *>(session), nullptr, 0);
             return;
         }
         
-        callbackFunc(static_cast<ijoon::Session *>(session), (void *)message, length);
+        callbackFunc(static_cast<S *>(session), (void *)message, length);
     }
     
 public:
-    std::function<void(ijoon::Session *, void *, unsigned int)> callbackFunc;
+    std::function<void(S *, void *, unsigned int)> callbackFunc;
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>
@@ -194,13 +195,21 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     BaseMessageRegistry, \
                     ijoon::MESSAGE_TYPE::PROTOBUF, \
                     packetTypeInt, \
-                    new CallbackWrapper<messageClassName>(callbackFunc))
+                    new CallbackWrapper<ijoon::Session, messageClassName>(callbackFunc))
 
 #define SCNET_RAW_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     BaseMessageRegistry, \
                     ijoon::MESSAGE_TYPE::RAWBYTE, \
                     packetTypeInt, \
-                    new RawCallbackWrapper(callbackFunc))
+                    new RawCallbackWrapper<ijoon::Session>(callbackFunc))
+
+#define SCNET_RAW_UDP_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
+                    static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
+                    BaseMessageRegistry, \
+                    ijoon::MESSAGE_TYPE::RAWBYTE, \
+                    packetTypeInt, \
+                    new RawCallbackWrapper<ijoon::RandezvousSession>(callbackFunc))
+
 
 #endif
