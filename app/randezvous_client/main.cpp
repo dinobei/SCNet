@@ -10,81 +10,16 @@ using namespace std;
 
 void onConnected(ijoon::RandezvousSession *session, void *buffer, unsigned int length);
 
-int main(int argv, char** argc) {
-//    std::multimap<int, int> map;
-//    map.insert(std::pair<int, int>(0, 1));
-//    map.insert(std::pair<int, int>(0, 2));
-//    int count = map.count(0);
-//    printf("count : %d\n", count);
-
-//    multimap<int, int> mm;
-//
-//    mm.insert(pair<int, int>(5, 100));
-//    mm.insert(pair<int, int>(3, 100));
-//    mm.insert(pair<int, int>(8, 30));
-//    mm.insert(pair<int, int>(3, 40));
-//    mm.insert(pair<int, int>(1, 70));
-//    mm.insert(pair<int, int>(2, 2222));
-//    mm.insert(pair<int, int>(2, 222));
-//    mm.insert(pair<int, int>(2, 22222));
-//    mm.insert(pair<int, int>(7, 100));
-//    mm.insert(pair<int, int>(3, 333));
-//    mm.insert(pair<int, int>(8, 50));
-//
-//    multimap<int, int>::iterator iter;
-//    for (iter = mm.begin(); iter != mm.end(); ++iter)
-//        cout << "(" << iter->first << "," << iter->second << ") ";
-//    cout << endl;
-//
-//    // multimap 의 key 3 원소의 개수 찾기
-//    cout << "key 3의 원소의 개수는 : " << mm.count(3) << endl;
-//
-//    // multimap의 key 3의 위치 찾기
-//    iter = mm.find(3);
-//    if (iter != mm.end())
-//        cout << "첫 번째 key 3에 매핑된 value : " << iter->second << endl;
-//
-//    map<int, int>::iterator lower_iter;
-//    map<int, int>::iterator upper_iter;
-//    lower_iter = mm.lower_bound(1);
-//    upper_iter = mm.upper_bound(1);
-//
-//    for( ; lower_iter != mm.end() ; lower_iter++) {
-//        cout << "lower_iter : " << "(" << lower_iter->first << "," << lower_iter->second << ") " << endl;
-//    }
-//    for( ; upper_iter != mm.end() ; upper_iter++) {
-//        cout << "upper_iter : " << "(" << upper_iter->first << "," << upper_iter->second << ") " << endl;
-//    }
-//
-//
-//    // key가 3인 요소의 범위  찾기
-//    pair<map<int, int>::iterator, map<int, int>::iterator> iter_pair;
-//    iter_pair = mm.equal_range(3);
-//
-//    for (iter = iter_pair.first; iter != iter_pair.second; ++iter)
-//        cout << "(" << iter->first << ',' << iter->second << ") ";
-//    cout << endl;
-//    
-//    return 0;
-    
-//    char seperator = ' ';
-//    char buffer[255] = "this is test";//{0,};
-//    std::vector<std::string> vec;
-//    char *token = std::strtok(&buffer[2], &seperator);
-//    while (token != NULL) {
-//        vec.push_back(token);
-//        token = std::strtok(NULL, &seperator);
-//    }
-//    for(int i = 0 ; i < vec.size() ; i++) {
-//        printf("%s ", vec[i].c_str());
-//    }
-//    printf("\n");
-//    return 0;
+int main(int argc, char** argv) {
+    if(argc != 3) {
+        printf("Usage : %s <randezvous_server_ip> <randezvous_server_port>\n", argv[0]);
+        exit(-1);
+    }
     
     ijoon::initGlobalVariables();
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTED, onConnected);
     
-    ijoon::RandezvousClient client("127.0.0.1", "9190");
+    ijoon::RandezvousClient client(argv[1], argv[2]);
     client.start();
     
     while(true) {
