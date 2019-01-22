@@ -309,13 +309,13 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     // public connection (common connection)
                     randezvousSession->setPublicPeer(vec[0], vec[1]);
                     
-                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected private, from %s:%s", vec[0].c_str(), vec[1].c_str());
+                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected public, from %s:%s", vec[0].c_str(), vec[1].c_str());
                 }
                 else {
                     // private connection (equal net, or hole punching)
                     randezvousSession->setPrivatePeer(vec[0], vec[1]);
                     
-                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected public, from %s:%s", vec[0].c_str(), vec[1].c_str());
+                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected private, from %s:%s", vec[0].c_str(), vec[1].c_str());
                 }
                 
                 continue;
