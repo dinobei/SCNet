@@ -199,6 +199,8 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                 else {
                     // not registered relay peer
                     ijn_print(DP_ERROR, "[REGISTER_RELAY_PEER_REQUEST] relay peer mismatch");
+                    printf("[peer's request] %s:%d -> %s:%s\n", peer.getIP().c_str(), peer.getPort(), vec[0].c_str(), vec[1].c_str());
+                    printf("[relay mapping] (SP) %s:%d <-> (TP) %s:%d\n", relayPeerInfo->sourcePeer.getIP().c_str(), relayPeerInfo->sourcePeer.getPort(), relayPeerInfo->targetPeer.getIP().c_str(), relayPeerInfo->targetPeer.getPort());
                     ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTER_RELAY_PEER_RESPONSE_FAILED, body, messageHeader.dataSize);
                     continue;
                 }
