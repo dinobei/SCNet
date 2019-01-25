@@ -65,7 +65,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     
     while(!thread->isInterrupted()) {
         ijn_print(DP_INFO, "send REGISTER_REQUEST");
-        ijoon::send(client->socket, client->randezvousServerPeer, 0, REGISTER_REQUEST, (char *)data.c_str(), data.length());
+        ijoon::send(client->socket, client->randezvousServerPeer, 0, REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
         thread->sleep(30 * 1000);
     }
     
@@ -114,7 +114,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
         }
         
         switch (messageHeader.packetType) {
-            case REGISTER_RESPONSE_SUCCESS:
+            case REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS:
             {
                 ijn_print(DP_DEBUG, "received REGISTER_RESPONSE_SUCCESS");
                 
@@ -133,17 +133,12 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 
                 continue;
             }
-            case REGISTER_RESPONSE_FAILED:
-            {
-                ijn_print(DP_DEBUG, "received REGISTER_RESPONSE_FAILED");
-                continue;
-            }
-            case NOT_REGISTERED:
+            case CONNECTION_FAILED:
             {
                 ijn_print(DP_DEBUG, "received NOT_REGISTERED");
                 continue;
             }
-            case COMMON_CONNECTION_READY: // SP only
+            case DIRECT_CONNECTION_AVAILABLE: // SP only
             {
                 ijn_print(DP_DEBUG, "received COMMON_CONNECTION_READY");
                 
@@ -159,17 +154,17 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 }
                 
                 ijoon::Peer targetPeer(vec[0], vec[1]);
-                ijoon::send(client->socket, targetPeer, messageHeader.connectionID, COMMON_CONNECTION_REQUEST);
+                ijoon::send(client->socket, targetPeer, messageHeader.connectionID, DIRECT_CONNECTION_REQUEST);
                 continue;
             }
-            case COMMON_CONNECTION_REQUEST: // TP only
+            case DIRECT_CONNECTION_REQUEST: // TP only
             {
                 ijn_print(DP_DEBUG, "received COMMON_CONNECTION_REQUEST");
                 
-                ijoon::send(client->socket, peer, messageHeader.connectionID, COMMON_CONNECTION_RESPONSE);
+                ijoon::send(client->socket, peer, messageHeader.connectionID, DIRECT_CONNECTION_RESPONSE);
                 continue;
             }
-            case COMMON_CONNECTION_RESPONSE: // SP only
+            case DIRECT_CONNECTION_RESPONSE: // SP only
             {
                 ijn_print(DP_DEBUG, "received COMMON_CONNECTION_RESPONSE");
                 
@@ -179,12 +174,6 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 if(callbackWrapper != nullptr) {
                     callbackWrapper->callback(randezvousSession.get(), nullptr, 0);
                 }
-                
-                continue;
-            }
-            case REVERSE_CONNECTION_READY: // SP only
-            {
-                ijn_print(DP_DEBUG, "received REVERSE_CONNECTION_READY");
                 
                 continue;
             }
@@ -229,9 +218,9 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 continue;
             }
             
-            case UDP_HOLE_PUNCHING:
+            case UDP_HOLE_PUNCHING_AVAILABLE:
             {
-                ijn_print(DP_DEBUG, "received UDP_HOLE_PUNCHING");
+                ijn_print(DP_DEBUG, "received UDP_HOLE_PUNCHING_AVAILABLE");
 
                 std::vector<std::string> vec;
                 char *token = std::strtok(body, &seperator);
@@ -240,7 +229,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     token = std::strtok(NULL, &seperator);
                 }
                 if(vec.size() != 4) {
-                    ijn_print(DP_ERROR, "[UDP_HOLE_PUNCHING] invalid parameters");
+                    ijn_print(DP_ERROR, "[UDP_HOLE_PUNCHING_AVAILABLE] invalid parameters");
                     break;
                 }
                     
@@ -312,7 +301,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 
                 continue;
             }
-            case READY_TO_RELAY:
+            case RELAY_SERVER_INFORMATION:
             {
                 ijn_print(DP_DEBUG, "received READY_TO_RELAY, connectionID=%d", messageHeader.connectionID);
                 
@@ -338,11 +327,11 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 data = vec[2];
                 data += seperator;
                 data += vec[3];
-                ijoon::send(client->socket, relayPeer, messageHeader.connectionID, REGISTER_RELAY_PEER_REQUEST, (char *)data.c_str(), data.length());
+                ijoon::send(client->socket, relayPeer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_REQUEST, (char *)data.c_str(), data.length());
                 
                 continue;
             }
-            case CONNECTED:
+            case CONNECTION_RELAY_SERVICE_SUCCESS:
             {
                 ijn_print(DP_DEBUG, "received CONNECTED");
                 
@@ -366,13 +355,13 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 
                 continue;
             }
-            case REGISTER_RELAY_PEER_RESPONSE_SUCCESS:
+            case REGISTRATION_RELAY_PEER_SUCCESS:
             {
                 ijn_print(DP_DEBUG, "received REGISTER_RELAY_PEER_RESPONSE_SUCCESS");
                 
                 continue;
             }
-            case REGISTER_RELAY_PEER_RESPONSE_FAILED:
+            case REGISTRATION_RELAY_PEER_FAILED:
             {
                 ijn_print(DP_DEBUG, "received REGISTER_RELAY_PEER_RESPONSE_FAILED");
                 continue;

@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     }
     
     ijoon::initGlobalVariables();
-    SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTED, onConnected);
+    SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_RELAY_SERVICE_SUCCESS, onConnected);
     
     ijoon::RandezvousClient client(argv[1], argv[2]);
     client.start();

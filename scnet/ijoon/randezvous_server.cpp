@@ -62,7 +62,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
         char *body = &packet[cursor];
         
         switch (messageHeader.packetType) {
-            case REGISTER_RELAY_REQUEST: // from RelS
+            case REGISTRATION_RELAY_SERVER_REQUEST: // from RelS
             {
                 ijn_print(DP_DEBUG, "received REGISTER_RELAY_REQUEST");
                 
@@ -71,10 +71,10 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                     server->relayServerMap[key] = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(peer.getIP(), std::to_string(peer.getPort())));
                 }
                 
-                ijoon::send(socket, peer, 0, REGISTER_RELAY_RESPONSE);
+                ijoon::send(socket, peer, 0, REGISTRATION_RELAY_SERVER_SUCCESS);
                 break;
             }
-            case RELAY_SERVICE_READY: // from RelS
+            case RELAY_SESSION_READY: // from RelS
             {
                 ijn_print(DP_DEBUG, "received RELAY_SERVICE_READY");
                 
@@ -99,7 +99,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 data += seperator;
                 data += vec[3]; // TP port
                 Peer sourcePeer(vec[0], vec[1]);
-                ijoon::send(socket, sourcePeer, messageHeader.connectionID, READY_TO_RELAY, (char *)data.c_str(), data.length());
+                ijoon::send(socket, sourcePeer, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
 
                 data = peer.getIP();
                 data += seperator;
@@ -109,11 +109,11 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 data += seperator;
                 data += vec[1]; // SP port
                 Peer targetPeer(vec[2], vec[3]);
-                ijoon::send(socket, targetPeer, messageHeader.connectionID, READY_TO_RELAY, (char *)data.c_str(), data.length());
+                ijoon::send(socket, targetPeer, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
                 
                 break;
             }
-            case RELAY_SERVICE_RESPONSE_SUCCESS: // from RelS
+            case RELAY_SESSION_CREATED: // from RelS
             {
                 ijn_print(DP_DEBUG, "received RELAY_SERVICE_RESPONSE_SUCCESS");
                 
@@ -142,7 +142,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 data += seperator;
                 data += vec[3];
                 ijoon::Peer sourcePeer(vec[0], vec[1]);
-                ijoon::send(socket, sourcePeer, messageHeader.connectionID, CONNECTED, (char *)data.c_str(), data.length());
+                ijoon::send(socket, sourcePeer, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
                 
                 data = peer.getIP();
                 data += seperator;
@@ -152,7 +152,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 data += seperator;
                 data += vec[1];
                 ijoon::Peer targetPeer(vec[2], vec[3]);
-                ijoon::send(socket, targetPeer, messageHeader.connectionID, CONNECTED, (char *)data.c_str(), data.length());
+                ijoon::send(socket, targetPeer, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
 
                 
                 // SP와 TP의 환경 체크
@@ -171,16 +171,10 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 
                 if(isTPPublic) { // pub/pub, pri/pub
                     std::string data = vec[2] + seperator + vec[3]; // tp public address
-                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, COMMON_CONNECTION_READY, (char *)data.c_str(), data.length());
+                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, DIRECT_CONNECTION_AVAILABLE, (char *)data.c_str(), data.length());
                 }
                 else if(isSPPublic && !isTPPublic) { // pub/pri
                     std::string data;
-                    
-                    data = vec[2]; // tp public address
-                    data += seperator;
-                    data += vec[3];
-                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, REVERSE_CONNECTION_READY, (char *)data.c_str(), data.length());
-                    
                     data = vec[0]; // sp public address
                     data += seperator;
                     data += vec[1];
@@ -196,7 +190,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                     data += tpRandezvousPeer->privatePeer.getIP();
                     data += seperator;
                     data += std::to_string(tpRandezvousPeer->privatePeer.getPort());
-                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING, (char *)data.c_str(), data.length());
+                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
                     
                     data = spRandezvousPeer->publicPeer.getIP(); // sp public address
                     data += seperator;
@@ -205,12 +199,12 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                     data += spRandezvousPeer->privatePeer.getIP();
                     data += seperator;
                     data += std::to_string(spRandezvousPeer->privatePeer.getPort());
-                    ijoon::send(socket, tpRandezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING, (char *)data.c_str(), data.length());
+                    ijoon::send(socket, tpRandezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
                 }
                 
                 break;
             }
-            case RELAY_SERVICE_RESPONSE_FAILED: // from RelS
+            case RELAY_SESSION_CREATING_FAILED: // from RelS
             {
                 ijn_print(DP_DEBUG, "received RELAY_SERVICE_RESPONSE_FAILED");
                 
@@ -221,7 +215,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 
                 break;
             }
-            case REGISTER_REQUEST: // from SP, TP
+            case REGISTRATION_RENDEZVOUS_CLIENT_REQUEST: // from SP, TP
             {
                 ijn_print(DP_DEBUG, "received REGISTER_REQUEST");
                 
@@ -232,7 +226,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                     token = std::strtok(NULL, &seperator);
                 }
                 if(vec.size() != 2) {
-                    ijoon::send(socket, peer, 0, REGISTER_RESPONSE_FAILED);
+                    ijn_print(DP_ERROR, "[REGISTRATION_RENDEZVOUS_CLIENT_REQUEST] invalid parameters");
                     break;
                 }
                 
@@ -252,7 +246,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 data = peer.getIP();
                 data += seperator;
                 data += std::to_string(peer.getPort());
-                ijoon::send(socket, randezvousPeer->publicPeer, 0, REGISTER_RESPONSE_SUCCESS, (char *)data.c_str(), data.length());
+                ijoon::send(socket, randezvousPeer->publicPeer, 0, REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, (char *)data.c_str(), data.length());
                 break;
             }
             case CONNECTION_REQUEST: // from SP
@@ -273,7 +267,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
                 auto randezvousPeer = server->registeredRandezvousPeer[key];
                 if(randezvousPeer == nullptr) {
-                    ijoon::send(socket, peer, 0, NOT_REGISTERED);
+                    ijoon::send(socket, peer, 0, CONNECTION_FAILED);
                     break;
                 }
                 
@@ -299,7 +293,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 
                 if(server->relayServerMap.size() == 0) {
                     ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
-                    ijoon::send(socket, peer, 0, NO_RELAY_SERVER);
+                    ijoon::send(socket, peer, 0, CONNECTION_RELAY_SERVICE_FAILED);
                     break;
                 }
                 
