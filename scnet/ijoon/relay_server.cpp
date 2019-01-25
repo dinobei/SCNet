@@ -188,6 +188,8 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                     relayServer->sessionCheckMap[messageHeader.connectionID]++;
                     ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTER_RELAY_PEER_RESPONSE_SUCCESS, body, messageHeader.dataSize);
                     ijn_print(DP_INFO, "[CID=%d] SP registered", messageHeader.connectionID);
+                    printf("[peer's request] %s:%d -> %s:%s\n", peer.getIP().c_str(), peer.getPort(), vec[0].c_str(), vec[1].c_str());
+                    printf("[relay mapping] (SP) %s:%d <-> (TP) %s:%d\n", relayPeerInfo->sourcePeer.getIP().c_str(), relayPeerInfo->sourcePeer.getPort(), relayPeerInfo->targetPeer.getIP().c_str(), relayPeerInfo->targetPeer.getPort());
                 }
                 else if(relayPeerInfo->sourcePeer.getIP().compare(peer2IP) == 0 && relayPeerInfo->sourcePeer.getPort() == peer2Port &&
                         relayPeerInfo->targetPeer.getIP().compare(peer1IP) == 0 && relayPeerInfo->targetPeer.getPort() == peer1Port) {
@@ -195,6 +197,8 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                     relayServer->sessionCheckMap[messageHeader.connectionID]++;
                     ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTER_RELAY_PEER_RESPONSE_SUCCESS, body, messageHeader.dataSize);
                     ijn_print(DP_INFO, "[CID=%d] TP registered", messageHeader.connectionID);
+                    printf("[peer's request] %s:%d -> %s:%s\n", peer.getIP().c_str(), peer.getPort(), vec[0].c_str(), vec[1].c_str());
+                    printf("[relay mapping] (SP) %s:%d <-> (TP) %s:%d\n", relayPeerInfo->sourcePeer.getIP().c_str(), relayPeerInfo->sourcePeer.getPort(), relayPeerInfo->targetPeer.getIP().c_str(), relayPeerInfo->targetPeer.getPort());
                 }
                 else {
                     // not registered relay peer
