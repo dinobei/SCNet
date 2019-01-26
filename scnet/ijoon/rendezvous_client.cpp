@@ -64,7 +64,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     std::string data = localIP + " " + std::to_string(localPort);
     
     while(!thread->isInterrupted()) {
-        ijn_print(DP_INFO, "send REGISTER_REQUEST");
+        ijn_print(DP_INFO, "send REGISTRATION_RENDEZVOUS_CLIENT_REQUEST");
         ijoon::send(client->socket, client->rendezvousServerPeer, 0, REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
         thread->sleep(30 * 1000);
     }
@@ -116,7 +116,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
         switch (messageHeader.packetType) {
             case REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS:
             {
-                ijn_print(DP_DEBUG, "received REGISTER_RESPONSE_SUCCESS");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS");
                 
                 std::vector<std::string> vec;
                 char *token = std::strtok((char *)body, &seperator);
@@ -125,22 +125,22 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     token = std::strtok(NULL, &seperator);
                 }
                 if(vec.size() != 2) {
-                    ijn_print(DP_ERROR, "[REGISTER_RESPONSE_SUCCESS] invalid parameters");
+                    ijn_print(DP_ERROR, "[REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS] invalid parameters");
                     break;
                 }
                 
-                ijn_print(DP_INFO, "[REGISTER_RESPONSE_SUCCESS] MyPublicAddress=%s:%s", vec[0].c_str(), vec[1].c_str());
+                ijn_print(DP_INFO, "[REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS] MyPublicAddress=%s:%s", vec[0].c_str(), vec[1].c_str());
                 
                 continue;
             }
             case CONNECTION_FAILED:
             {
-                ijn_print(DP_DEBUG, "received NOT_REGISTERED");
+                ijn_print(DP_DEBUG, "received CONNECTION_FAILED");
                 continue;
             }
             case DIRECT_CONNECTION_AVAILABLE: // SP only
             {
-                ijn_print(DP_DEBUG, "received COMMON_CONNECTION_READY");
+                ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_AVAILABLE");
                 
                 std::vector<std::string> vec;
                 char *token = std::strtok(body, &seperator);
@@ -149,7 +149,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     token = std::strtok(NULL, &seperator);
                 }
                 if(vec.size() != 2) {
-                    ijn_print(DP_ERROR, "[COMMON_CONNECTION_READY] invalid parameters");
+                    ijn_print(DP_ERROR, "[DIRECT_CONNECTION_AVAILABLE] invalid parameters");
                     break;
                 }
                 
@@ -159,14 +159,14 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             }
             case DIRECT_CONNECTION_REQUEST: // TP only
             {
-                ijn_print(DP_DEBUG, "received COMMON_CONNECTION_REQUEST");
+                ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_REQUEST");
                 
                 ijoon::send(client->socket, peer, messageHeader.connectionID, DIRECT_CONNECTION_RESPONSE);
                 continue;
             }
             case DIRECT_CONNECTION_RESPONSE: // SP only
             {
-                ijn_print(DP_DEBUG, "received COMMON_CONNECTION_RESPONSE");
+                ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_RESPONSE");
                 
                 auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
@@ -303,7 +303,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             }
             case RELAY_SERVER_INFORMATION:
             {
-                ijn_print(DP_DEBUG, "received READY_TO_RELAY, connectionID=%d", messageHeader.connectionID);
+                ijn_print(DP_DEBUG, "received RELAY_SERVER_INFORMATION, connectionID=%d", messageHeader.connectionID);
                 
                 std::vector<std::string> vec;
                 char *token = std::strtok(body, &seperator);
@@ -311,8 +311,8 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     vec.push_back(token);
                     token = std::strtok(NULL, &seperator);
                 }
-                if(vec.size() != 4) {
-                    ijn_print(DP_ERROR, "[READY_TO_RELAY] invalid parameters");
+                if(vec.size() != 2) {
+                    ijn_print(DP_ERROR, "[RELAY_SERVER_INFORMATION] invalid parameters");
                     break;
                 }
                 
@@ -320,20 +320,16 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 std::shared_ptr<ijoon::RendezvousSession> rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(client->socket, messageHeader.connectionID));
                 client->rendezvousSessionMap[messageHeader.connectionID] = rendezvousSession;
                 
-                ijn_print(DP_INFO, "[READY_TO_RELAY] RelayServerAddress=%s:%s", vec[0].c_str(), vec[1].c_str());
+                ijn_print(DP_INFO, "[RELAY_SERVER_INFORMATION] RelayServerAddress=%s:%s", vec[0].c_str(), vec[1].c_str());
                 
                 ijoon::Peer relayPeer(vec[0], vec[1]);
-                std::string data;
-                data = vec[2];
-                data += seperator;
-                data += vec[3];
-                ijoon::send(client->socket, relayPeer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_REQUEST, (char *)data.c_str(), data.length());
+                ijoon::send(client->socket, relayPeer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_REQUEST);
                 
                 continue;
             }
             case CONNECTION_RELAY_SERVICE_SUCCESS:
             {
-                ijn_print(DP_DEBUG, "received CONNECTED");
+                ijn_print(DP_DEBUG, "received CONNECTION_RELAY_SERVICE_SUCCESS");
                 
                 std::vector<std::string> vec;
                 char *token = std::strtok(body, &seperator);
@@ -341,29 +337,25 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     vec.push_back(token);
                     token = std::strtok(NULL, &seperator);
                 }
-                if(vec.size() != 4) {
-                    ijn_print(DP_ERROR, "[CONNECTED] invalid parameters");
+                if(vec.size() != 2) {
+                    ijn_print(DP_ERROR, "[CONNECTION_RELAY_SERVICE_SUCCESS] invalid parameters");
                     break;
                 }
                 
                 auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
                 rendezvousSession->setRelayPeer(vec[0], vec[1]);
-                auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
-                if(callbackWrapper != nullptr) {
-                    callbackWrapper->callback(rendezvousSession.get(), nullptr, 0);
-                }
-                
+
                 continue;
             }
             case REGISTRATION_RELAY_PEER_SUCCESS:
             {
-                ijn_print(DP_DEBUG, "received REGISTER_RELAY_PEER_RESPONSE_SUCCESS");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_SUCCESS");
                 
                 continue;
             }
             case REGISTRATION_RELAY_PEER_FAILED:
             {
-                ijn_print(DP_DEBUG, "received REGISTER_RELAY_PEER_RESPONSE_FAILED");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_FAILED");
                 continue;
             }
             default:

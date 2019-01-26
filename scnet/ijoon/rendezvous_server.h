@@ -12,8 +12,8 @@ namespace ijoon {
     class RendezvousPeerInfo {
     public:
         uint connectionID;
-        std::string spUniqueKey;
-        std::string tpUniqueKey;
+        ijoon::Peer sp;
+        ijoon::Peer tp;
     };
     
     class RendezvousServer {

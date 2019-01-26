@@ -64,7 +64,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
         switch (messageHeader.packetType) {
             case REGISTRATION_RELAY_SERVER_REQUEST: // from RelS
             {
-                ijn_print(DP_DEBUG, "received REGISTER_RELAY_REQUEST");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_REQUEST");
                 
                 std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
                 if(server->relayServerMap.count(key) == 0) {
@@ -76,93 +76,47 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             }
             case RELAY_SESSION_READY: // from RelS
             {
-                ijn_print(DP_DEBUG, "received RELAY_SERVICE_READY");
+                ijn_print(DP_DEBUG, "received RELAY_SESSION_READY");
                 
-                std::vector<std::string> vec;
-                char *token = std::strtok(body, &seperator);
-                while (token != NULL) {
-                    vec.push_back(token);
-                    token = std::strtok(NULL, &seperator);
-                }
-                if(vec.size() != 4) {
-                    ijn_print(DP_ERROR, "[RELAY_SERVICE_READY] invalid parameters");
+                if(server->rendezvousPeerInfoMap.count(messageHeader.connectionID) == 0) {
+                    ijn_print(DP_ERROR, "[RELAY_SESSION_READY] invalid request from relay server");
                     break;
                 }
                 
-                std::string data;
+                auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
                 
-                data = peer.getIP();
-                data += seperator;
-                data += std::to_string(peer.getPort());
-                data += seperator;
-                data += vec[2]; // TP ip
-                data += seperator;
-                data += vec[3]; // TP port
-                Peer sourcePeer(vec[0], vec[1]);
-                ijoon::send(socket, sourcePeer, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
-
-                data = peer.getIP();
-                data += seperator;
-                data += std::to_string(peer.getPort());
-                data += seperator;
-                data += vec[0]; // SP ip
-                data += seperator;
-                data += vec[1]; // SP port
-                Peer targetPeer(vec[2], vec[3]);
-                ijoon::send(socket, targetPeer, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
+                std::string data = peer.getIP() + seperator + std::to_string(peer.getPort());
+                ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
+                ijoon::send(socket, rendezvousPeerInfo->tp, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
                 
                 break;
             }
             case RELAY_SESSION_CREATED: // from RelS
             {
-                ijn_print(DP_DEBUG, "received RELAY_SERVICE_RESPONSE_SUCCESS");
+                ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATED");
                 
                 // 릴레이 서버에 SP/TP가 등록을 마쳤다는 뜻
                 // SP에 CONNECTION_REQUEST에 대한 응답을 해줌
-                
-                std::vector<std::string> vec;
-                char *token = std::strtok(body, &seperator);
-                while (token != NULL) {
-                    vec.push_back(token);
-                    token = std::strtok(NULL, &seperator);
-                }
-                if(vec.size() != 4) {
-                    ijn_print(DP_ERROR, "[RELAY_SERVICE_RESPONSE_SUCCESS] invalid parameters");
+
+                if(server->rendezvousPeerInfoMap.count(messageHeader.connectionID) == 0) {
+                    ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] relay connection info not exist");
                     break;
                 }
-
+                auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+                
                 // send connected packet
-                std::string data;
-                
-                data = peer.getIP();
-                data += seperator;
-                data += std::to_string(peer.getPort());
-                data += seperator;
-                data += vec[2];
-                data += seperator;
-                data += vec[3];
-                ijoon::Peer sourcePeer(vec[0], vec[1]);
-                ijoon::send(socket, sourcePeer, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
-                
-                data = peer.getIP();
-                data += seperator;
-                data += std::to_string(peer.getPort());
-                data += seperator;
-                data += vec[0];
-                data += seperator;
-                data += vec[1];
-                ijoon::Peer targetPeer(vec[2], vec[3]);
-                ijoon::send(socket, targetPeer, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
-
+                std::string data = peer.getIP() + seperator + std::to_string(peer.getPort());
+                ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
+                ijoon::send(socket, rendezvousPeerInfo->tp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
                 
                 // SP와 TP의 환경 체크
-                std::string spKey = vec[0] + ":" + vec[1];
-                std::string tpKey = vec[2] + ":" + vec[3];
+                std::string spKey = rendezvousPeerInfo->sp.getIP() + ":" + std::to_string(rendezvousPeerInfo->sp.getPort());
+                std::string tpKey = rendezvousPeerInfo->tp.getIP() + ":" + std::to_string(rendezvousPeerInfo->tp.getPort());
                 auto spRendezvousPeer = server->registeredRendezvousPeer[spKey];
                 auto tpRendezvousPeer = server->registeredRendezvousPeer[tpKey];
                 
                 if(spRendezvousPeer == nullptr || tpRendezvousPeer == nullptr) {
-                    ijn_print(DP_ERROR, "[RELAY_SERVICE_RESPONSE_SUCCESS] No registered rendezvous peer detected");
+                    ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] No registered rendezvous peer detected");
                     break;
                 }
                 
@@ -170,14 +124,11 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 bool isTPPublic = tpRendezvousPeer->isPublic();
                 
                 if(isTPPublic) { // pub/pub, pri/pub
-                    std::string data = vec[2] + seperator + vec[3]; // tp public address
+                    std::string data = tpRendezvousPeer->publicPeer.getIP() + seperator + std::to_string(tpRendezvousPeer->publicPeer.getPort()); // tp public address
                     ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, DIRECT_CONNECTION_AVAILABLE, (char *)data.c_str(), data.length());
                 }
                 else if(isSPPublic && !isTPPublic) { // pub/pri
-                    std::string data;
-                    data = vec[0]; // sp public address
-                    data += seperator;
-                    data += vec[1];
+                    std::string data = spRendezvousPeer->publicPeer.getIP() + seperator + std::to_string(spRendezvousPeer->publicPeer.getPort()); // sp public address
                     ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, REVERSE_CONNECTION, (char *)data.c_str(), data.length());
                 }
                 else { // pri/pri
@@ -206,7 +157,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             }
             case RELAY_SESSION_CREATING_FAILED: // from RelS
             {
-                ijn_print(DP_DEBUG, "received RELAY_SERVICE_RESPONSE_FAILED");
+                ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATING_FAILED");
                 
                 // 릴레이 서버에 SP/TP가 등록을 하지 못했다는 뜻
                 // SP에 CONNECTION_REQUEST에 대한 응답을 해줌
@@ -217,7 +168,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             }
             case REGISTRATION_RENDEZVOUS_CLIENT_REQUEST: // from SP, TP
             {
-                ijn_print(DP_DEBUG, "received REGISTER_REQUEST");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_REQUEST");
                 
                 std::vector<std::string> vec;
                 char *token = std::strtok((char *)body, &seperator);
@@ -233,7 +184,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
                 if(server->registeredRendezvousPeer.count(key) == 0) {
                     server->registeredRendezvousPeer[key] = std::shared_ptr<RendezvousPeer>(new RendezvousPeer(socket, peer));
-                    ijn_print(DP_INFO, "[REGISTER_REQUEST] new rendezvous peer registered");
+                    ijn_print(DP_INFO, "[REGISTRATION_RENDEZVOUS_CLIENT_REQUEST] new rendezvous peer registered");
                 }
                 
                 auto rendezvousPeer = server->registeredRendezvousPeer[key];
@@ -278,18 +229,15 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 std::shared_ptr<ijoon::RendezvousPeerInfo> rendezvousPeerInfo = std::shared_ptr<ijoon::RendezvousPeerInfo>(new ijoon::RendezvousPeerInfo());
                 rendezvousPeerInfo->connectionID = connectionID;
-                rendezvousPeerInfo->spUniqueKey = peer.getIP() + seperator + std::to_string(peer.getPort());
-                rendezvousPeerInfo->tpUniqueKey = vec[0] + seperator + vec[1];
-                server->rendezvousPeerInfoMap[connectionID];
+                rendezvousPeerInfo->sp = peer;
+                rendezvousPeerInfo->tp.setIP(vec[0]);
+                rendezvousPeerInfo->tp.setPort(vec[1]);
+                server->rendezvousPeerInfoMap[connectionID] = rendezvousPeerInfo;
 
                 std::string data;
                 data += rendezvousPeer->publicPeer.getIP();
                 data += seperator;
-                data += std::to_string(rendezvousPeer->publicPeer.getPort());
-                data += seperator;
                 data += vec[0];
-                data += seperator;
-                data += vec[1];
                 
                 if(server->relayServerMap.size() == 0) {
                     ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");

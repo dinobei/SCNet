@@ -110,7 +110,7 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                     vec.push_back(token);
                     token = std::strtok(NULL, &seperator);
                 }
-                if(vec.size() != 4) {
+                if(vec.size() != 2) {
                     ijn_print(DP_ERROR, "[RELAY_SERVICE_REQUEST] invalid parameters");
                     break;
                 }
@@ -123,89 +123,58 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                 
                 auto relayPeerInfo = std::shared_ptr<RelayPeerInfo>(new RelayPeerInfo);
                 relayPeerInfo->sourcePeer.setIP(vec[0]);
-                relayPeerInfo->sourcePeer.setPort(vec[1]);
-                relayPeerInfo->targetPeer.setIP(vec[2]);
-                relayPeerInfo->targetPeer.setPort(vec[3]);
+                relayPeerInfo->targetPeer.setIP(vec[1]);
                 relayServer->map[connectionID] = relayPeerInfo;
                 
                 relayServer->sessionCheckMap[connectionID] = 0;
                 
-                std::string data;
-                data += vec[0];
-                data += seperator;
-                data += vec[1];
-                data += seperator;
-                data += vec[2];
-                data += seperator;
-                data += vec[3];
-                
-                ijoon::send(relayServer->socket, peer, messageHeader.connectionID, RELAY_SESSION_READY, (char *)data.c_str(), data.length());
+                ijoon::send(relayServer->socket, peer, messageHeader.connectionID, RELAY_SESSION_READY);
                 
                 continue;
             }
             case REGISTRATION_RELAY_SERVER_SUCCESS: // from RanS
             {
-                ijn_print(DP_DEBUG, "received REGISTER_RELAY_RESPONSE");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_SUCCESS");
                 continue;
             }
             case REGISTRATION_RELAY_PEER_REQUEST: // from SP, TP
             {
-                ijn_print(DP_DEBUG, "received REGISTER_RELAY_PEER_REQUEST");
+                ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_REQUEST");
                 
-                std::vector<std::string> vec;
-                char *token = std::strtok(body, &seperator);
-                while (token != NULL) {
-                    vec.push_back(token);
-                    token = std::strtok(NULL, &seperator);
-                }
-                if(vec.size() != 2) {
-                    ijn_print(DP_ERROR, "[REGISTER_RELAY_PEER_REQUEST] invalid parameters");
-                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED, body, messageHeader.dataSize);
-                    break;
-                }
-                
-                std::string peer1IP = peer.getIP();
-                int peer1Port = peer.getPort();
-                std::string peer2IP = vec[0];
-                int peer2Port = atoi(vec[1].c_str());
+                std::string peerIP = peer.getIP();
+                std::string peerPort = std::to_string(peer.getPort());
                 
                 if(relayServer->map.count(messageHeader.connectionID) == 0) {
-                    ijn_print(DP_ERROR, "[REGISTER_RELAY_PEER_REQUEST] invalid connection id");
-                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED, body, messageHeader.dataSize);
+                    ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
+                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED);
                     continue;
                 }
                 
                 if(relayServer->sessionCheckMap.count(messageHeader.connectionID) == 0) {
-                    ijn_print(DP_ERROR, "[REGISTER_RELAY_PEER_REQUEST] already checked peer");
-                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED, body, messageHeader.dataSize);
+                    ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
+                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED);
                     continue;
                 }
                 
                 auto relayPeerInfo = relayServer->map[messageHeader.connectionID];
-                if(relayPeerInfo->sourcePeer.getIP().compare(peer1IP) == 0 && relayPeerInfo->sourcePeer.getPort() == peer1Port &&
-                   relayPeerInfo->targetPeer.getIP().compare(peer2IP) == 0 && relayPeerInfo->targetPeer.getPort() == peer2Port) {
-                    // peer1 is SP
+                if(relayPeerInfo->sourcePeer.getIP().compare(peerIP) == 0) {
+                    // peer is SP
+                    relayServer->map[messageHeader.connectionID]->sourcePeer.setPort(peerPort);
                     relayServer->sessionCheckMap[messageHeader.connectionID]++;
-                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_SUCCESS, body, messageHeader.dataSize);
+                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_SUCCESS);
                     ijn_print(DP_INFO, "[CID=%d] SP registered", messageHeader.connectionID);
-                    printf("[peer's request] %s:%d -> %s:%s\n", peer.getIP().c_str(), peer.getPort(), vec[0].c_str(), vec[1].c_str());
-                    printf("[relay mapping] (SP) %s:%d <-> (TP) %s:%d\n", relayPeerInfo->sourcePeer.getIP().c_str(), relayPeerInfo->sourcePeer.getPort(), relayPeerInfo->targetPeer.getIP().c_str(), relayPeerInfo->targetPeer.getPort());
                 }
-                else if(relayPeerInfo->sourcePeer.getIP().compare(peer2IP) == 0 && relayPeerInfo->sourcePeer.getPort() == peer2Port &&
-                        relayPeerInfo->targetPeer.getIP().compare(peer1IP) == 0 && relayPeerInfo->targetPeer.getPort() == peer1Port) {
-                    // peer2 is SP
+                else if(relayPeerInfo->targetPeer.getIP().compare(peerIP) == 0) {
+                    // peer is TP
+                    relayServer->map[messageHeader.connectionID]->targetPeer.setPort(peerPort);
                     relayServer->sessionCheckMap[messageHeader.connectionID]++;
-                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_SUCCESS, body, messageHeader.dataSize);
+                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_SUCCESS);
                     ijn_print(DP_INFO, "[CID=%d] TP registered", messageHeader.connectionID);
-                    printf("[peer's request] %s:%d -> %s:%s\n", peer.getIP().c_str(), peer.getPort(), vec[0].c_str(), vec[1].c_str());
-                    printf("[relay mapping] (SP) %s:%d <-> (TP) %s:%d\n", relayPeerInfo->sourcePeer.getIP().c_str(), relayPeerInfo->sourcePeer.getPort(), relayPeerInfo->targetPeer.getIP().c_str(), relayPeerInfo->targetPeer.getPort());
                 }
                 else {
                     // not registered relay peer
-                    ijn_print(DP_ERROR, "[REGISTER_RELAY_PEER_REQUEST] relay peer mismatch");
-                    printf("[peer's request] %s:%d -> %s:%s\n", peer.getIP().c_str(), peer.getPort(), vec[0].c_str(), vec[1].c_str());
-                    printf("[relay mapping] (SP) %s:%d <-> (TP) %s:%d\n", relayPeerInfo->sourcePeer.getIP().c_str(), relayPeerInfo->sourcePeer.getPort(), relayPeerInfo->targetPeer.getIP().c_str(), relayPeerInfo->targetPeer.getPort());
-                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED, body, messageHeader.dataSize);
+                    ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] relay peer mismatch");
+                    ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_FAILED);
                     continue;
                 }
                 
@@ -213,15 +182,7 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                     // successfully registerred
                     relayServer->sessionCheckMap.erase(messageHeader.connectionID);
                     
-                    std::string data;
-                    data = relayPeerInfo->sourcePeer.getIP();
-                    data += seperator;
-                    data += std::to_string(relayPeerInfo->sourcePeer.getPort());
-                    data += seperator;
-                    data += relayPeerInfo->targetPeer.getIP();
-                    data += seperator;
-                    data += std::to_string(relayPeerInfo->targetPeer.getPort());
-                    ijoon::send(relayServer->socket, relayServer->rendezvousPeer, messageHeader.connectionID, RELAY_SESSION_CREATED, (char *)data.c_str(), data.length());
+                    ijoon::send(relayServer->socket, relayServer->rendezvousPeer, messageHeader.connectionID, RELAY_SESSION_CREATED);
                 }
                 
                 continue;
