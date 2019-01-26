@@ -151,7 +151,7 @@ char *ijoon::Session::recvRawBody(MessageHeader &messageHeader) {
     return responseBuffer;
 }
 
-bool ijoon::RandezvousSession::send(int packetType, char *message, unsigned int length) {
+bool ijoon::RendezvousSession::send(int packetType, char *message, unsigned int length) {
     if(this->isSetPrivatePeer) {
         printf("sent to private peer\n");
         return ijoon::send(socket, privatePeer, connectionID, packetType, message, length);
@@ -169,41 +169,41 @@ bool ijoon::RandezvousSession::send(int packetType, char *message, unsigned int 
     return false;
 }
 
-bool ijoon::RandezvousSession::send(google::protobuf::Message *message) {
+bool ijoon::RendezvousSession::send(google::protobuf::Message *message) {
     // note: implement this
     return false;
 }
 
-bool ijoon::RandezvousSession::send(std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> message) {
     // note: implement this
     return false;
 }
 
-void ijoon::RandezvousSession::setPrivatePeer(std::string ip, std::string port) {
+void ijoon::RendezvousSession::setPrivatePeer(std::string ip, std::string port) {
     this->privatePeer.setIP(ip);
     this->privatePeer.setPort(port);
     this->isSetPrivatePeer = true;
 }
 
-void ijoon::RandezvousSession::setPublicPeer(std::string ip, std::string port) {
+void ijoon::RendezvousSession::setPublicPeer(std::string ip, std::string port) {
     this->publicPeer.setIP(ip);
     this->publicPeer.setPort(port);
     this->isSetPublicPeer = true;
 }
-void ijoon::RandezvousSession::setRelayPeer(std::string ip, std::string port) {
+void ijoon::RendezvousSession::setRelayPeer(std::string ip, std::string port) {
     this->relayPeer.setIP(ip);
     this->relayPeer.setPort(port);
     this->isSetRelayPeer = true;
 }
 
-void ijoon::RandezvousSession::clearPrivatePeer() {
+void ijoon::RendezvousSession::clearPrivatePeer() {
     this->isSetPrivatePeer = false;
 }
 
-void ijoon::RandezvousSession::clearPublicPeer() {
+void ijoon::RendezvousSession::clearPublicPeer() {
     this->isSetPublicPeer = false;
 }
 
-void ijoon::RandezvousSession::clearRelayPeer() {
+void ijoon::RendezvousSession::clearRelayPeer() {
     this->isSetRelayPeer = false;
 }

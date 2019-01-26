@@ -1,5 +1,5 @@
 #include "relay_server.h"
-#include "randezvous_message.h"
+#include "rendezvous_message.h"
 #include "message_header.h"
 #include <cstring>
 
@@ -22,7 +22,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
         // 주기적으로 regist packet send
         
         ijn_print(DP_INFO, "sent REGISTER_RELAY_REQUEST");
-        ijoon::send(relayServer->socket, relayServer->randezvousPeer, 0, REGISTRATION_RELAY_SERVER_REQUEST);
+        ijoon::send(relayServer->socket, relayServer->rendezvousPeer, 0, REGISTRATION_RELAY_SERVER_REQUEST);
         thread->sleep(30 * 1000);
     }
     
@@ -95,7 +95,7 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
         
         
         if(messageHeader.messageType != MESSAGE_TYPE::RAWBYTE) {
-            ijn_print(DP_ERROR, "Randezvous server only accept raw packet for randezvous");
+            ijn_print(DP_ERROR, "Rendezvous server only accept raw packet for rendezvous");
             continue;
         }
         
@@ -221,7 +221,7 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                     data += relayPeerInfo->targetPeer.getIP();
                     data += seperator;
                     data += std::to_string(relayPeerInfo->targetPeer.getPort());
-                    ijoon::send(relayServer->socket, relayServer->randezvousPeer, messageHeader.connectionID, RELAY_SESSION_CREATED, (char *)data.c_str(), data.length());
+                    ijoon::send(relayServer->socket, relayServer->rendezvousPeer, messageHeader.connectionID, RELAY_SESSION_CREATED, (char *)data.c_str(), data.length());
                 }
                 
                 continue;

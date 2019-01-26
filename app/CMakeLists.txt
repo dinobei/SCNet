@@ -1,6 +1,6 @@
 add_subdirectory(simple_server)
 add_subdirectory(simple_client)
 
-add_subdirectory(randezvous_server)
+add_subdirectory(rendezvous_server)
 add_subdirectory(relay_server)
-add_subdirectory(randezvous_client)
+add_subdirectory(rendezvous_client)

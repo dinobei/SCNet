@@ -15,8 +15,8 @@ namespace ijoon {
     class RelayServer {
     public:
         RelayServer(int port, std::string ranIP, std::string ranPort): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))) {
-            randezvousPeer.setIP(ranIP);
-            randezvousPeer.setPort(ranPort);
+            rendezvousPeer.setIP(ranIP);
+            rendezvousPeer.setPort(ranPort);
         }
         ~RelayServer() {}
         
@@ -32,6 +32,6 @@ namespace ijoon {
         ijoon::Thread *mainThread;
         ijoon::Thread *registerThread;
         
-        ijoon::Peer randezvousPeer;
+        ijoon::Peer rendezvousPeer;
     };
 }

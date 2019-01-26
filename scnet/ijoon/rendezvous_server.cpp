@@ -1,11 +1,11 @@
-#include "randezvous_server.h"
-#include "randezvous_message.h"
+#include "rendezvous_server.h"
+#include "rendezvous_message.h"
 #include "message_header.h"
 #include <cstring>
 
 extern char seperator;
 
-bool ijoon::RandezvousPeer::isPublic() {
+bool ijoon::RendezvousPeer::isPublic() {
     if( (this->publicPeer.getIP().compare(this->privatePeer.getIP()) == 0) && (this->publicPeer.getPort() == this->privatePeer.getPort()) ) {
         return true;
     }
@@ -13,20 +13,20 @@ bool ijoon::RandezvousPeer::isPublic() {
     return false;
 }
 
-void ijoon::RandezvousServer::start() {
-    ijn_print(DP_INFO, "Randezvous server start...");
+void ijoon::RendezvousServer::start() {
+    ijn_print(DP_INFO, "Rendezvous server start...");
     
-    thread = new ijoon::Thread(randezvousThread, "randezvous thread");
+    thread = new ijoon::Thread(rendezvousThread, "rendezvous thread");
     thread->start(this);
     // socket을 생성하고, port를 바인딩
     // 스레드를 실행시킴
     // 스레드에서는 명령 수신 대기를 함
 }
 
-ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
+ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::RandezvousServer *server = (ijoon::RandezvousServer *)thread->getParam();
+    ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     
     ijoon::Peer peer;
 
@@ -158,48 +158,48 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 // SP와 TP의 환경 체크
                 std::string spKey = vec[0] + ":" + vec[1];
                 std::string tpKey = vec[2] + ":" + vec[3];
-                auto spRandezvousPeer = server->registeredRandezvousPeer[spKey];
-                auto tpRandezvousPeer = server->registeredRandezvousPeer[tpKey];
+                auto spRendezvousPeer = server->registeredRendezvousPeer[spKey];
+                auto tpRendezvousPeer = server->registeredRendezvousPeer[tpKey];
                 
-                if(spRandezvousPeer == nullptr || tpRandezvousPeer == nullptr) {
-                    ijn_print(DP_ERROR, "[RELAY_SERVICE_RESPONSE_SUCCESS] No registered randezvous peer detected");
+                if(spRendezvousPeer == nullptr || tpRendezvousPeer == nullptr) {
+                    ijn_print(DP_ERROR, "[RELAY_SERVICE_RESPONSE_SUCCESS] No registered rendezvous peer detected");
                     break;
                 }
                 
-                bool isSPPublic = spRandezvousPeer->isPublic();
-                bool isTPPublic = tpRandezvousPeer->isPublic();
+                bool isSPPublic = spRendezvousPeer->isPublic();
+                bool isTPPublic = tpRendezvousPeer->isPublic();
                 
                 if(isTPPublic) { // pub/pub, pri/pub
                     std::string data = vec[2] + seperator + vec[3]; // tp public address
-                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, DIRECT_CONNECTION_AVAILABLE, (char *)data.c_str(), data.length());
+                    ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, DIRECT_CONNECTION_AVAILABLE, (char *)data.c_str(), data.length());
                 }
                 else if(isSPPublic && !isTPPublic) { // pub/pri
                     std::string data;
                     data = vec[0]; // sp public address
                     data += seperator;
                     data += vec[1];
-                    ijoon::send(socket, tpRandezvousPeer->publicPeer, messageHeader.connectionID, REVERSE_CONNECTION, (char *)data.c_str(), data.length());
+                    ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, REVERSE_CONNECTION, (char *)data.c_str(), data.length());
                 }
                 else { // pri/pri
                     std::string data;
                     
-                    data = tpRandezvousPeer->publicPeer.getIP(); // tp public address
+                    data = tpRendezvousPeer->publicPeer.getIP(); // tp public address
                     data += seperator;
-                    data += std::to_string(tpRandezvousPeer->publicPeer.getPort());
+                    data += std::to_string(tpRendezvousPeer->publicPeer.getPort());
                     data += seperator;
-                    data += tpRandezvousPeer->privatePeer.getIP();
+                    data += tpRendezvousPeer->privatePeer.getIP();
                     data += seperator;
-                    data += std::to_string(tpRandezvousPeer->privatePeer.getPort());
-                    ijoon::send(socket, spRandezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
+                    data += std::to_string(tpRendezvousPeer->privatePeer.getPort());
+                    ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
                     
-                    data = spRandezvousPeer->publicPeer.getIP(); // sp public address
+                    data = spRendezvousPeer->publicPeer.getIP(); // sp public address
                     data += seperator;
-                    data += std::to_string(spRandezvousPeer->publicPeer.getPort());
+                    data += std::to_string(spRendezvousPeer->publicPeer.getPort());
                     data += seperator;
-                    data += spRandezvousPeer->privatePeer.getIP();
+                    data += spRendezvousPeer->privatePeer.getIP();
                     data += seperator;
-                    data += std::to_string(spRandezvousPeer->privatePeer.getPort());
-                    ijoon::send(socket, tpRandezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
+                    data += std::to_string(spRendezvousPeer->privatePeer.getPort());
+                    ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
                 }
                 
                 break;
@@ -231,22 +231,22 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 }
                 
                 std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
-                if(server->registeredRandezvousPeer.count(key) == 0) {
-                    server->registeredRandezvousPeer[key] = std::shared_ptr<RandezvousPeer>(new RandezvousPeer(socket, peer));
-                    ijn_print(DP_INFO, "[REGISTER_REQUEST] new randezvous peer registered");
+                if(server->registeredRendezvousPeer.count(key) == 0) {
+                    server->registeredRendezvousPeer[key] = std::shared_ptr<RendezvousPeer>(new RendezvousPeer(socket, peer));
+                    ijn_print(DP_INFO, "[REGISTER_REQUEST] new rendezvous peer registered");
                 }
                 
-                auto randezvousPeer = server->registeredRandezvousPeer[key];
+                auto rendezvousPeer = server->registeredRendezvousPeer[key];
                 
-                randezvousPeer->setPrivatePeer(vec[0], vec[1]);
+                rendezvousPeer->setPrivatePeer(vec[0], vec[1]);
                 
-                ijn_print(DP_INFO, "Register local=%s:%d, public=%s:%d", randezvousPeer->privatePeer.getIP().c_str(), randezvousPeer->privatePeer.getPort(), randezvousPeer->publicPeer.getIP().c_str(), randezvousPeer->publicPeer.getPort());
+                ijn_print(DP_INFO, "Register local=%s:%d, public=%s:%d", rendezvousPeer->privatePeer.getIP().c_str(), rendezvousPeer->privatePeer.getPort(), rendezvousPeer->publicPeer.getIP().c_str(), rendezvousPeer->publicPeer.getPort());
                 
                 std::string data;
                 data = peer.getIP();
                 data += seperator;
                 data += std::to_string(peer.getPort());
-                ijoon::send(socket, randezvousPeer->publicPeer, 0, REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, (char *)data.c_str(), data.length());
+                ijoon::send(socket, rendezvousPeer->publicPeer, 0, REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, (char *)data.c_str(), data.length());
                 break;
             }
             case CONNECTION_REQUEST: // from SP
@@ -265,27 +265,27 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
                 }
                 
                 std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
-                auto randezvousPeer = server->registeredRandezvousPeer[key];
-                if(randezvousPeer == nullptr) {
+                auto rendezvousPeer = server->registeredRendezvousPeer[key];
+                if(rendezvousPeer == nullptr) {
                     ijoon::send(socket, peer, 0, CONNECTION_FAILED);
                     break;
                 }
                 
                 // connectionID 생성
-                int connectionID = server->randezvousPeerInfoMap.size();
-                while(server->randezvousPeerInfoMap.count(connectionID) != 0) {
+                int connectionID = server->rendezvousPeerInfoMap.size();
+                while(server->rendezvousPeerInfoMap.count(connectionID) != 0) {
                     connectionID++;
                 }
-                std::shared_ptr<ijoon::RandezvousPeerInfo> randezvousPeerInfo = std::shared_ptr<ijoon::RandezvousPeerInfo>(new ijoon::RandezvousPeerInfo());
-                randezvousPeerInfo->connectionID = connectionID;
-                randezvousPeerInfo->spUniqueKey = peer.getIP() + seperator + std::to_string(peer.getPort());
-                randezvousPeerInfo->tpUniqueKey = vec[0] + seperator + vec[1];
-                server->randezvousPeerInfoMap[connectionID];
+                std::shared_ptr<ijoon::RendezvousPeerInfo> rendezvousPeerInfo = std::shared_ptr<ijoon::RendezvousPeerInfo>(new ijoon::RendezvousPeerInfo());
+                rendezvousPeerInfo->connectionID = connectionID;
+                rendezvousPeerInfo->spUniqueKey = peer.getIP() + seperator + std::to_string(peer.getPort());
+                rendezvousPeerInfo->tpUniqueKey = vec[0] + seperator + vec[1];
+                server->rendezvousPeerInfoMap[connectionID];
 
                 std::string data;
-                data += randezvousPeer->publicPeer.getIP();
+                data += rendezvousPeer->publicPeer.getIP();
                 data += seperator;
-                data += std::to_string(randezvousPeer->publicPeer.getPort());
+                data += std::to_string(rendezvousPeer->publicPeer.getPort());
                 data += seperator;
                 data += vec[0];
                 data += seperator;
@@ -316,7 +316,7 @@ ijoon::THREAD_RET THREAD_API ijoon::randezvousThread(void *arg)
         }
     }
     
-    ijn_print(DP_INFO, "randezvousThread Finished.");
+    ijn_print(DP_INFO, "rendezvousThread Finished.");
     delete[] packet;
     
     return THREAD_EXIT;

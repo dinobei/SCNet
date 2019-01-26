@@ -209,7 +209,7 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     BaseMessageRegistry, \
                     ijoon::MESSAGE_TYPE::RAWBYTE, \
                     packetTypeInt, \
-                    new RawCallbackWrapper<ijoon::RandezvousSession>(callbackFunc))
+                    new RawCallbackWrapper<ijoon::RendezvousSession>(callbackFunc))
 
 
 #endif

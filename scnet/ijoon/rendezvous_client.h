@@ -6,13 +6,13 @@ namespace ijoon {
     ijoon::THREAD_RET THREAD_API registerThread(void *arg);
     ijoon::THREAD_RET THREAD_API recvThread(void *arg);
     
-    class RandezvousClient {
+    class RendezvousClient {
     public:
-        RandezvousClient(std::string ip, std::string port): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))) {
-            randezvousServerPeer.setIP(ip);
-            randezvousServerPeer.setPort(port);
+        RendezvousClient(std::string ip, std::string port): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))) {
+            rendezvousServerPeer.setIP(ip);
+            rendezvousServerPeer.setPort(port);
         }
-        ~RandezvousClient() {}
+        ~RendezvousClient() {}
         
         void start();
 
@@ -21,8 +21,8 @@ namespace ijoon {
         ijoon::Thread *register_thread;
         ijoon::Thread *recv_thread;
         
-        std::map<int, std::shared_ptr<ijoon::RandezvousSession>> randezvousSessionMap;
+        std::map<int, std::shared_ptr<ijoon::RendezvousSession>> rendezvousSessionMap;
         
-        ijoon::Peer randezvousServerPeer;
+        ijoon::Peer rendezvousServerPeer;
     };
 }

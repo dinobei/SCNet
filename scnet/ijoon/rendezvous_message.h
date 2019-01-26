@@ -1,9 +1,9 @@
 #pragma once
-#include "randezvous_server.h"
+#include "rendezvous_server.h"
 
 
 namespace ijoon {
-    enum RANDEZVOUS_MSG {
+    enum RENDEZVOUS_MSG {
         REGISTRATION_RENDEZVOUS_CLIENT_REQUEST = 10000, // SP private ip, SP private port
         REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, // SP public ip, SP public port
         REGISTRATION_RELAY_SERVER_REQUEST, // nullptr
@@ -41,7 +41,7 @@ namespace ijoon {
         UDP_HOLE_PUNCHING_REQUEST, // isPublic (1=true, 0=false)
         UDP_HOLE_PUNCHING_RESPONSE, // isPublic (1=true, 0=false)
         
-        RANDEZVOUS_MSG_END,
+        RENDEZVOUS_MSG_END,
     };
     
     #define MAX_PACKET_SIZE 65535

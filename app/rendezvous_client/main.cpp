@@ -1,5 +1,5 @@
-#include "randezvous_client.h"
-#include "randezvous_message.h"
+#include "rendezvous_client.h"
+#include "rendezvous_message.h"
 #include <sys/stat.h>
 #include "registry.h"
 #include <map>
@@ -8,18 +8,18 @@
 
 using namespace std;
 
-void onConnected(ijoon::RandezvousSession *session, void *buffer, unsigned int length);
+void onConnected(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
 
 int main(int argc, char** argv) {
     if(argc != 3) {
-        printf("Usage : %s <randezvous_server_ip> <randezvous_server_port>\n", argv[0]);
+        printf("Usage : %s <rendezvous_server_ip> <rendezvous_server_port>\n", argv[0]);
         exit(-1);
     }
     
     ijoon::initGlobalVariables();
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_RELAY_SERVICE_SUCCESS, onConnected);
     
-    ijoon::RandezvousClient client(argv[1], argv[2]);
+    ijoon::RendezvousClient client(argv[1], argv[2]);
     client.start();
     
     while(true) {
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
             targetAddress += seperator;
             targetAddress += vec[2];
             ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
-            ijoon::send(client.socket, client.randezvousServerPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
+            ijoon::send(client.socket, client.rendezvousServerPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
         else if(vec[0].compare("RELAY") == 0) {
             ijn_print(DP_INFO, "SEND RELAY PACKET: %s", sendBuf);
@@ -59,12 +59,12 @@ int main(int argc, char** argv) {
 
             std::string message = vec[2];
             
-            auto randezvousSession = client.randezvousSessionMap[connectionID];
-            if(randezvousSession == nullptr) {
+            auto rendezvousSession = client.rendezvousSessionMap[connectionID];
+            if(rendezvousSession == nullptr) {
                 ijn_print(DP_ERROR, "invalid connectionID");
                 continue;
             }
-            randezvousSession->send(123, (char *)message.c_str(), message.length());
+            rendezvousSession->send(123, (char *)message.c_str(), message.length());
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-void onConnected(ijoon::RandezvousSession *session, void *buffer, unsigned int length)
+void onConnected(ijoon::RendezvousSession *session, void *buffer, unsigned int length)
 {
     printf("onConnectionResponseSuccess called, connectionID=%u\n", session->getConnectionID());
 }

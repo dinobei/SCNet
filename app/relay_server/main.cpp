@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv) {
     if(argc != 4) {
-        printf("Usage : %s <relay_server_port> <randezvous_server_ip> <randezvous_server_port>\n", argv[0]);
+        printf("Usage : %s <relay_server_port> <rendezvous_server_ip> <rendezvous_server_port>\n", argv[0]);
         exit(-1);
     }
     

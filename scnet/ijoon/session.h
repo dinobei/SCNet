@@ -16,10 +16,10 @@ namespace ijoon {
 
     };
     
-    class RandezvousSession: public BaseSession {
+    class RendezvousSession: public BaseSession {
     public:
-        RandezvousSession(std::shared_ptr<ijoon::UDPSocket> socket, uint connectionID): socket(socket), connectionID(connectionID), isSetPrivatePeer(false), isSetPublicPeer(false), isSetRelayPeer(false) {}
-        ~RandezvousSession() {}
+        RendezvousSession(std::shared_ptr<ijoon::UDPSocket> socket, uint connectionID): socket(socket), connectionID(connectionID), isSetPrivatePeer(false), isSetPublicPeer(false), isSetRelayPeer(false) {}
+        ~RendezvousSession() {}
         
         bool send(int packetType, char *message, unsigned int length) override;
         bool send(google::protobuf::Message *message) override;
