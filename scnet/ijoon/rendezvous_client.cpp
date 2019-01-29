@@ -311,7 +311,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     vec.push_back(token);
                     token = std::strtok(NULL, &seperator);
                 }
-                if(vec.size() != 2) {
+                if(vec.size() != 3) {
                     ijn_print(DP_ERROR, "[RELAY_SERVER_INFORMATION] invalid parameters");
                     break;
                 }
@@ -323,7 +323,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 ijn_print(DP_INFO, "[RELAY_SERVER_INFORMATION] RelayServerAddress=%s:%s", vec[0].c_str(), vec[1].c_str());
                 
                 ijoon::Peer relayPeer(vec[0], vec[1]);
-                ijoon::send(client->socket, relayPeer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_REQUEST);
+                ijoon::send(client->socket, relayPeer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_REQUEST, (char *)vec[2].c_str(), vec[2].length());
                 
                 continue;
             }

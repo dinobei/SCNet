@@ -16,8 +16,8 @@ namespace ijoon {
         // relay
         RELAY_SERVICE_REQUEST, // (CID) SP pubilc ip, TP pubilc ip
         RELAY_SESSION_READY, // (CID) nullptr
-        RELAY_SERVER_INFORMATION, // (CID) RelS-ip, RelS-port
-        REGISTRATION_RELAY_PEER_REQUEST, // (CID) nullptr
+        RELAY_SERVER_INFORMATION, // (CID) RelS-ip, RelS-port, 1(SP) or 0(TP)
+        REGISTRATION_RELAY_PEER_REQUEST, // (CID) 1(SP) or 0(TP)
         REGISTRATION_RELAY_PEER_SUCCESS, // (CID) nullptr
         REGISTRATION_RELAY_PEER_FAILED, // (CID) nullptr
         RELAY_SESSION_CREATED, // (CID) nullptr

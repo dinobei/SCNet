@@ -141,6 +141,17 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
             {
                 ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_REQUEST");
                 
+                std::vector<std::string> vec;
+                char *token = std::strtok(body, &seperator);
+                while (token != NULL) {
+                    vec.push_back(token);
+                    token = std::strtok(NULL, &seperator);
+                }
+                if(vec.size() != 1) {
+                    ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid parameters");
+                    break;
+                }
+                
                 std::string peerIP = peer.getIP();
                 std::string peerPort = std::to_string(peer.getPort());
                 
@@ -156,15 +167,16 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
                     continue;
                 }
                 
+                bool isSP = atoi(vec[0].c_str()) ? true : false;
                 auto relayPeerInfo = relayServer->map[messageHeader.connectionID];
-                if(relayPeerInfo->sourcePeer.getIP().compare(peerIP) == 0) {
+                if(relayPeerInfo->sourcePeer.getIP().compare(peerIP) == 0 && isSP) {
                     // peer is SP
                     relayServer->map[messageHeader.connectionID]->sourcePeer.setPort(peerPort);
                     relayServer->sessionCheckMap[messageHeader.connectionID]++;
                     ijoon::send(relayServer->socket, peer, messageHeader.connectionID, REGISTRATION_RELAY_PEER_SUCCESS);
                     ijn_print(DP_INFO, "[CID=%d] SP registered", messageHeader.connectionID);
                 }
-                else if(relayPeerInfo->targetPeer.getIP().compare(peerIP) == 0) {
+                else if(relayPeerInfo->targetPeer.getIP().compare(peerIP) == 0 && !isSP) {
                     // peer is TP
                     relayServer->map[messageHeader.connectionID]->targetPeer.setPort(peerPort);
                     relayServer->sessionCheckMap[messageHeader.connectionID]++;

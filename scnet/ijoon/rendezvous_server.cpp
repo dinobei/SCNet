@@ -85,8 +85,10 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 
                 auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
                 
-                std::string data = peer.getIP() + seperator + std::to_string(peer.getPort());
+                std::string data;
+                data = peer.getIP() + seperator + std::to_string(peer.getPort()) + seperator + "1";
                 ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
+                data = peer.getIP() + seperator + std::to_string(peer.getPort()) + seperator + "0";
                 ijoon::send(socket, rendezvousPeerInfo->tp, messageHeader.connectionID, RELAY_SERVER_INFORMATION, (char *)data.c_str(), data.length());
                 
                 break;
