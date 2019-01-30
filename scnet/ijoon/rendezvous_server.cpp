@@ -23,6 +23,56 @@ void ijoon::RendezvousServer::start() {
     // 스레드에서는 명령 수신 대기를 함
 }
 
+bool connection(std::shared_ptr<ijoon::UDPSocket> socket, ijoon::RendezvousServer *server, ijoon::MessageHeader messageHeader) {
+    auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+    
+    // SP/TP nat check
+    std::string spKey = rendezvousPeerInfo->sp.getIP() + ":" + std::to_string(rendezvousPeerInfo->sp.getPort());
+    std::string tpKey = rendezvousPeerInfo->tp.getIP() + ":" + std::to_string(rendezvousPeerInfo->tp.getPort());
+    auto spRendezvousPeer = server->registeredRendezvousPeer[spKey];
+    auto tpRendezvousPeer = server->registeredRendezvousPeer[tpKey];
+    
+    if(spRendezvousPeer == nullptr || tpRendezvousPeer == nullptr) {
+        ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] No registered rendezvous peer detected");
+        return false;
+    }
+    
+    bool isSPPublic = spRendezvousPeer->isPublic();
+    bool isTPPublic = tpRendezvousPeer->isPublic();
+    
+    if(isTPPublic) { // pub/pub, pri/pub
+        std::string data = tpRendezvousPeer->publicPeer.getIP() + seperator + std::to_string(tpRendezvousPeer->publicPeer.getPort()); // tp public address
+        ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, ijoon::RENDEZVOUS_MSG::DIRECT_CONNECTION_AVAILABLE, (char *)data.c_str(), data.length());
+    }
+    else if(isSPPublic && !isTPPublic) { // pub/pri
+        std::string data = spRendezvousPeer->publicPeer.getIP() + seperator + std::to_string(spRendezvousPeer->publicPeer.getPort()); // sp public address
+        ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, ijoon::RENDEZVOUS_MSG::REVERSE_CONNECTION, (char *)data.c_str(), data.length());
+    }
+    else { // pri/pri
+        std::string data;
+        
+        data = tpRendezvousPeer->publicPeer.getIP(); // tp public address
+        data += seperator;
+        data += std::to_string(tpRendezvousPeer->publicPeer.getPort());
+        data += seperator;
+        data += tpRendezvousPeer->privatePeer.getIP();
+        data += seperator;
+        data += std::to_string(tpRendezvousPeer->privatePeer.getPort());
+        ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, ijoon::RENDEZVOUS_MSG::UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
+        
+        data = spRendezvousPeer->publicPeer.getIP(); // sp public address
+        data += seperator;
+        data += std::to_string(spRendezvousPeer->publicPeer.getPort());
+        data += seperator;
+        data += spRendezvousPeer->privatePeer.getIP();
+        data += seperator;
+        data += std::to_string(spRendezvousPeer->privatePeer.getPort());
+        ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, ijoon::RENDEZVOUS_MSG::UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
+    }
+    
+    return true;
+}
+
 ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
@@ -111,49 +161,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
                 ijoon::send(socket, rendezvousPeerInfo->tp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_SUCCESS, (char *)data.c_str(), data.length());
                 
-                // SP와 TP의 환경 체크
-                std::string spKey = rendezvousPeerInfo->sp.getIP() + ":" + std::to_string(rendezvousPeerInfo->sp.getPort());
-                std::string tpKey = rendezvousPeerInfo->tp.getIP() + ":" + std::to_string(rendezvousPeerInfo->tp.getPort());
-                auto spRendezvousPeer = server->registeredRendezvousPeer[spKey];
-                auto tpRendezvousPeer = server->registeredRendezvousPeer[tpKey];
-                
-                if(spRendezvousPeer == nullptr || tpRendezvousPeer == nullptr) {
-                    ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] No registered rendezvous peer detected");
-                    break;
-                }
-                
-                bool isSPPublic = spRendezvousPeer->isPublic();
-                bool isTPPublic = tpRendezvousPeer->isPublic();
-                
-                if(isTPPublic) { // pub/pub, pri/pub
-                    std::string data = tpRendezvousPeer->publicPeer.getIP() + seperator + std::to_string(tpRendezvousPeer->publicPeer.getPort()); // tp public address
-                    ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, DIRECT_CONNECTION_AVAILABLE, (char *)data.c_str(), data.length());
-                }
-                else if(isSPPublic && !isTPPublic) { // pub/pri
-                    std::string data = spRendezvousPeer->publicPeer.getIP() + seperator + std::to_string(spRendezvousPeer->publicPeer.getPort()); // sp public address
-                    ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, REVERSE_CONNECTION, (char *)data.c_str(), data.length());
-                }
-                else { // pri/pri
-                    std::string data;
-                    
-                    data = tpRendezvousPeer->publicPeer.getIP(); // tp public address
-                    data += seperator;
-                    data += std::to_string(tpRendezvousPeer->publicPeer.getPort());
-                    data += seperator;
-                    data += tpRendezvousPeer->privatePeer.getIP();
-                    data += seperator;
-                    data += std::to_string(tpRendezvousPeer->privatePeer.getPort());
-                    ijoon::send(socket, spRendezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
-                    
-                    data = spRendezvousPeer->publicPeer.getIP(); // sp public address
-                    data += seperator;
-                    data += std::to_string(spRendezvousPeer->publicPeer.getPort());
-                    data += seperator;
-                    data += spRendezvousPeer->privatePeer.getIP();
-                    data += seperator;
-                    data += std::to_string(spRendezvousPeer->privatePeer.getPort());
-                    ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
-                }
+                connection(socket, server, messageHeader);
                 
                 break;
             }
@@ -166,6 +174,9 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 // 단, 일반적인 상황은 아니며, 준비된 릴레이서버가 없거나 모두 죽었을 경우 발생할 수 있는 메시지임
                 // 이 경우 피어들간 연결이 안되는 증상이 발생할 수도 있음.
                 
+                auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+                ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_FAILED);
+                connection(socket, server, messageHeader);
                 break;
             }
             case REGISTRATION_RENDEZVOUS_CLIENT_REQUEST: // from SP, TP
@@ -244,6 +255,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 if(server->relayServerMap.size() == 0) {
                     ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
                     ijoon::send(socket, peer, 0, CONNECTION_RELAY_SERVICE_FAILED);
+                    connection(socket, server, messageHeader);
                     break;
                 }
                 
