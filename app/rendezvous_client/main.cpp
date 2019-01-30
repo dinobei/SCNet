@@ -6,9 +6,16 @@
 #include <string>
 #include <cstring>
 
-using namespace std;
+#include "packet.pb.h"
+#include "packet_type.pb.h"
 
-void onConnected(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
+using namespace std;
+using namespace example;
+
+void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
+void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
+void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1);
+void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2);
 
 int main(int argc, char** argv) {
     if(argc != 3) {
@@ -17,7 +24,10 @@ int main(int argc, char** argv) {
     }
     
     ijoon::initGlobalVariables();
-    SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_RELAY_SERVICE_SUCCESS, onConnected);
+    SCNET_RAW_UDP_MESSAGE_REGISTRATION(0, onReceivedPacket0);
+    SCNET_RAW_UDP_MESSAGE_REGISTRATION(1, onReceivedPacket1);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType1, Packet1, onPacket1);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType2, Packet2, onPacket2);
     
     ijoon::RendezvousClient client(argv[1], argv[2]);
     client.start();
@@ -49,35 +59,78 @@ int main(int argc, char** argv) {
             ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
             ijoon::send(client.socket, client.rendezvousServerPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
-        else if(vec[0].compare("RELAY") == 0) {
-            ijn_print(DP_INFO, "SEND RELAY PACKET: %s", sendBuf);
-            if(vec.size() != 3) {
-                ijn_print(DP_ERROR, "invalid parameter: RELAY_SERVER_IP, RELAY_SERVER_PORT, CONNECTION_ID, YOUR_MESSAGE");
+        else if(vec[0].compare("SEND") == 0) {
+            ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);
+            if(vec.size() != 4) {
+                ijn_print(DP_ERROR, "invalid parameter: CONNECTION_ID, PACKET_TYPE, YOUR_MESSAGE");
                 continue;
             }
             uint connectionID = atoi(vec[1].c_str());
-
-            std::string message = vec[2];
+            int packetType = atoi(vec[2].c_str());
+            std::string message = vec[3];
             
             auto rendezvousSession = client.rendezvousSessionMap[connectionID];
             if(rendezvousSession == nullptr) {
                 ijn_print(DP_ERROR, "invalid connectionID");
                 continue;
             }
-            rendezvousSession->send(123, (char *)message.c_str(), message.length());
+            rendezvousSession->send(packetType, (char *)message.c_str(), message.length());
+        }
+        else if(vec[0].compare("SENDPB1") == 0) {
+            ijn_print(DP_INFO, "SEND PROTOBUF PACKET: %s", sendBuf);
+            if(vec.size() != 3) {
+                ijn_print(DP_ERROR, "invalid parameter: CONNECTION_ID, INTEGER_VALUE");
+                continue;
+            }
+            uint connectionID = atoi(vec[1].c_str());
+            int value = atoi(vec[2].c_str());
+            
+            auto rendezvousSession = client.rendezvousSessionMap[connectionID];
+            if(rendezvousSession == nullptr) {
+                ijn_print(DP_ERROR, "invalid connectionID");
+                continue;
+            }
+            auto pkt1 = std::shared_ptr<Packet1>(new Packet1());
+            pkt1->set_number(value);
+            rendezvousSession->send(pkt1);
+        }
+        else if(vec[0].compare("SENDPB2") == 0) {
+            ijn_print(DP_INFO, "SEND PROTOBUF PACKET: %s", sendBuf);
+            if(vec.size() != 3) {
+                ijn_print(DP_ERROR, "invalid parameter: CONNECTION_ID, STRING_VALUE");
+                continue;
+            }
+            uint connectionID = atoi(vec[1].c_str());
+            std::string value = vec[2];
+            
+            auto rendezvousSession = client.rendezvousSessionMap[connectionID];
+            if(rendezvousSession == nullptr) {
+                ijn_print(DP_ERROR, "invalid connectionID");
+                continue;
+            }
+            auto pkt2 = std::shared_ptr<Packet2>(new Packet2());
+            pkt2->set_str(value);
+            rendezvousSession->send(pkt2);
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
             printf("CONN [TARGET_PEER_IP] [TARGET_PEER_PORT]\n");
             printf("example) CONN 127.0.0.1 11111\n");
             
-            printf("command type 2: RELAY (Packet relay using uniqueID)\n");
-            printf("RELAY [CONNECTION_ID] [YOUR_MESSAGE]\n");
-            printf("example) RELAY 1 helloworld\n");
+            printf("command type 2: SEND (Packet send using uniqueID)\n");
+            printf("SEND [CONNECTION_ID] [PACKET_TYPE] [YOUR_MESSAGE]\n");
+            printf("example) SEND 1 0 helloworld\n");
             
+            printf("command type 3: SENDPB1 (Protobuf Packet1 send using uniqueID)\n");
+            printf("SENDPB1 [CONNECTION_ID] [INTEGER_VALUE]\n");
+            printf("example) SENDPB1 1 123123\n");
+            
+            printf("command type 4: SENDPB2 (Protobuf Packet2 send using uniqueID)\n");
+            printf("SENDPB2 [CONNECTION_ID] [STRING_VALUE]\n");
+            printf("example) SENDPB2 1 helloworld\n");
         }
         else {
-            ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"RELAY\"");
+            ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"SEND\" or \"SENDPB1\" or \"SENDPB2\"");
         }
 
         
@@ -88,7 +141,15 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-void onConnected(ijoon::RendezvousSession *session, void *buffer, unsigned int length)
-{
-    printf("onConnectionResponseSuccess called, connectionID=%u\n", session->getConnectionID());
+void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
+    printf("onReceivedPacket0 called, connectionID=%u, length=%d\n", session->getConnectionID(), length);
+}
+void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
+    printf("onReceivedPacket1 called, connectionID=%u, length=%d\n", session->getConnectionID(), length);
+}
+void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1) {
+    printf("onPacket1 called, connectionID=%u, number=%d\n", session->getConnectionID(), pkt1->number());
+}
+void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2) {
+    printf("onPacket2 called, connectionID=%u, str=%s\n", session->getConnectionID(), pkt2->str().c_str());
 }
