@@ -79,7 +79,7 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
         
         char *body = &packet[cursor];
         
-        if(messageHeader.messageType == RAWBYTE_RELAY) {
+        if(messageHeader.messageType == RAWBYTE_RELAY || messageHeader.messageType == PROTOBUF_RELAY) {
             // validation peer
             bool isSP = false;
             if(!validationPeer(relayServer->map, relayServer->sessionCheckMap, messageHeader.connectionID, peer, isSP)) {
@@ -88,8 +88,8 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
             }
             
             auto relayPeerInfo = relayServer->map[messageHeader.connectionID];
-            ijoon::send(relayServer->socket, isSP ? relayPeerInfo->targetPeer : relayPeerInfo->sourcePeer,
-                        messageHeader.connectionID, messageHeader.packetType, body, messageHeader.dataSize);
+            messageHeader.messageType = messageHeader.messageType == RAWBYTE_RELAY ? RAWBYTE : PROTOBUF;
+            ijoon::send(relayServer->socket, isSP ? relayPeerInfo->targetPeer : relayPeerInfo->sourcePeer, messageHeader, body);
             continue;
         }
         

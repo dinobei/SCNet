@@ -25,6 +25,7 @@ namespace ijoon {
         PROTOBUF = 0,
         RAWBYTE,
         RAWBYTE_RELAY,
+        PROTOBUF_RELAY,
     };
     
     bool readHeader(char *packet, int length, ijoon::MessageHeader &messageHeader, int &cursor);
