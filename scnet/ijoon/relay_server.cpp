@@ -19,9 +19,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
     while(!thread->isInterrupted()) {
-        // 주기적으로 regist packet send
-        
-        ijn_print(DP_INFO, "sent REGISTER_RELAY_REQUEST");
+        // periodically packet send registration
         ijoon::send(relayServer->socket, relayServer->rendezvousPeer, 0, REGISTRATION_RELAY_SERVER_REQUEST);
         thread->sleep(30 * 1000);
     }
@@ -31,14 +29,16 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
 
 bool validationPeer(std::map<int, std::shared_ptr<ijoon::RelayPeerInfo>> map, std::map<int, int> sessionCheckMap, uint connectionID, ijoon::Peer peer, bool &isSP) {
     
-    // exist in map?
+    // does it exist in map
     if(map.count(connectionID) == 0) {
         return false;
     }
-    // checked session?
+    
+    // does it checked session
     if(sessionCheckMap.count(connectionID) != 0) {
         return false;
     }
+    
     auto relayPeerInfo = map[connectionID];
     
     if( (peer.getIP().compare(relayPeerInfo->sourcePeer.getIP()) == 0) && (peer.getPort() == relayPeerInfo->sourcePeer.getPort()) ) { // sender is SP
@@ -80,7 +80,6 @@ ijoon::THREAD_RET THREAD_API ijoon::mainThread(void *arg) {
         char *body = &packet[cursor];
         
         if(messageHeader.messageType == RAWBYTE_RELAY || messageHeader.messageType == PROTOBUF_RELAY) {
-            // validation peer
             bool isSP = false;
             if(!validationPeer(relayServer->map, relayServer->sessionCheckMap, messageHeader.connectionID, peer, isSP)) {
                 ijn_print(DP_ERROR, "Invalid peer's relay packet");

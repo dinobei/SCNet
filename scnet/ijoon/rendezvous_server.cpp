@@ -18,9 +18,6 @@ void ijoon::RendezvousServer::start() {
     
     thread = new ijoon::Thread(rendezvousThread, "rendezvous thread");
     thread->start(this);
-    // socket을 생성하고, port를 바인딩
-    // 스레드를 실행시킴
-    // 스레드에서는 명령 수신 대기를 함
 }
 
 bool connection(std::shared_ptr<ijoon::UDPSocket> socket, ijoon::RendezvousServer *server, ijoon::MessageHeader messageHeader) {
@@ -147,9 +144,6 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             {
                 ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATED");
                 
-                // 릴레이 서버에 SP/TP가 등록을 마쳤다는 뜻
-                // SP에 CONNECTION_REQUEST에 대한 응답을 해줌
-
                 if(server->rendezvousPeerInfoMap.count(messageHeader.connectionID) == 0) {
                     ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] relay connection info not exist");
                     break;
@@ -168,11 +162,6 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             case RELAY_SESSION_CREATING_FAILED: // from RelS
             {
                 ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATING_FAILED");
-                
-                // 릴레이 서버에 SP/TP가 등록을 하지 못했다는 뜻
-                // SP에 CONNECTION_REQUEST에 대한 응답을 해줌
-                // 단, 일반적인 상황은 아니며, 준비된 릴레이서버가 없거나 모두 죽었을 경우 발생할 수 있는 메시지임
-                // 이 경우 피어들간 연결이 안되는 증상이 발생할 수도 있음.
                 
                 auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
                 ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_FAILED);
@@ -235,7 +224,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                     break;
                 }
                 
-                // connectionID 생성
+                // create connectionID
                 int connectionID = server->rendezvousPeerInfoMap.size();
                 while(server->rendezvousPeerInfoMap.count(connectionID) != 0) {
                     connectionID++;
@@ -246,11 +235,6 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 rendezvousPeerInfo->tp.setIP(vec[0]);
                 rendezvousPeerInfo->tp.setPort(vec[1]);
                 server->rendezvousPeerInfoMap[connectionID] = rendezvousPeerInfo;
-
-                std::string data;
-                data += rendezvousPeer->publicPeer.getIP();
-                data += seperator;
-                data += vec[0];
                 
                 if(server->relayServerMap.size() == 0) {
                     ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
@@ -266,6 +250,11 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                     relayPeer = iter->second;
                     break;
                 }
+                
+                std::string data;
+                data += rendezvousPeer->publicPeer.getIP();
+                data += seperator;
+                data += vec[0];
                 
                 ijoon::send(socket, relayPeer, connectionID, RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
                 break;
