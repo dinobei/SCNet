@@ -18,7 +18,7 @@ namespace ijoon {
     
     class RendezvousSession: public BaseSession {
     public:
-        RendezvousSession(std::shared_ptr<ijoon::UDPSocket> socket, uint connectionID): socket(socket), connectionID(connectionID), isSetPrivatePeer(false), isSetPublicPeer(false), isSetRelayPeer(false) {}
+        RendezvousSession(std::shared_ptr<ijoon::UDPSocket> socket, uint connectionID): socket(socket), connectionID(connectionID) {}
         ~RendezvousSession() {}
         
         bool send(int packetType, char *message, unsigned int length) override;
@@ -34,18 +34,17 @@ namespace ijoon {
         void clearPublicPeer();
         void clearRelayPeer();
         
+        bool isConnected();
+        
         uint getConnectionID() {return connectionID;}
         
     private:
         std::shared_ptr<ijoon::UDPSocket> socket;
         uint connectionID;
-        
-        bool isSetPrivatePeer;
-        bool isSetPublicPeer;
-        bool isSetRelayPeer;
-        ijoon::Peer privatePeer;
-        ijoon::Peer publicPeer;
-        ijoon::Peer relayPeer;
+
+        std::shared_ptr<ijoon::Peer> privatePeer;
+        std::shared_ptr<ijoon::Peer> publicPeer;
+        std::shared_ptr<ijoon::Peer> relayPeer;
         
     };
     

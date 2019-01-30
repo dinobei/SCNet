@@ -34,6 +34,16 @@ std::string getIPAddress()
     return ipAddress;
 }
 
+std::shared_ptr<ijoon::RendezvousSession> getRendezvousSessionSafety(ijoon::RendezvousClient *client, ijoon::MessageHeader messageHeader) {
+    if(client->rendezvousSessionMap.count(messageHeader.connectionID) == 0) {
+        std::shared_ptr<ijoon::RendezvousSession> rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(client->socket, messageHeader.connectionID));
+        client->rendezvousSessionMap[messageHeader.connectionID] = rendezvousSession;
+        return rendezvousSession;
+    }
+    
+    return client->rendezvousSessionMap[messageHeader.connectionID];
+}
+
 void ijoon::RendezvousClient::start() {
     ijn_print(DP_INFO, "Rendezvous client start...");
     register_thread = new ijoon::Thread(registerThread, "register_thread");
@@ -107,7 +117,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     continue;
                 }
                 
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 message->ParseFromArray(body, messageHeader.dataSize);
                 auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                 if(callbackWrapper != nullptr) {
@@ -124,7 +134,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     break;
                 }
                 
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                 if(callbackWrapper != nullptr) {
                     callbackWrapper->callback(rendezvousSession.get(), body, messageHeader.dataSize);
@@ -164,6 +174,10 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             case CONNECTION_FAILED:
             {
                 ijn_print(DP_DEBUG, "received CONNECTION_FAILED");
+                if(client->onConnectFailedCallback != nullptr) {
+                    auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                    client->onConnectFailedCallback(rendezvousSession);
+                }
                 continue;
             }
             case DIRECT_CONNECTION_AVAILABLE: // SP only
@@ -181,6 +195,13 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     break;
                 }
                 
+                if(client->onConnectingCallback != nullptr) {
+                    auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                    if(!rendezvousSession->isConnected()) {
+                        client->onConnectingCallback(rendezvousSession);
+                    }
+                }
+                
                 ijoon::Peer targetPeer(vec[0], vec[1]);
                 ijoon::send(client->socket, targetPeer, messageHeader.connectionID, DIRECT_CONNECTION_REQUEST);
                 continue;
@@ -189,6 +210,16 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             {
                 ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_REQUEST");
                 
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                bool isConnected = rendezvousSession->isConnected();
+                rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                
+                if(!isConnected) {
+                    if(client->onConnectedCallback != nullptr) {
+                        client->onConnectedCallback(rendezvousSession);
+                    }
+                }
+                
                 ijoon::send(client->socket, peer, messageHeader.connectionID, DIRECT_CONNECTION_RESPONSE);
                 continue;
             }
@@ -196,11 +227,24 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             {
                 ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_RESPONSE");
                 
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
-                auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
-                if(callbackWrapper != nullptr) {
-                    callbackWrapper->callback(rendezvousSession.get(), nullptr, 0);
+                
+                if(!isConnected) {
+                    if(client->onConnectedCallback != nullptr) {
+                        client->onConnectedCallback(rendezvousSession);
+                    }
+                }
+                continue;
+            }
+            case REVERSE_CONNECTION_READY:
+            {
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                if(!rendezvousSession->isConnected()) {
+                    if(client->onConnectingCallback != nullptr) {
+                        client->onConnectingCallback(rendezvousSession);
+                    }
                 }
                 
                 continue;
@@ -231,8 +275,15 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 
                 ijoon::send(client->socket, peer, messageHeader.connectionID, REVERSE_CONNECTION_RESPONSE);
                 
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                
+                if(!isConnected) {
+                    if(client->onConnectedCallback != nullptr) {
+                        client->onConnectedCallback(rendezvousSession);
+                    }
+                }
                 
                 continue;
             }
@@ -240,8 +291,15 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
             {
                 ijn_print(DP_DEBUG, "received REVERSE_CONNECTION_RESPONSE");
                 
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                
+                if(!isConnected) {
+                    if(client->onConnectedCallback != nullptr) {
+                        client->onConnectedCallback(rendezvousSession);
+                    }
+                }
                 
                 continue;
             }
@@ -260,7 +318,14 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     ijn_print(DP_ERROR, "[UDP_HOLE_PUNCHING_AVAILABLE] invalid parameters");
                     break;
                 }
-                    
+
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                if(!rendezvousSession->isConnected()) {
+                    if(client->onConnectingCallback != nullptr) {
+                        client->onConnectingCallback(rendezvousSession);
+                    }
+                }
+                
                 // private, public 정보로 동시에 연결 요청 메시지를 보냄
                 std::string data;
                 
@@ -313,7 +378,8 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 const bool isPublic = atoi(vec[0].c_str()) ? true : false;
                 
                 ijn_print(DP_ERROR, "peer.getIP()=%s, peer.getPort()=%d", peer.getIP().c_str(), peer.getPort());
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                bool isConnected = rendezvousSession->isConnected();
                 if(isPublic) {
                     // public connection (common connection)
                     rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
@@ -325,6 +391,12 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     rendezvousSession->setPrivatePeer(peer.getIP(), std::to_string(peer.getPort()));
                     
                     ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected private, from %s:%d", peer.getIP().c_str(), peer.getPort());
+                }
+                
+                if(!isConnected) {
+                    if(client->onConnectedCallback != nullptr) {
+                        client->onConnectedCallback(rendezvousSession);
+                    }
                 }
                 
                 continue;
@@ -344,9 +416,10 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     break;
                 }
                 
-                // regist connection ID
-                std::shared_ptr<ijoon::RendezvousSession> rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(client->socket, messageHeader.connectionID));
-                client->rendezvousSessionMap[messageHeader.connectionID] = rendezvousSession;
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+                if(client->onConnectingCallback != nullptr) {
+                    client->onConnectingCallback(rendezvousSession);
+                }
                 
                 ijn_print(DP_INFO, "[RELAY_SERVER_INFORMATION] RelayServerAddress=%s:%s", vec[0].c_str(), vec[1].c_str());
                 
@@ -370,9 +443,17 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                     break;
                 }
                 
-                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 rendezvousSession->setRelayPeer(vec[0], vec[1]);
 
+                if(client->onConnectedCallback != nullptr) {
+                    client->onConnectedCallback(rendezvousSession);
+                }
+                continue;
+            }
+            case CONNECTION_RELAY_SERVICE_FAILED:
+            {
+                ijn_print(DP_DEBUG, "received CONNECTION_RELAY_SERVICE_FAILED");
                 continue;
             }
             case REGISTRATION_RELAY_PEER_SUCCESS:

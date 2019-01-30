@@ -32,6 +32,7 @@ namespace ijoon {
         DIRECT_CONNECTION_RESPONSE, // nullptr
         
         // pub/pri
+        REVERSE_CONNECTION_READY, // nullptr
         REVERSE_CONNECTION, // SP public ip, SP public port
         REVERSE_CONNECTION_REQUEST, // nullptr
         REVERSE_CONNECTION_RESPONSE, // nullptr

@@ -1,5 +1,6 @@
 #pragma once
 #include <ijoon/coreutils.h>
+#include <functional>
 #include "session.h"
 
 namespace ijoon {
@@ -24,5 +25,9 @@ namespace ijoon {
         std::map<int, std::shared_ptr<ijoon::RendezvousSession>> rendezvousSessionMap;
         
         ijoon::Peer rendezvousServerPeer;
+        
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectFailedCallback;
     };
 }

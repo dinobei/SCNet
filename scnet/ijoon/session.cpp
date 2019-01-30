@@ -152,15 +152,15 @@ char *ijoon::Session::recvRawBody(MessageHeader &messageHeader) {
 }
 
 bool ijoon::RendezvousSession::send(int packetType, char *message, unsigned int length) {
-    if(this->isSetPrivatePeer) {
+    if(this->privatePeer != nullptr) {
         printf("sent to private peer\n");
         return ijoon::send(socket, privatePeer, connectionID, packetType, message, length);
     }
-    else if(this->isSetPublicPeer) {
+    else if(this->publicPeer != nullptr) {
         printf("sent to public peer\n");
         return ijoon::send(socket, publicPeer, connectionID, packetType, message, length);
     }
-    else if(this->isSetRelayPeer) {
+    else if(this->relayPeer != nullptr) {
         printf("sent to relay peer\n");
         return ijoon::sendRelay(socket, relayPeer, connectionID, packetType, message, length);
     }
@@ -170,17 +170,17 @@ bool ijoon::RendezvousSession::send(int packetType, char *message, unsigned int 
 }
 
 bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> message) {
-    if(this->isSetPrivatePeer) {
+    if(this->privatePeer != nullptr) {
         printf("sent to private peer\n");
         return ijoon::send(socket, privatePeer, connectionID, message);
     }
-    else if(this->isSetPublicPeer) {
+    else if(this->publicPeer != nullptr) {
         printf("sent to public peer\n");
         return ijoon::send(socket, publicPeer, connectionID, message);
     }
-    else if(this->isSetRelayPeer) {
+    else if(this->relayPeer != nullptr) {
         printf("sent to relay peer\n");
-        return ijoon::send(socket, relayPeer, connectionID, message);
+        return ijoon::sendRelay(socket, relayPeer, connectionID, message);
     }
     
     printf("send failed\n");
@@ -188,30 +188,31 @@ bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> m
 }
 
 void ijoon::RendezvousSession::setPrivatePeer(std::string ip, std::string port) {
-    this->privatePeer.setIP(ip);
-    this->privatePeer.setPort(port);
-    this->isSetPrivatePeer = true;
+    this->privatePeer = std::shared_ptr<Peer>(new Peer(ip, port));
 }
 
 void ijoon::RendezvousSession::setPublicPeer(std::string ip, std::string port) {
-    this->publicPeer.setIP(ip);
-    this->publicPeer.setPort(port);
-    this->isSetPublicPeer = true;
+    this->publicPeer = std::shared_ptr<Peer>(new Peer(ip, port));
 }
 void ijoon::RendezvousSession::setRelayPeer(std::string ip, std::string port) {
-    this->relayPeer.setIP(ip);
-    this->relayPeer.setPort(port);
-    this->isSetRelayPeer = true;
+    this->relayPeer = std::shared_ptr<Peer>(new Peer(ip, port));
 }
 
 void ijoon::RendezvousSession::clearPrivatePeer() {
-    this->isSetPrivatePeer = false;
+    this->privatePeer = nullptr;
 }
 
 void ijoon::RendezvousSession::clearPublicPeer() {
-    this->isSetPublicPeer = false;
+    this->publicPeer = nullptr;
 }
 
 void ijoon::RendezvousSession::clearRelayPeer() {
-    this->isSetRelayPeer = false;
+    this->relayPeer = nullptr;
+}
+
+bool ijoon::RendezvousSession::isConnected() {
+    if(this->relayPeer == nullptr && this->publicPeer == nullptr && this->privatePeer == nullptr) {
+        return false;
+    }
+    return true;
 }
