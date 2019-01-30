@@ -169,13 +169,21 @@ bool ijoon::RendezvousSession::send(int packetType, char *message, unsigned int 
     return false;
 }
 
-bool ijoon::RendezvousSession::send(google::protobuf::Message *message) {
-    // note: implement this
-    return false;
-}
-
 bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> message) {
-    // note: implement this
+    if(this->isSetPrivatePeer) {
+        printf("sent to private peer\n");
+        return ijoon::send(socket, privatePeer, connectionID, message);
+    }
+    else if(this->isSetPublicPeer) {
+        printf("sent to public peer\n");
+        return ijoon::send(socket, publicPeer, connectionID, message);
+    }
+    else if(this->isSetRelayPeer) {
+        printf("sent to relay peer\n");
+        return ijoon::send(socket, relayPeer, connectionID, message);
+    }
+    
+    printf("send failed\n");
     return false;
 }
 

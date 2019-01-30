@@ -22,7 +22,6 @@ namespace ijoon {
         ~RendezvousSession() {}
         
         bool send(int packetType, char *message, unsigned int length) override;
-        bool send(google::protobuf::Message *message) override;
         bool send(std::shared_ptr<google::protobuf::Message> message) override;
         
         std::shared_ptr<ijoon::UDPSocket> getClientSocket()  {return this->socket;}
