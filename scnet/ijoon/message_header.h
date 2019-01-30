@@ -36,7 +36,8 @@ namespace ijoon {
     bool send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType, char *message, unsigned int length);
     bool send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, int packetType, char *message, unsigned int length);
     bool send(std::shared_ptr<UDPSocket> socket, Peer peer, MessageHeader messageHeader, char *message);
-    bool send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
+    bool send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
     
-    bool sendRelay(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, int packetType, char *message, unsigned int length);
+    bool sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType, char *message, unsigned int length);
+    bool sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
 }
