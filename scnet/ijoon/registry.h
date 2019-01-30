@@ -211,5 +211,19 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     packetTypeInt, \
                     new RawCallbackWrapper<ijoon::RendezvousSession>(callbackFunc))
 
+#define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(ns, packetTypeInt, messageClassName, callbackFunc) \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
+                    BaseMessageRegistry, \
+                    packetTypeInt, \
+                    Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
+                    BaseMessageRegistry, \
+                    #ns "." #messageClassName, \
+                    packetTypeInt); \
+static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
+                    BaseMessageRegistry, \
+                    ijoon::MESSAGE_TYPE::PROTOBUF, \
+                    packetTypeInt, \
+                    new CallbackWrapper<ijoon::RendezvousSession, messageClassName>(callbackFunc))
 
 #endif

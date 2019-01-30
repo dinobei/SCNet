@@ -98,18 +98,46 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
         
         char *body = &packet[cursor];
         
-        switch (messageHeader.packetType) {
-            case 123:
-                ijn_print(DP_INFO, "packetType 123, body=%s", body);
+        switch(messageHeader.messageType) {
+            case PROTOBUF:
+            {
+                google::protobuf::Message *message = BaseMessageRegistry->Create(messageHeader.packetType);
+                if(message == nullptr) {
+                    ijn_print(DP_INFO, "Unknown protobuf packet_type(%d) reveiced", messageHeader.packetType);
+                    continue;
+                }
+                
+                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                message->ParseFromArray(body, messageHeader.dataSize);
+                auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                if(callbackWrapper != nullptr) {
+                    callbackWrapper->callback(rendezvousSession.get(), message);
+                }
+                else {
+                    ijn_print(DP_ERROR, "No callback wrapper");
+                }
                 continue;
-            case 1:
-                printf("packetType 1 received\n");
+            }
+            case RAWBYTE:
+            {
+                if(messageHeader.packetType >= REGISTRATION_RENDEZVOUS_CLIENT_REQUEST) {
+                    break;
+                }
+                
+                auto rendezvousSession = client->rendezvousSessionMap[messageHeader.connectionID];
+                auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                if(callbackWrapper != nullptr) {
+                    callbackWrapper->callback(rendezvousSession.get(), body, messageHeader.dataSize);
+                }
+                
                 continue;
+            }
             default:
                 break;
         }
         
         if(messageHeader.messageType != MESSAGE_TYPE::RAWBYTE) {
+            ijn_print(DP_ERROR, "Unknown packet_type(%d) received", messageHeader.messageType);
             continue;
         }
         
