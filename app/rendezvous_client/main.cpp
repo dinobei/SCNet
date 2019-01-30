@@ -12,6 +12,10 @@
 using namespace std;
 using namespace example;
 
+void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session);
+void onConnected(std::shared_ptr<ijoon::RendezvousSession> session);
+void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session);
+
 void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
 void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
 void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1);
@@ -30,6 +34,9 @@ int main(int argc, char** argv) {
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType2, Packet2, onPacket2);
     
     ijoon::RendezvousClient client(argv[1], argv[2]);
+    client.onConnectingCallback = onConnecting;
+    client.onConnectedCallback = onConnected;
+    client.onConnectFailedCallback = onConnectFailed;
     client.start();
     
     while(true) {
@@ -139,6 +146,16 @@ int main(int argc, char** argv) {
     
     getchar();
     return 0;
+}
+
+void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session) {
+    printf("onConnecting called, connectionID=%u\n", session->getConnectionID());
+}
+void onConnected(std::shared_ptr<ijoon::RendezvousSession> session) {
+    printf("onConnected called, connectionID=%u\n", session->getConnectionID());
+}
+void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session) {
+    printf("onConnectFailed called, connectionID=%u\n", session->getConnectionID());
 }
 
 void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
