@@ -230,6 +230,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                printf("directly connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
                 
                 if(!isConnected) {
                     if(client->onConnectedCallback != nullptr) {
@@ -247,6 +248,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                printf("directly connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
                 
                 if(!isConnected) {
                     if(client->onConnectedCallback != nullptr) {
@@ -295,6 +297,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                printf("reversely connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
                 
                 if(!isConnected) {
                     if(client->onConnectedCallback != nullptr) {
@@ -311,6 +314,7 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 bool isConnected = rendezvousSession->isConnected();
                 rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
+                printf("reversely connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
                 
                 if(!isConnected) {
                     if(client->onConnectedCallback != nullptr) {
@@ -398,16 +402,14 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 bool isConnected = rendezvousSession->isConnected();
                 if(isPublic) {
-                    // public connection (common connection)
+                    // public connection (hole punching)
                     rendezvousSession->setPublicPeer(peer.getIP(), std::to_string(peer.getPort()));
-                    
-                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected public, from %s:%d", peer.getIP().c_str(), peer.getPort());
+                    printf("udp hole punching success from %s:%d\n", peer.getIP().c_str(), peer.getPort());
                 }
                 else {
-                    // private connection (equal net, or hole punching)
+                    // private connection (equal net)
                     rendezvousSession->setPrivatePeer(peer.getIP(), std::to_string(peer.getPort()));
-                    
-                    ijn_print(DP_DEBUG, "[UDP_HOLE_PUNCHING_RESPONSE] connected private, from %s:%d", peer.getIP().c_str(), peer.getPort());
+                    printf("connected under equal nat from %s:%d\n", peer.getIP().c_str(), peer.getPort());
                 }
                 
                 if(!isConnected) {
@@ -462,7 +464,8 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThread(void *arg) {
                 
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 rendezvousSession->setRelayPeer(vec[0], vec[1]);
-
+                printf("connected by a relay from %s:%s\n", vec[0].c_str(), vec[1].c_str());
+                
                 if(client->onConnectedCallback != nullptr) {
                     client->onConnectedCallback(rendezvousSession);
                 }
