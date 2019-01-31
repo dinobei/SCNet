@@ -236,6 +236,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 rendezvousPeerInfo->tp.setPort(vec[1]);
                 server->rendezvousPeerInfoMap[connectionID] = rendezvousPeerInfo;
                 
+                messageHeader.connectionID = connectionID;
                 if(server->relayServerMap.size() == 0) {
                     ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
                     ijoon::send(socket, peer, 0, CONNECTION_RELAY_SERVICE_FAILED);
