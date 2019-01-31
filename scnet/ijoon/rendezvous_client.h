@@ -9,7 +9,7 @@ namespace ijoon {
     
     class RendezvousClient {
     public:
-        RendezvousClient(std::string ip, std::string port): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))) {
+        RendezvousClient(std::string ip, std::string port, std::string ifname): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname) {
             rendezvousServerPeer.setIP(ip);
             rendezvousServerPeer.setPort(port);
         }
@@ -25,6 +25,7 @@ namespace ijoon {
         std::map<int, std::shared_ptr<ijoon::RendezvousSession>> rendezvousSessionMap;
         
         ijoon::Peer rendezvousServerPeer;
+        std::string ifname;
         
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;

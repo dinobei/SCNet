@@ -22,8 +22,8 @@ void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1);
 void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2);
 
 int main(int argc, char** argv) {
-    if(argc != 3) {
-        printf("Usage : %s <rendezvous_server_ip> <rendezvous_server_port>\n", argv[0]);
+    if(argc != 4) {
+        printf("Usage : %s <rendezvous_server_ip> <rendezvous_server_port> <interface_name>\n", argv[0]);
         exit(-1);
     }
     
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType1, Packet1, onPacket1);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType2, Packet2, onPacket2);
     
-    ijoon::RendezvousClient client(argv[1], argv[2]);
+    ijoon::RendezvousClient client(argv[1], argv[2], argv[3]);
     client.onConnectingCallback = onConnecting;
     client.onConnectedCallback = onConnected;
     client.onConnectFailedCallback = onConnectFailed;

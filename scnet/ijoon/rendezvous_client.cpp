@@ -5,32 +5,49 @@
 #include <ifaddrs.h>
 #include <cstring>
 #include "registry.h"
+#include <assert.h>
 
 extern char seperator;
 
-std::string getIPAddress()
-{
-    std::string ipAddress="0.0.0.0";
-    struct ifaddrs *interfaces = NULL;
-    struct ifaddrs *temp_addr = NULL;
-    int success = 0;
-    // retrieve the current interfaces - returns 0 on success
-    success = getifaddrs(&interfaces);
-    if (success == 0) {
-        // Loop through linked list of interfaces
-        temp_addr = interfaces;
-        while(temp_addr != NULL) {
-            if(temp_addr->ifa_addr->sa_family == AF_INET) {
-                // Check if interface is en0 which is the wifi connection on the iPhone
-                if(strcmp(temp_addr->ifa_name, "en0")==0){
-                    ipAddress=inet_ntoa(((struct sockaddr_in*)temp_addr->ifa_addr)->sin_addr);
-                }
+
+// reference: https://stackoverflow.com/a/265978
+std::string getIPAddress(const char *ifname) {
+    assert(ifname!=nullptr);
+    
+    std::string ipAddress;
+    struct ifaddrs * ifAddrStruct=NULL;
+    struct ifaddrs * ifa=NULL;
+    
+    getifaddrs(&ifAddrStruct);
+    
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+            // is a valid IP4 Address
+             if(strcmp(ifa->ifa_name, ifname)==0) {
+                 void * tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+                 char addressBuffer[INET_ADDRSTRLEN];
+                 inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+                 ipAddress = addressBuffer;
+                 break;
+             }
+        } else if (ifa->ifa_addr->sa_family == AF_INET6) { // check it is IP6
+            // is a valid IP6 Address
+            if(strcmp(ifa->ifa_name, ifname)==0) {
+                void * tmpAddrPtr =&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+                char addressBuffer[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, tmpAddrPtr, addressBuffer, INET6_ADDRSTRLEN);
+                ipAddress = addressBuffer;
+                break;
             }
-            temp_addr = temp_addr->ifa_next;
+            
         }
     }
-    // Free memory
-    freeifaddrs(interfaces);
+    if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
+    
+    assert(!ipAddress.empty());
     return ipAddress;
 }
 
@@ -56,7 +73,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
 
-    std::string localIP = getIPAddress();
+    std::string localIP = getIPAddress(client->ifname.c_str());
     printf("localIP: %s\n", localIP.c_str());
     int localPort = 0;
     struct sockaddr_in sin;
