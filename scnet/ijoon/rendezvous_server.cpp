@@ -234,12 +234,12 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 int connectionID = server->connectionIDCursor++;
                 
-                std::shared_ptr<ijoon::RendezvousPeerInfo> rendezvousPeerInfo = std::shared_ptr<ijoon::RendezvousPeerInfo>(new ijoon::RendezvousPeerInfo());
-                rendezvousPeerInfo->connectionID = connectionID;
-                rendezvousPeerInfo->sp = peer;
-                rendezvousPeerInfo->tp.setIP(vec[0]);
-                rendezvousPeerInfo->tp.setPort(vec[1]);
-                server->connectionInfoMap[connectionID] = rendezvousPeerInfo;
+                std::shared_ptr<ijoon::RendezvousPeerInfo> connectionInfo = std::shared_ptr<ijoon::RendezvousPeerInfo>(new ijoon::RendezvousPeerInfo());
+                connectionInfo->connectionID = connectionID;
+                connectionInfo->sp = peer;
+                connectionInfo->tp.setIP(vec[0]);
+                connectionInfo->tp.setPort(vec[1]);
+                server->connectionInfoMap[connectionID] = connectionInfo;
                 
                 messageHeader.connectionID = connectionID;
                 if(server->relayServerMap.size() == 0) {
