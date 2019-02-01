@@ -18,7 +18,7 @@ namespace ijoon {
     
     class RendezvousServer {
     public:
-        RendezvousServer(int port): serverPort(port) {}
+        RendezvousServer(int port): serverPort(port), connectionIDCursor(0) {}
         ~RendezvousServer() {}
 
         void start();
@@ -28,6 +28,7 @@ namespace ijoon {
         std::map<std::string, std::shared_ptr<RendezvousPeer>> registeredRendezvousPeer;
         std::map<std::string, std::shared_ptr<ijoon::Peer>> relayServerMap;
         
+        int connectionIDCursor;
         std::map<int, std::shared_ptr<RendezvousPeerInfo>> connectionInfoMap;
         
         ijoon::Thread *thread;

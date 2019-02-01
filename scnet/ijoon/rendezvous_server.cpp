@@ -67,6 +67,8 @@ bool connection(std::shared_ptr<ijoon::UDPSocket> socket, ijoon::RendezvousServe
         ijoon::send(socket, tpRendezvousPeer->publicPeer, messageHeader.connectionID, ijoon::RENDEZVOUS_MSG::UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
     }
     
+    server->connectionInfoMap.erase(messageHeader.connectionID);
+    
     return true;
 }
 
@@ -227,10 +229,11 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 
                 // create connectionID
-                int connectionID = server->connectionInfoMap.size();
-                while(server->connectionInfoMap.count(connectionID) != 0) {
-                    connectionID++;
+                if(server->connectionIDCursor > 1000000000) {
+                    server->connectionIDCursor = 0;
                 }
+                int connectionID = server->connectionIDCursor++;
+                
                 std::shared_ptr<ijoon::RendezvousPeerInfo> rendezvousPeerInfo = std::shared_ptr<ijoon::RendezvousPeerInfo>(new ijoon::RendezvousPeerInfo());
                 rendezvousPeerInfo->connectionID = connectionID;
                 rendezvousPeerInfo->sp = peer;
