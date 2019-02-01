@@ -24,10 +24,8 @@ bool connection(std::shared_ptr<ijoon::UDPSocket> socket, ijoon::RendezvousServe
     auto rendezvousPeerInfo = server->connectionInfoMap[messageHeader.connectionID];
     
     // SP/TP nat check
-    std::string spKey = rendezvousPeerInfo->sp.getIP() + ":" + std::to_string(rendezvousPeerInfo->sp.getPort());
-    std::string tpKey = rendezvousPeerInfo->tp.getIP() + ":" + std::to_string(rendezvousPeerInfo->tp.getPort());
-    auto spRendezvousPeer = server->registeredRendezvousPeer[spKey];
-    auto tpRendezvousPeer = server->registeredRendezvousPeer[tpKey];
+    auto spRendezvousPeer = server->registeredRendezvousPeer[rendezvousPeerInfo->sp.getKey()];
+    auto tpRendezvousPeer = server->registeredRendezvousPeer[rendezvousPeerInfo->tp.getKey()];
     
     if(spRendezvousPeer == nullptr || tpRendezvousPeer == nullptr) {
         ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] No registered rendezvous peer detected");
@@ -115,7 +113,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             {
                 ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_REQUEST");
                 
-                std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
+                std::string key = peer.getKey();
                 if(server->relayServerMap.count(key) == 0) {
                     server->relayServerMap[key] = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(peer.getIP(), std::to_string(peer.getPort())));
                 }
@@ -134,10 +132,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 
                 auto rendezvousPeerInfo = server->connectionInfoMap[messageHeader.connectionID];
                 
-                std::string key = rendezvousPeerInfo->sp.getIP() + ":" + std::to_string(rendezvousPeerInfo->sp.getPort());
-                auto sourcePeer = server->registeredRendezvousPeer[key];
-                key = rendezvousPeerInfo->tp.getIP() + ":" + std::to_string(rendezvousPeerInfo->tp.getPort());
-                auto targetPeer = server->registeredRendezvousPeer[key];
+                auto sourcePeer = server->registeredRendezvousPeer[rendezvousPeerInfo->sp.getKey()];
+                auto targetPeer = server->registeredRendezvousPeer[rendezvousPeerInfo->tp.getKey()];
                 
                 sourcePeer->relayPeer.setIP(peer.getIP());
                 sourcePeer->relayPeer.setPort(std::to_string(peer.getPort()));
@@ -195,7 +191,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                     break;
                 }
                 
-                std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
+                std::string key = peer.getKey();
                 if(server->registeredRendezvousPeer.count(key) == 0) {
                     server->registeredRendezvousPeer[key] = std::shared_ptr<RendezvousPeer>(new RendezvousPeer(socket, peer));
                     ijn_print(DP_INFO, "[REGISTRATION_RENDEZVOUS_CLIENT_REQUEST] new rendezvous peer registered");
@@ -229,10 +225,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                     break;
                 }
                 
-                std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
-                auto sourcePeer = server->registeredRendezvousPeer[key];
-                key = vec[0] + ":" + vec[1];
-                auto targetPeer = server->registeredRendezvousPeer[key];
+                auto sourcePeer = server->registeredRendezvousPeer[peer.getKey()];
+                auto targetPeer = server->registeredRendezvousPeer[vec[0] + ":" + vec[1]];
                 if(sourcePeer == nullptr || targetPeer == nullptr) {
                     ijoon::send(socket, peer, 0, CONNECTION_FAILED);
                     break;
