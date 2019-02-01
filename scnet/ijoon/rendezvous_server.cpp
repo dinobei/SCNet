@@ -218,8 +218,10 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 
                 std::string key = peer.getIP() + ":" + std::to_string(peer.getPort());
-                auto rendezvousPeer = server->registeredRendezvousPeer[key];
-                if(rendezvousPeer == nullptr) {
+                auto sourcePeer = server->registeredRendezvousPeer[key];
+                key = vec[0] + ":" + vec[1];
+                auto targetPeer = server->registeredRendezvousPeer[key];
+                if(sourcePeer == nullptr || targetPeer == nullptr) {
                     ijoon::send(socket, peer, 0, CONNECTION_FAILED);
                     break;
                 }
@@ -253,7 +255,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 
                 std::string data;
-                data += rendezvousPeer->publicPeer.getIP();
+                data += sourcePeer->publicPeer.getIP();
                 data += seperator;
                 data += vec[0];
                 
