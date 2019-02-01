@@ -16,14 +16,14 @@ namespace ijoon {
         bool isPublic();
         
         void setPrivatePeer(std::string ip, std::string port);
-        void setRelayPeer(std::string ip, std::string port, int uniqueID);
+        void setRelayPeer(std::string ip, std::string port, int connectionID);
         
     public:
         ijoon::Peer privatePeer;
         
         ijoon::Peer publicPeer;
         
-        int relayTargetUniqueID;
+        int connectionID;
         ijoon::Peer relayPeer;
         
     public:
