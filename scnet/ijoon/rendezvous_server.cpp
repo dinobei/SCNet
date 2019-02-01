@@ -89,6 +89,11 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             continue;
         }
         
+        auto rendezvousPeer = server->registeredRendezvousPeer[peer.getKey()];
+        if(rendezvousPeer != nullptr) {
+            rendezvousPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+        }
+        
         MessageHeader messageHeader;
         int cursor = 0;
         if(!ijoon::readHeader(packet, recvSize, messageHeader, cursor)) {
@@ -193,7 +198,9 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 
                 std::string key = peer.getKey();
                 if(server->registeredRendezvousPeer.count(key) == 0) {
-                    server->registeredRendezvousPeer[key] = std::shared_ptr<RendezvousPeer>(new RendezvousPeer(socket, peer));
+                    auto rendezvousPeer = std::shared_ptr<RendezvousPeer>(new RendezvousPeer(socket, peer));
+                    rendezvousPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+                    server->registeredRendezvousPeer[key] = rendezvousPeer;
                     ijn_print(DP_INFO, "[REGISTRATION_RENDEZVOUS_CLIENT_REQUEST] new rendezvous peer registered");
                 }
                 

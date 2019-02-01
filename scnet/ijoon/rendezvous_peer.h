@@ -27,7 +27,7 @@ namespace ijoon {
         ijoon::Peer relayPeer;
         
     public:
-        time_t LastReportedTime; // 일정시간 이상 메시지가 없을 때 맵에서 제거하기 위함
+        time_t lastPing;
         
     public:
         std::shared_ptr<UDPSocket> socket;
