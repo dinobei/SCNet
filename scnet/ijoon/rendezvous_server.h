@@ -28,7 +28,7 @@ namespace ijoon {
         std::map<std::string, std::shared_ptr<RendezvousPeer>> registeredRendezvousPeer;
         std::map<std::string, std::shared_ptr<ijoon::Peer>> relayServerMap;
         
-        std::map<int, std::shared_ptr<RendezvousPeerInfo>> rendezvousPeerInfoMap;
+        std::map<int, std::shared_ptr<RendezvousPeerInfo>> connectionInfoMap;
         
         ijoon::Thread *thread;
     };

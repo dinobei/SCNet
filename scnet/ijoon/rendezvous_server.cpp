@@ -21,7 +21,7 @@ void ijoon::RendezvousServer::start() {
 }
 
 bool connection(std::shared_ptr<ijoon::UDPSocket> socket, ijoon::RendezvousServer *server, ijoon::MessageHeader messageHeader) {
-    auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+    auto rendezvousPeerInfo = server->connectionInfoMap[messageHeader.connectionID];
     
     // SP/TP nat check
     std::string spKey = rendezvousPeerInfo->sp.getIP() + ":" + std::to_string(rendezvousPeerInfo->sp.getPort());
@@ -125,12 +125,12 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             {
                 ijn_print(DP_DEBUG, "received RELAY_SESSION_READY");
                 
-                if(server->rendezvousPeerInfoMap.count(messageHeader.connectionID) == 0) {
+                if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
                     ijn_print(DP_ERROR, "[RELAY_SESSION_READY] invalid request from relay server");
                     break;
                 }
                 
-                auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+                auto rendezvousPeerInfo = server->connectionInfoMap[messageHeader.connectionID];
                 
                 std::string data;
                 data = peer.getIP() + seperator + std::to_string(peer.getPort()) + seperator + "1";
@@ -144,11 +144,11 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             {
                 ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATED");
                 
-                if(server->rendezvousPeerInfoMap.count(messageHeader.connectionID) == 0) {
+                if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
                     ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] relay connection info not exist");
                     break;
                 }
-                auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+                auto rendezvousPeerInfo = server->connectionInfoMap[messageHeader.connectionID];
                 
                 // send connected packet
                 std::string data = peer.getIP() + seperator + std::to_string(peer.getPort());
@@ -163,7 +163,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             {
                 ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATING_FAILED");
                 
-                auto rendezvousPeerInfo = server->rendezvousPeerInfoMap[messageHeader.connectionID];
+                auto rendezvousPeerInfo = server->connectionInfoMap[messageHeader.connectionID];
                 ijoon::send(socket, rendezvousPeerInfo->sp, messageHeader.connectionID, CONNECTION_RELAY_SERVICE_FAILED);
                 connection(socket, server, messageHeader);
                 break;
@@ -227,8 +227,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 
                 // create connectionID
-                int connectionID = server->rendezvousPeerInfoMap.size();
-                while(server->rendezvousPeerInfoMap.count(connectionID) != 0) {
+                int connectionID = server->connectionInfoMap.size();
+                while(server->connectionInfoMap.count(connectionID) != 0) {
                     connectionID++;
                 }
                 std::shared_ptr<ijoon::RendezvousPeerInfo> rendezvousPeerInfo = std::shared_ptr<ijoon::RendezvousPeerInfo>(new ijoon::RendezvousPeerInfo());
@@ -236,7 +236,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 rendezvousPeerInfo->sp = peer;
                 rendezvousPeerInfo->tp.setIP(vec[0]);
                 rendezvousPeerInfo->tp.setPort(vec[1]);
-                server->rendezvousPeerInfoMap[connectionID] = rendezvousPeerInfo;
+                server->connectionInfoMap[connectionID] = rendezvousPeerInfo;
                 
                 messageHeader.connectionID = connectionID;
                 if(server->relayServerMap.size() == 0) {
