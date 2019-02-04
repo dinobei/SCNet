@@ -18,13 +18,14 @@ namespace ijoon {
     
     class RendezvousServer {
     public:
-        RendezvousServer(int port): serverPort(port), connectionIDCursor(0) {}
+        RendezvousServer(int port): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))), connectionIDCursor(0) {}
         ~RendezvousServer() {}
 
         void start();
                 
     public:
         int serverPort;
+        std::shared_ptr<UDPSocket> socket;
         std::map<std::string, std::shared_ptr<RendezvousPeer>> registeredRendezvousPeer;
         std::map<std::string, std::shared_ptr<ijoon::Peer>> relayServerMap;
         
