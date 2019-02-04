@@ -90,6 +90,11 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             continue;
         }
         
+        if(server->relayServerMap.count(peer.getKey()) != 0) {
+            auto relayPeer = server->relayServerMap[peer.getKey()];
+            relayPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+        }
+        
         if(server->registeredRendezvousPeer.count(peer.getKey()) != 0) {
             auto rendezvousPeer = server->registeredRendezvousPeer[peer.getKey()];
             rendezvousPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
@@ -316,6 +321,21 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThread(void *arg)
             }
             break;
         }
+        
+        iter = server->relayServerMap.begin();
+        for(; iter != server->relayServerMap.end() ; ++iter ) {
+            time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
+            if(iter->second->lastPing + timeout < currentTime) {
+                time_t lastPing = iter->second->lastPing;
+                std::string publicIP = iter->second->publicPeer.getIP();
+                int publicPort = iter->second->publicPeer.getPort();
+                
+                server->relayServerMap.erase(iter);
+                ijn_print(DP_INFO, "relay peer removed, %s:%d (%ud)", publicIP.c_str(), publicPort, lastPing);
+            }
+            break;
+        }
+        
     }
     
     return THREAD_EXIT;
