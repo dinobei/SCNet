@@ -27,7 +27,7 @@ namespace ijoon {
     public:
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
-        std::map<std::string, std::shared_ptr<RendezvousPeer>> registeredRendezvousPeer;
+        std::map<std::string, std::shared_ptr<RendezvousPeer>> rendezvousPeerMap;
         std::map<std::string, std::shared_ptr<RendezvousPeer>> relayServerMap;
         
         int connectionIDCursor;
