@@ -18,6 +18,8 @@ void ijoon::RendezvousServer::start() {
     
     thread = new ijoon::Thread(rendezvousThread, "rendezvous thread");
     thread->start(this);
+    checkThread = new ijoon::Thread(rendezvousCheckThread, "rendezvous check thread");
+    checkThread->start(this);
 }
 
 bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHeader) {
@@ -287,6 +289,34 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
     
     ijn_print(DP_INFO, "rendezvousThread Finished.");
     delete[] packet;
+    
+    return THREAD_EXIT;
+}
+
+ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThread(void *arg)
+{
+    ijoon::Thread *thread = (ijoon::Thread *)arg;
+    ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
+    
+    const int timeout = 180;
+    const int checkCycleMs = 5000;
+    while(!thread->isInterrupted())
+    {
+        thread->sleep(checkCycleMs);
+        auto iter = server->registeredRendezvousPeer.begin();
+        for(; iter != server->registeredRendezvousPeer.end() ; ++iter ) {
+            time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
+            if(iter->second->lastPing + timeout < currentTime) {
+                time_t lastPing = iter->second->lastPing;
+                std::string publicIP = iter->second->publicPeer.getIP();
+                int publicPort = iter->second->publicPeer.getPort();
+                
+                server->registeredRendezvousPeer.erase(iter);
+                ijn_print(DP_INFO, "rendezvous peer removed, %s:%d (%ud)", publicIP.c_str(), publicPort, lastPing);
+            }
+            break;
+        }
+    }
     
     return THREAD_EXIT;
 }
