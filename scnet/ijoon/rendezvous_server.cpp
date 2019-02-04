@@ -121,7 +121,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 
                 std::string key = peer.getKey();
                 if(server->relayServerMap.count(key) == 0) {
-                    server->relayServerMap[key] = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(peer.getIP(), std::to_string(peer.getPort())));
+                    server->relayServerMap[key] = std::shared_ptr<RendezvousPeer>(new ijoon::RendezvousPeer(server->socket, peer));
                 }
                 
                 ijoon::send(server->socket, peer, 0, REGISTRATION_RELAY_SERVER_SUCCESS);
@@ -264,8 +264,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 
                 // note: implement this (relay server selection algorithm)
-                std::shared_ptr<Peer> relayPeer;
-                std::map<std::string, std::shared_ptr<Peer>>::iterator iter;
+                std::shared_ptr<RendezvousPeer> relayPeer;
+                std::map<std::string, std::shared_ptr<RendezvousPeer>>::iterator iter;
                 for(iter = server->relayServerMap.begin(); iter != server->relayServerMap.end() ; ++iter ) {
                     relayPeer = iter->second;
                     break;
@@ -276,7 +276,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 data += seperator;
                 data += vec[0];
                 
-                ijoon::send(server->socket, relayPeer, connectionID, RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
+                ijoon::send(server->socket, relayPeer->publicPeer, connectionID, RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
                 break;
             }
             default:
