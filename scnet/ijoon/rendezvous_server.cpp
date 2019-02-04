@@ -88,8 +88,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
             continue;
         }
         
-        auto rendezvousPeer = server->registeredRendezvousPeer[peer.getKey()];
-        if(rendezvousPeer != nullptr) {
+        if(server->registeredRendezvousPeer.count(peer.getKey()) != 0) {
+            auto rendezvousPeer = server->registeredRendezvousPeer[peer.getKey()];
             rendezvousPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
         }
         
