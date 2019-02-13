@@ -239,9 +239,9 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                     break;
                 }
                 
-                auto sourcePeer = server->rendezvousPeerMap[peer.getKey()];
-                auto targetPeer = server->rendezvousPeerMap[vec[0] + ":" + vec[1]];
-                if(sourcePeer == nullptr || targetPeer == nullptr) {
+                auto sourceRendezvousPeer = server->rendezvousPeerMap[peer.getKey()];
+                auto targetRendezvousPeer = server->rendezvousPeerMap[vec[0] + ":" + vec[1]];
+                if(sourceRendezvousPeer == nullptr || targetRendezvousPeer == nullptr) {
                     ijoon::send(server->socket, peer, 0, CONNECTION_FAILED);
                     break;
                 }
@@ -259,8 +259,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 connectionInfo->tp.setPort(vec[1]);
                 server->connectionInfoMap[connectionID] = connectionInfo;
                 
-                sourcePeer->connectionID = connectionID;
-                targetPeer->connectionID = connectionID;
+                sourceRendezvousPeer->connectionID = connectionID;
+                targetRendezvousPeer->connectionID = connectionID;
                 messageHeader.connectionID = connectionID;
                 if(server->relayServerMap.size() == 0) {
                     ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
@@ -278,7 +278,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 }
                 
                 std::string data;
-                data += sourcePeer->publicPeer.getIP();
+                data += sourceRendezvousPeer->publicPeer.getIP();
                 data += seperator;
                 data += vec[0];
                 
