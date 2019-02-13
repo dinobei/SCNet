@@ -239,9 +239,10 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                     break;
                 }
                 
+                Peer targetPeer(vec[0], vec[1]);
                 auto sourceRendezvousPeer = server->rendezvousPeerMap[peer.getKey()];
-                auto targetRendezvousPeer = server->rendezvousPeerMap[vec[0] + ":" + vec[1]];
-                if(sourceRendezvousPeer == nullptr || targetRendezvousPeer == nullptr) {
+                auto targetRendezvousPeer = server->rendezvousPeerMap[targetPeer.getKey()];
+                if(targetPeer.getKey() == peer.getKey() || sourceRendezvousPeer == nullptr || targetRendezvousPeer == nullptr) {
                     ijoon::send(server->socket, peer, 0, CONNECTION_FAILED);
                     break;
                 }
