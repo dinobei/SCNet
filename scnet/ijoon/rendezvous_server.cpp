@@ -127,6 +127,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousThread(void *arg)
                 std::string key = peer.getKey();
                 if(server->relayServerMap.count(key) == 0) {
                     server->relayServerMap[key] = std::shared_ptr<RendezvousPeer>(new ijoon::RendezvousPeer(server->socket, peer));
+                    server->relayServerMap[key]->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
                 }
                 
                 ijoon::send(server->socket, peer, 0, REGISTRATION_RELAY_SERVER_SUCCESS);
