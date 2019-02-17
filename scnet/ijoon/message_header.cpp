@@ -14,7 +14,7 @@ void ijoon::makeHeader(char *buf, ijoon::MessageHeader &messageHeader) {
 }
 
 bool ijoon::readHeader(char *packet, int length, ijoon::MessageHeader &messageHeader, int &cursor) {
-    if(length <= MAGIC_PACKET_LENGTH + HEADER_ELEMENTS) {
+    if(length < MAGIC_PACKET_LENGTH + HEADER_ELEMENTS) {
         return false;
     }
     
