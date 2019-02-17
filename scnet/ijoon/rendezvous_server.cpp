@@ -5,14 +5,6 @@
 
 extern char seperator;
 
-bool ijoon::RendezvousPeer::isPublic() {
-    if( (this->publicPeer.getIP().compare(this->privatePeer.getIP()) == 0) && (this->publicPeer.getPort() == this->privatePeer.getPort()) ) {
-        return true;
-    }
-    
-    return false;
-}
-
 void ijoon::RendezvousServer::start() {
     ijn_print(DP_INFO, "Rendezvous server start...");
     
