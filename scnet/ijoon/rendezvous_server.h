@@ -10,7 +10,7 @@ namespace ijoon {
     // udp 소켓으로 메시지를 수신해서 메시지를 읽어옴
     // 이후 소켓과 피어정보로 랑데뷰피어를 만들어서 메시지를 처리하도록 한다.
     
-    class RendezvousPeerInfo {
+    class ConnectionInfo {
     public:
         uint connectionID;
         ijoon::Peer sp;
@@ -31,7 +31,7 @@ namespace ijoon {
         std::map<std::string, std::shared_ptr<RendezvousPeer>> relayServerMap;
         
         int connectionIDCursor;
-        std::map<int, std::shared_ptr<RendezvousPeerInfo>> connectionInfoMap;
+        std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
         
         ijoon::Thread *thread;
         ijoon::Thread *checkThread;
