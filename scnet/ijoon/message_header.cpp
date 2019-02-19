@@ -3,6 +3,21 @@
 
 char seperator = ' ';
 
+std::shared_ptr<std::vector<std::string>> ijoon::paramParser(char *param, int paramSize) {
+    auto vec = std::shared_ptr<std::vector<std::string>>(new std::vector<std::string>());
+    char *token = std::strtok(param, &seperator);
+    while (token != NULL) {
+        vec->push_back(token);
+        token = std::strtok(NULL, &seperator);
+    }
+    if(vec->size() != paramSize) {
+        ijn_print(DP_ERROR, "invalid parameters");
+        return nullptr;
+    }
+    return vec;
+}
+
+
 void ijoon::makeHeader(char *buf, ijoon::MessageHeader &messageHeader) {
     google::protobuf::io::ArrayInputStream ais(buf, MAX_PACKET_HEADER_SIZE);
     google::protobuf::io::CodedInputStream coded_input(&ais);
@@ -48,41 +63,7 @@ bool ijoon::readHeader(char *packet, int length, ijoon::MessageHeader &messageHe
     return true;
 }
 
-bool ijoon::send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType) {
-    return ijoon::send(socket, *peer.get(), connectionID, packetType, nullptr, 0);
-}
-
-bool ijoon::send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, int packetType) {
-    return ijoon::send(socket, peer, connectionID, packetType, nullptr, 0);
-}
-
-bool ijoon::send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType, char *message, unsigned int length) {
-    return ijoon::send(socket, *peer.get(), connectionID, packetType, message, length);
-}
-
-bool ijoon::send(std::shared_ptr<UDPSocket> socket, Peer peer, MessageHeader messageHeader, char *message) {
-    const int length = messageHeader.dataSize;
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(length); // data size
-    coded_output.WriteVarint32(messageHeader.packetType); // packet type
-    coded_output.WriteVarint32(messageHeader.messageType); // message type
-    coded_output.WriteVarint32(messageHeader.cryptType); // crypt type
-    coded_output.WriteVarint32(messageHeader.connectionID); // connection id
-    
-    if(length != 0)
-        coded_output.WriteRaw(message, length);
-    
-    socket->sendTo(&peer, buf, coded_output.ByteCount());
-    
-    delete []buf;
-    return true;
-}
-
-bool ijoon::send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, int packetType, char *message, unsigned int length) {
+bool ijoon::send(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
@@ -97,13 +78,13 @@ bool ijoon::send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID
     if(length != 0)
         coded_output.WriteRaw(message, length);
     
-    socket->sendTo(&peer, buf, coded_output.ByteCount());
+    ikcp_send(kcp, buf, coded_output.ByteCount());
     
     delete []buf;
     return true;
 }
 
-bool ijoon::send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::send(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -123,13 +104,13 @@ bool ijoon::send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, 
     
     message->SerializeToCodedStream(&coded_output);
     
-    socket->sendTo(peer.get(), buf, coded_output.ByteCount());
+    ikcp_send(kcp, buf, coded_output.ByteCount());
     
     delete []buf;
     return true;
 }
 
-bool ijoon::sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType, char *message, unsigned int length) {
+bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
@@ -144,13 +125,13 @@ bool ijoon::sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> p
     if(length != 0)
         coded_output.WriteRaw(message, length);
     
-    socket->sendTo(peer.get(), buf, coded_output.ByteCount());
+    ikcp_send(kcp, buf, coded_output.ByteCount());
     
     delete []buf;
     return true;
 }
 
-bool ijoon::sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -170,7 +151,7 @@ bool ijoon::sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> p
     
     message->SerializeToCodedStream(&coded_output);
     
-    socket->sendTo(peer.get(), buf, coded_output.ByteCount());
+    ikcp_send(kcp, buf, coded_output.ByteCount());
     
     delete []buf;
     return true;

@@ -5,6 +5,7 @@
 #include <google/protobuf/message.h>
 
 #include <ijoon/coreutils.h>
+#include "ikcp.h"
 
 namespace ijoon {
     #define MAGIC_PACKET_LENGTH             2
@@ -28,16 +29,14 @@ namespace ijoon {
         PROTOBUF_RELAY,
     };
     
+    std::shared_ptr<std::vector<std::string>> paramParser(char *param, int paramSize);
+    
     bool readHeader(char *packet, int length, ijoon::MessageHeader &messageHeader, int &cursor);
     void makeHeader(char *buf, ijoon::MessageHeader &messageHeader);
     
-    bool send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType);
-    bool send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, int packetType);
-    bool send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType, char *message, unsigned int length);
-    bool send(std::shared_ptr<UDPSocket> socket, Peer peer, uint connectionID, int packetType, char *message, unsigned int length);
-    bool send(std::shared_ptr<UDPSocket> socket, Peer peer, MessageHeader messageHeader, char *message);
-    bool send(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
+    bool send(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length);
+    bool send(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
     
-    bool sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, int packetType, char *message, unsigned int length);
-    bool sendRelay(std::shared_ptr<UDPSocket> socket, std::shared_ptr<Peer> peer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
+    bool sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length);
+    bool sendRelay(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
 }

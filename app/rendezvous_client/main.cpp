@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     client.start();
     
     while(true) {
-        char sendBuf[255] = {0,};
+        char sendBuf[2000] = {0,};
         printf("Put full command (type HELP to help message): ");
         std::cin.getline(sendBuf, sizeof(sendBuf));
         const int sendBytes = strlen(sendBuf);
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
             targetAddress += seperator;
             targetAddress += vec[2];
             ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
-            ijoon::send(client.socket, client.rendezvousServerPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
+            client.send(client.rendezvousServerPeer, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
         else if(vec[0].compare("SEND") == 0) {
             ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);
@@ -159,10 +159,20 @@ void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session) {
 }
 
 void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
-    printf("onReceivedPacket0 called, connectionID=%u, length=%d\n", session->getConnectionID(), length);
+    if(length > 100) {
+        printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", session->getConnectionID(), length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
+    }
+    else {
+        printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%s\n", session->getConnectionID(), length, buffer);
+    }
 }
 void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
-    printf("onReceivedPacket1 called, connectionID=%u, length=%d\n", session->getConnectionID(), length);
+    if(length > 100) {
+        printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", session->getConnectionID(), length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
+    }
+    else {
+        printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%s\n", session->getConnectionID(), length, buffer);
+    }
 }
 void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1) {
     printf("onPacket1 called, connectionID=%u, number=%d\n", session->getConnectionID(), pkt1->number());

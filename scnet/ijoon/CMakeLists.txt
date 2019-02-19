@@ -1,5 +1,5 @@
 file(GLOB_RECURSE ${the_library}_header_files *.h)
-file(GLOB_RECURSE ${the_library}_source_files *.cpp)
+file(GLOB_RECURSE ${the_library}_source_files *.c*)
 
 file(GLOB_RECURSE files "*.*")
 group_files("${files}")
