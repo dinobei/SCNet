@@ -45,6 +45,7 @@ namespace ijoon {
     public:
         ijoon::Mutex mutex;
         IUINT32 next;
+        time_t lastPing;
         
     private:
         std::shared_ptr<ijoon::UDPSocket> socket;
@@ -58,7 +59,7 @@ namespace ijoon {
         RendezvousSession(std::shared_ptr<ijoon::UDPSocket> socket, uint connectionID): socket(socket), connectionID(connectionID) {
             
         }
-        RendezvousSession() {}
+        ~RendezvousSession() {}
         
     public:
         void setPrivateKcpPeer(std::string ip, std::string port,

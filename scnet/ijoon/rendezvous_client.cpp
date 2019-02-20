@@ -496,7 +496,6 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             }
             else {
                 relayKcpPeer = client->kcpPeerMap.at(relayPeer.getKey());
-                relayKcpPeer->setConnectionID(messageHeader.connectionID);
             }
             
             auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);

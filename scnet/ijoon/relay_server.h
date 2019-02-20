@@ -1,22 +1,27 @@
 #pragma once
 #include <map>
 #include <ijoon/coreutils.h>
+#include "session.h"
 
 namespace ijoon {
     ijoon::THREAD_RET THREAD_API registerThread(void *arg);
-    ijoon::THREAD_RET THREAD_API mainThread(void *arg);
+    ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
+    ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
     
     class RelayPeerInfo {
     public:
-        ijoon::Peer sourcePeer;
-        ijoon::Peer targetPeer;
+        RelayPeerInfo() {}
+        ~RelayPeerInfo() {}
+    public:
+        std::shared_ptr<ijoon::KcpPeer> sourceKcpPeer;
+        std::shared_ptr<ijoon::KcpPeer> targetKcpPeer;
     };
     
     class RelayServer {
     public:
         RelayServer(int port, std::string ranIP, std::string ranPort): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))) {
-            rendezvousPeer.setIP(ranIP);
-            rendezvousPeer.setPort(ranPort);
+            serverPeer.setIP(ranIP);
+            serverPeer.setPort(ranPort);
         }
         ~RelayServer() {}
         
@@ -26,12 +31,14 @@ namespace ijoon {
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
         
+        std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
         std::map<int, std::shared_ptr<RelayPeerInfo>> map;
         std::map<int, int> sessionCheckMap;
         
-        ijoon::Thread *mainThread;
+        ijoon::Thread *rawRecvThread;
+        ijoon::Thread *recvThread;
         ijoon::Thread *registerThread;
         
-        ijoon::Peer rendezvousPeer;
+        ijoon::Peer serverPeer;
     };
 }
