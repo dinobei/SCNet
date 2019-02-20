@@ -4,6 +4,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/message.h>
 
+#include <cstring>
 #include <ijoon/coreutils.h>
 #include "ikcp.h"
 
