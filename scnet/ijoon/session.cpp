@@ -238,7 +238,7 @@ bool ijoon::RendezvousSession::send(int packetType, char *message, unsigned int 
         return true;
     }
     else if(this->relayKcpPeer != nullptr) {
-        ijoon::send(this->relayKcpPeer->getKcp(), this->connectionID, packetType, message, length);
+        ijoon::sendRelay(this->relayKcpPeer->getKcp(), this->connectionID, packetType, message, length);
         return true;
     }
     return false;
@@ -254,7 +254,7 @@ bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> m
         return true;
     }
     else if(this->relayKcpPeer != nullptr) {
-        ijoon::send(this->relayKcpPeer->getKcp(), this->connectionID, message);
+        ijoon::sendRelay(this->relayKcpPeer->getKcp(), this->connectionID, message);
         return true;
     }
     return false;
