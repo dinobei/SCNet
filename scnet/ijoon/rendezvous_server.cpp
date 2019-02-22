@@ -90,10 +90,10 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThread(void *arg)
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     
     const int timeout = 180;
-    const int checkCycleMs = 5000;
+    const int checkIntervalMs = 5000;
     while(!thread->isInterrupted())
     {
-        thread->sleep(checkCycleMs);
+        thread->sleep(checkIntervalMs);
         {
             auto iter = server->rendezvousSessionMap.begin();
             for(; iter != server->rendezvousSessionMap.end() ; ++iter ) {
