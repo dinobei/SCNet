@@ -300,7 +300,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             // create connectionID
             if(server->connectionIDCursor > 1000000000) {
-                server->connectionIDCursor = 0;
+                server->connectionIDCursor = 1;
             }
             int connectionID = server->connectionIDCursor++;
             

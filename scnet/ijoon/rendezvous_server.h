@@ -18,7 +18,7 @@ namespace ijoon {
     
     class RendezvousServer {
     public:
-        RendezvousServer(int port): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))), connectionIDCursor(10) {}
+        RendezvousServer(int port): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))), connectionIDCursor(1) {}
         ~RendezvousServer() {}
 
         void start();
