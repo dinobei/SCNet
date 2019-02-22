@@ -27,6 +27,7 @@ namespace ijoon {
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
         std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap;
+        std::map<std::string, std::shared_ptr<ijoon::Peer>> rendezvousClientMap;
         std::map<std::string, std::shared_ptr<RendezvousSession>> rendezvousSessionMap;
         std::map<std::string, std::shared_ptr<KcpPeer>> relayServerMap;
         ijoon::Mutex mutex;

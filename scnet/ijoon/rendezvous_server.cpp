@@ -255,23 +255,15 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             if(vec == nullptr) break;
             
             std::string key = peer.getKey();
-            
-            std::shared_ptr<ijoon::RendezvousSession> rendezvousSession;
-            if(server->rendezvousSessionMap.count(key) == 0) {
-                server->mutex.lock();
-                rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(server->socket, messageHeader.connectionID));
-                rendezvousSession->setPublicKcpPeer(kcpPeer);
-                server->rendezvousSessionMap[key] = rendezvousSession;
-                server->mutex.unlock();
-                ijn_print(DP_INFO, "[REGISTRATION_RENDEZVOUS_CLIENT_REQUEST] new rendezvous peer registered");
-            }
-            else {
-                rendezvousSession = server->rendezvousSessionMap.at(key);
+
+            auto rendezvousClient = server->rendezvousClientMap[key];
+            auto privatePeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(vec->at(0), vec->at(1)));
+            if( (server->rendezvousClientMap.count(key) == 0) ||
+               (rendezvousClient->getIP() != vec->at(0) || rendezvousClient->getPort() != atoi(vec->at(1).c_str())) ) {
+                rendezvousClient = privatePeer;
             }
             
-            rendezvousSession->setPrivateKcpPeer(vec->at(0), vec->at(1), udp_output);
-            
-            ijn_print(DP_INFO, "Register local=%s:%d, public=%s:%d", rendezvousSession->getPrivateKcpPeer()->getPeer().getIP().c_str(), rendezvousSession->getPrivateKcpPeer()->getPeer().getPort(), rendezvousSession->getPublicKcpPeer()->getPeer().getIP().c_str(), rendezvousSession->getPublicKcpPeer()->getPeer().getPort());
+            ijn_print(DP_INFO, "Registered client info: private=%s, public=%s", privatePeer->getKey().c_str(), peer.getKey().c_str());
             
             std::string data;
             data = peer.getIP();
