@@ -277,8 +277,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             data = peer.getIP();
             data += seperator;
             data += std::to_string(peer.getPort());
-            ijoon::send(rendezvousSession->getPublicKcpPeer()->getKcp(), 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, (char *)data.c_str(), data.length());
-            rendezvousSession->send(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, (char *)data.c_str(), data.length());
+            ijoon::send(kcpPeer->getKcp(), 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, (char *)data.c_str(), data.length());
             break;
         }
         case ijoon::CONNECTION_REQUEST: // from SP
