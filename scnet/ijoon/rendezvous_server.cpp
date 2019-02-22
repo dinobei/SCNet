@@ -354,7 +354,6 @@ void updateKcpObject(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::Kcp
     
     IUINT32 current = iclock();
     if(current >= kcpPeer->next) {
-        
         kcpPeer->mutex.lock();
         int rcvSize = ikcp_recv(kcpPeer->getKcp(), kcpBuffer, MAX_PACKET_SIZE);
         ikcp_update(kcpPeer->getKcp(), current);
@@ -363,7 +362,7 @@ void updateKcpObject(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::Kcp
         
         if(rcvSize > 0) {
              // callback to upper user
-            kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+            kcpPeer->lastPing = current;
             kcpBuffer[rcvSize] = '\0';
             onCallback(server, kcpPeer, kcpBuffer, rcvSize);
         }
