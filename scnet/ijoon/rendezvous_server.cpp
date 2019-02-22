@@ -400,14 +400,6 @@ ijoon::THREAD_RET ijoon::rawRecvThreadFunc(void *param) {
     
     while(true) {
         int rcvSize = server->socket->recvFrom(&peer, buffer, MAX_PACKET_SIZE);
-        
-        IUINT32 current = iclock();
-        if(current > server->lastCheckTime + 3000) { // when dead peer check interval
-            server->lastCheckTime = current;
-            
-            // peer's timeout check & remove
-        }
-        
         if(rcvSize < 0) continue;
         
         std::shared_ptr<ijoon::KcpPeer> kcpPeer;
@@ -420,13 +412,11 @@ ijoon::THREAD_RET ijoon::rawRecvThreadFunc(void *param) {
         }
         
         kcpPeer->mutex.lock();
-        
         ikcpcb *kcp = kcpPeer->getKcp();
         ikcp_input(kcp, buffer, rcvSize);
-        current = iclock();
+        IUINT32 current = iclock();
         ikcp_update(kcp, current);
         kcpPeer->next = ikcp_check(kcp, current);
-        
         kcpPeer->mutex.unlock();
     }
     
