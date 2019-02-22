@@ -94,38 +94,6 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThread(void *arg)
     while(!thread->isInterrupted())
     {
         thread->sleep(checkIntervalMs);
-        {
-            auto iter = server->rendezvousSessionMap.begin();
-            for(; iter != server->rendezvousSessionMap.end() ; ++iter ) {
-                time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-                if(iter->second->lastPing + timeout < currentTime) {
-                    time_t lastPing = iter->second->lastPing;
-                    std::string publicIP = iter->second->getPublicKcpPeer()->getPeer().getIP();
-                    int publicPort = iter->second->getPublicKcpPeer()->getPeer().getPort();
-                    
-                    server->rendezvousSessionMap.erase(iter);
-                    ijn_print(DP_INFO, "rendezvous peer removed, %s:%d (%ud)", publicIP.c_str(), publicPort, lastPing);
-                }
-                break;
-            }
-        }
-        
-        {
-            auto iter = server->relayServerMap.begin();
-            for(; iter != server->relayServerMap.end() ; ++iter ) {
-                time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-                if(iter->second->lastPing + timeout < currentTime) {
-                    time_t lastPing = iter->second->lastPing;
-                    std::string publicIP = iter->second->getPeer().getIP();
-                    int publicPort = iter->second->getPeer().getPort();
-                    
-                    server->relayServerMap.erase(iter);
-                    ijn_print(DP_INFO, "relay peer removed, %s:%d (%ud)", publicIP.c_str(), publicPort, lastPing);
-                }
-                break;
-            }
-        }
-        
     }
     
     return THREAD_EXIT;
