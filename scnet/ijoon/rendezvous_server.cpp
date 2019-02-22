@@ -28,8 +28,8 @@ void ijoon::RendezvousServer::start() {
     rawRecvThread->start(this);
     recvThread = new ijoon::Thread(recvThreadFunc, "recv thread");
     recvThread->start(this);
-//    checkThread = new ijoon::Thread(rendezvousCheckThread, "rendezvous check thread");
-//    checkThread->start(this);
+    checkThread = new ijoon::Thread(rendezvousCheckThread, "rendezvous check thread");
+    checkThread->start(this);
     
     lastCheckTime = iclock();
 }
