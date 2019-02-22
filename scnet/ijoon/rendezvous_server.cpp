@@ -94,6 +94,36 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThread(void *arg)
     while(!thread->isInterrupted())
     {
         thread->sleep(checkIntervalMs);
+        time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
+        
+        {
+            auto iter = server->kcpPeerMap.begin();
+            auto end = server->kcpPeerMap.end();
+            for(; iter != end ; ++iter) {
+                if(iter->second->lastPing + timeout < currentTime) {
+                    auto kcpPeer = iter->second;
+                    int connectionID = kcpPeer->getConnectionID();
+                    std::string key = kcpPeer->getPeer().getKey();
+                    if(connectionID != 0 && server->rendezvousSessionMap.count(key) != 0) {
+                        auto rendezvousSession = server->rendezvousSessionMap.at(key);
+                        if(rendezvousSession->getPublicKcpPeer() == kcpPeer) {
+                            rendezvousSession->clearPublicKcpPeer();
+                        }
+                        if(rendezvousSession->getPrivateKcpPeer() == kcpPeer) {
+                            rendezvousSession->clearPrivateKcpPeer();
+                        }
+                        if(rendezvousSession->getRelayKcpPeer() == kcpPeer) {
+                            rendezvousSession->clearRelayKcpPeer();
+                        }
+                    }
+                    if(connectionID != 0 && server->relayServerMap.count(key) != 0) {
+                        server->relayServerMap.erase(key);
+                    }
+                    server->kcpPeerMap.erase(key);
+                    ijn_print(DP_INFO, "kcpPeer removed, %s, (%u)", key.c_str(), kcpPeer->lastPing);
+                }
+            }
+        }
     }
     
     return THREAD_EXIT;
