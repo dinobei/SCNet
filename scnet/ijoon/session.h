@@ -34,6 +34,9 @@ namespace ijoon {
             
             next = 0;
         }
+        ~KcpPeer() {
+            ikcp_release(kcp);
+        }
         
         std::shared_ptr<ijoon::UDPSocket> getClientSocket()  {return this->socket;}
         ijoon::Peer getPeer() { return peer; }

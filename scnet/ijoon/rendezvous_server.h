@@ -4,7 +4,7 @@
 #include "session.h"
 
 namespace ijoon {
-    ijoon::THREAD_RET THREAD_API rendezvousCheckThread(void *arg);
+    ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg);
     
     ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
     ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
@@ -12,13 +12,15 @@ namespace ijoon {
     class ConnectionInfo {
     public:
         uint connectionID;
-        ijoon::Peer sp;
-        ijoon::Peer tp;
+        std::shared_ptr<ijoon::Peer> publicSP;
+        std::shared_ptr<ijoon::Peer> privateSP;
+        std::shared_ptr<ijoon::Peer> publicTP;
+        std::shared_ptr<ijoon::Peer> privateTP;
     };
     
     class RendezvousServer {
     public:
-        RendezvousServer(int port): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))), connectionIDCursor(10) {}
+        RendezvousServer(int port): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))), connectionIDCursor(1) {}
         ~RendezvousServer() {}
 
         void start();
@@ -26,20 +28,16 @@ namespace ijoon {
     public:
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
-        std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap;
-        std::map<std::string, std::shared_ptr<RendezvousSession>> rendezvousSessionMap;
+        std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap; // public address, kcp peer
+        std::map<std::string, std::shared_ptr<ijoon::Peer>> rendezvousClientMap; // public address, private peer
         std::map<std::string, std::shared_ptr<KcpPeer>> relayServerMap;
         ijoon::Mutex mutex;
         
         int connectionIDCursor;
         std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
         
-        ijoon::Thread *thread;
-        ijoon::Thread *checkThread;
-        
+        ijoon::Thread *checkThread;        
         ijoon::Thread *recvThread;
         ijoon::Thread *rawRecvThread;
-        
-        uint32_t lastCheckTime;
     };
 }
