@@ -289,7 +289,8 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             ijoon::Peer targetPeer(vec->at(0), vec->at(1));
             if(peer.getKey() == targetPeer.getKey() ||
-               server->rendezvousSessionMap.count(peer.getKey()) == 0 || server->rendezvousSessionMap.count(targetPeer.getKey()) == 0) {
+               server->rendezvousSessionMap.count(peer.getKey()) == 0 ||
+               server->rendezvousSessionMap.count(targetPeer.getKey()) == 0) {
                 ijoon::send(kcpPeer->getKcp(), 0, ijoon::CONNECTION_FAILED, nullptr, 0);
                 break;
             }
@@ -307,8 +308,8 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             connectionInfo->connectionID = connectionID;
             connectionInfo->sp.setIP(peer.getIP());
             connectionInfo->sp.setPort(std::to_string(peer.getPort()));
-            connectionInfo->tp.setIP(vec->at(0));
-            connectionInfo->tp.setPort(vec->at(1));
+            connectionInfo->tp.setIP(targetPeer.getIP());
+            connectionInfo->tp.setPort(std::to_string(targetPeer.getPort()));
             server->connectionInfoMap[connectionID] = connectionInfo;
             
             sourceRendezvousSession->setConnectionID(connectionID);
