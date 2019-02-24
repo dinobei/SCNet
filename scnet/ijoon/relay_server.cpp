@@ -44,10 +44,29 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
         serverKcpPeer = relayServer->kcpPeerMap.at(relayServer->serverPeer.getKey());
     }
     
+    const int timeout = 3600;
     while(!thread->isInterrupted()) {
-        // periodically packet send registration
+        // periodically send registration packet
         ijoon::send(serverKcpPeer->getKcp(), 0, REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
-        thread->sleep(30 * 1000);
+        thread->sleep(60 * 1000);
+        
+        // periodically check & erase peer
+        time_t current = ijoon::ComputableTime::getCurrentTimeSec();
+        auto iter = relayServer->kcpPeerMap.begin();
+        auto end = relayServer->kcpPeerMap.end();
+        while(iter != end) {
+            int connectionID = iter->second->getConnectionID();
+            if(connectionID != 0 && iter->second->lastPing + timeout < current) {
+                if(relayServer->map.count(connectionID) != 0) {
+                    relayServer->map.erase(connectionID);
+                }
+                iter = relayServer->kcpPeerMap.erase(iter);
+                ijn_print(DP_INFO, "kcpPeers removed, connectionID=%d", connectionID);
+            }
+            else {
+                ++iter;
+            }
+        }
     }
     
     return THREAD_EXIT;
@@ -116,6 +135,8 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
     }
     
     char *body = &packet[cursor];
+    kcpPeer->setConnectionID(messageHeader.connectionID);
+    kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
     
     if(messageHeader.messageType == ijoon::RAWBYTE_RELAY || messageHeader.messageType == ijoon::PROTOBUF_RELAY) {
         bool isSP = false;
