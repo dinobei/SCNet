@@ -33,6 +33,8 @@ namespace ijoon {
             ikcp_nodelay(kcp, 0, 10, 0, 0);
             
             next = 0;
+            
+            lastPing = ijoon::ComputableTime::getCurrentTimeSec();
         }
         ~KcpPeer() {
             ikcp_release(kcp);

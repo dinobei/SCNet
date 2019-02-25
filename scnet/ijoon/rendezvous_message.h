@@ -4,27 +4,29 @@
 
 namespace ijoon {
     enum RENDEZVOUS_MSG {
-        REGISTRATION_RENDEZVOUS_CLIENT_REQUEST = 10000, // SP private ip, SP private port
-        REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, // SP public ip, SP public port
+        REGISTRATION_RENDEZVOUS_CLIENT_REQUEST = 10000, // (Serial), SP private ip, SP private port
+        REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, // (Serial), SP public ip, SP public port
         REGISTRATION_RELAY_SERVER_REQUEST, // nullptr
         REGISTRATION_RELAY_SERVER_SUCCESS, // nullptr
+        PING_RELAY_PEER, // nullptr
+        PING_CONNECTED_PEER, // nullptr
         
         CONNECTION_REQUEST, // TP public ip, TP public port
         
         CONNECTION_FAILED, // nullptr
         
         // relay
-        RELAY_SERVICE_REQUEST, // (CID) SP pubilc ip, TP pubilc ip
-        RELAY_SESSION_READY, // (CID) nullptr
-        RELAY_SERVER_INFORMATION, // (CID) RelS-ip, RelS-port, 1(SP) or 0(TP)
-        REGISTRATION_RELAY_PEER_REQUEST, // (CID) 1(SP) or 0(TP)
-        REGISTRATION_RELAY_PEER_SUCCESS, // (CID) nullptr
-        REGISTRATION_RELAY_PEER_FAILED, // (CID) nullptr
-        RELAY_SESSION_CREATED, // (CID) nullptr
-        RELAY_SESSION_CREATING_FAILED, // (CID) nullptr
+        RELAY_SERVICE_REQUEST, // SP pubilc ip, TP pubilc ip
+        RELAY_SESSION_READY, // nullptr
+        RELAY_SERVER_INFORMATION, // RelS-ip, RelS-port, 1(SP) or 0(TP)
+        REGISTRATION_RELAY_PEER_REQUEST, // 1(SP) or 0(TP) or nullptr for ping
+        REGISTRATION_RELAY_PEER_SUCCESS, // nullptr
+        REGISTRATION_RELAY_PEER_FAILED, // nullptr
+        RELAY_SESSION_CREATED, // nullptr
+        RELAY_SESSION_CREATING_FAILED, // nullptr
         
-        CONNECTION_RELAY_SERVICE_SUCCESS, // (CID) RelS-ip, RelS-port
-        CONNECTION_RELAY_SERVICE_FAILED, // (CID) nullptr
+        CONNECTION_RELAY_SERVICE_SUCCESS, // RelS-ip, RelS-port
+        CONNECTION_RELAY_SERVICE_FAILED, // nullptr
         
         // pub/pub or pri/pub
         DIRECT_CONNECTION_AVAILABLE, // TP public ip, TP public port
