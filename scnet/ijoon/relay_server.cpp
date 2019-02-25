@@ -259,6 +259,12 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             
             return;
         }
+        case ijoon::PING_RELAY_PEER:
+        {
+            ijn_print(DP_DEBUG, "received PING_RELAY_PEER");
+            ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::PING_CONNECTED_PEER_RESPONSE, nullptr, 0);
+            return;
+        }
         default:
         {
             ijn_print(DP_ERROR, "Undefined message received");

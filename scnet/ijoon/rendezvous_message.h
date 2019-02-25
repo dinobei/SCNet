@@ -10,6 +10,7 @@ namespace ijoon {
         REGISTRATION_RELAY_SERVER_SUCCESS, // nullptr
         PING_RELAY_PEER, // nullptr
         PING_CONNECTED_PEER, // nullptr
+        PING_CONNECTED_PEER_RESPONSE, // nullptr
         
         CONNECTION_REQUEST, // TP public ip, TP public port
         
