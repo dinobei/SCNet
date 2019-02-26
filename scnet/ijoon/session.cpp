@@ -154,34 +154,28 @@ char *ijoon::Session::recvRawBody(MessageHeader &messageHeader) {
 void ijoon::RendezvousSession::setPrivateKcpPeer(std::string ip, std::string port,
                                                  int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)) {
     this->privateKcpPeer = std::shared_ptr<KcpPeer>(new KcpPeer(this->socket, ip, port, output));
-    this->privateKcpPeer->setConnectionID(this->connectionID);
 }
 
 void ijoon::RendezvousSession::setPublicKcpPeer(std::string ip, std::string port,
                                                 int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)) {
     this->publicKcpPeer = std::shared_ptr<KcpPeer>(new KcpPeer(this->socket, ip, port, output));
-    this->publicKcpPeer->setConnectionID(this->connectionID);
 }
 
 void ijoon::RendezvousSession::setRelayKcpPeer(std::string ip, std::string port,
                                                int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)) {
     this->relayKcpPeer = std::shared_ptr<KcpPeer>(new KcpPeer(this->socket, ip, port, output));
-    this->relayKcpPeer->setConnectionID(this->connectionID);
 }
 
 void ijoon::RendezvousSession::setPrivateKcpPeer(std::shared_ptr<ijoon::KcpPeer> kcpPeer) {
     this->privateKcpPeer = kcpPeer;
-    this->privateKcpPeer->setConnectionID(this->connectionID);
 }
 
 void ijoon::RendezvousSession::setPublicKcpPeer(std::shared_ptr<ijoon::KcpPeer> kcpPeer) {
     this->publicKcpPeer = kcpPeer;
-    this->publicKcpPeer->setConnectionID(this->connectionID);
 }
 
 void ijoon::RendezvousSession::setRelayKcpPeer(std::shared_ptr<ijoon::KcpPeer> kcpPeer) {
     this->relayKcpPeer = kcpPeer;
-    this->relayKcpPeer->setConnectionID(this->connectionID);
 }
 
 std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousSession::getPrivateKcpPeer() {

@@ -10,9 +10,11 @@ namespace ijoon {
     
     class RendezvousClient {
     public:
-        RendezvousClient(std::string ip, std::string port, std::string ifname): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname) {
-            rendezvousServerPeer.setIP(ip);
-            rendezvousServerPeer.setPort(port);
+        RendezvousClient(std::string ip, std::string port, std::string ifname): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname), serial("") {
+            rendezvousServerPeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(ip, port));
+        }
+        RendezvousClient(std::string serial, std::string ip, std::string port, std::string ifname): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname), serial(serial) {
+            rendezvousServerPeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(ip, port));
         }
         ~RendezvousClient() {}
         
@@ -27,16 +29,17 @@ namespace ijoon {
         std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
         std::map<int, std::shared_ptr<ijoon::RendezvousSession>> rendezvousSessionMap;
         
-        ijoon::Peer rendezvousServerPeer;
+        std::shared_ptr<ijoon::Peer> rendezvousServerPeer;
         std::string ifname;
+        std::string serial;
         
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectFailedCallback;
         
-        void send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, int packetType, char *message, unsigned int length);
-        void send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, std::shared_ptr<google::protobuf::Message> message);
-        void send(ijoon::Peer peer, int packetType, char *message, unsigned int length);
-        void send(ijoon::Peer peer, std::shared_ptr<google::protobuf::Message> message);
+        void send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, int connectionID, int packetType, char *message, unsigned int length);
+        void send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, int connectionID, std::shared_ptr<google::protobuf::Message> message);
+        void send(std::shared_ptr<ijoon::Peer> peer, int connectionID, int packetType, char *message, unsigned int length);
+        void send(std::shared_ptr<ijoon::Peer> peer, int connectionID, std::shared_ptr<google::protobuf::Message> message);
     };
 }

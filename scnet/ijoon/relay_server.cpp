@@ -26,23 +26,24 @@ void ijoon::RelayServer::start() {
     registerThread->start(this);
 }
 
+std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::RelayServer *server, std::shared_ptr<ijoon::Peer> peer) {
+    std::shared_ptr<ijoon::KcpPeer> kcpPeer;
+    if(server->kcpPeerMap.count(peer->getKey()) == 0) {
+        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, peer->getIP(), std::to_string(peer->getPort()), udp_output));
+        server->kcpPeerMap[peer->getKey()] = kcpPeer;
+    }
+    else {
+        kcpPeer = server->kcpPeerMap.at(peer->getKey());
+    }
+    
+    return kcpPeer;
+}
+
 ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
-    std::shared_ptr<ijoon::KcpPeer> serverKcpPeer = nullptr;
-    if(relayServer->kcpPeerMap.count(relayServer->serverPeer.getKey()) == 0) {
-        serverKcpPeer = std::shared_ptr<ijoon::KcpPeer>(
-                                                        new ijoon::KcpPeer(relayServer->socket,
-                                                                           relayServer->serverPeer.getIP(),
-                                                                           std::to_string(relayServer->serverPeer.getPort()),
-                                                                           udp_output)
-                                                        );
-        relayServer->kcpPeerMap[relayServer->serverPeer.getKey()] = serverKcpPeer;
-    }
-    else {
-        serverKcpPeer = relayServer->kcpPeerMap.at(relayServer->serverPeer.getKey());
-    }
+    auto serverKcpPeer = getKcpPeer(relayServer, relayServer->serverPeer);
     
     const int timeout = 3600;
     while(!thread->isInterrupted()) {
@@ -52,19 +53,33 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
         
         // periodically check & erase peer
         time_t current = ijoon::ComputableTime::getCurrentTimeSec();
-        auto iter = relayServer->kcpPeerMap.begin();
-        auto end = relayServer->kcpPeerMap.end();
-        while(iter != end) {
-            int connectionID = iter->second->getConnectionID();
-            if(connectionID != 0 && iter->second->lastPing + timeout < current) {
-                if(relayServer->map.count(connectionID) != 0) {
-                    relayServer->map.erase(connectionID);
+
+        {
+            auto iter = relayServer->kcpPeerMap.begin();
+            auto end = relayServer->kcpPeerMap.end();
+            while(iter != end) {
+                auto kcpPeer = iter->second;
+                if(kcpPeer->lastPing + timeout < current) {
+                    iter = relayServer->kcpPeerMap.erase(iter);
                 }
-                iter = relayServer->kcpPeerMap.erase(iter);
-                ijn_print(DP_INFO, "kcpPeers removed, connectionID=%d", connectionID);
+                else {
+                    ++iter;
+                }
             }
-            else {
-                ++iter;
+        }
+        
+        {
+            auto iter = relayServer->map.begin();
+            auto end = relayServer->map.end();
+            while(iter != end) {
+                if( (iter->second->sourceKcpPeer->lastPing + timeout < current) ||
+                   (iter->second->targetKcpPeer->lastPing + timeout < current) ) {
+                    ijn_print(DP_INFO, "removed connectionInfo: %s - %s", iter->second->sourceKcpPeer->getPeer().getKey().c_str(), iter->second->targetKcpPeer->getPeer().getKey().c_str());
+                    iter = relayServer->map.erase(iter);
+                }
+                else {
+                    ++iter;
+                }
             }
         }
     }
@@ -135,7 +150,6 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
     }
     
     char *body = &packet[cursor];
-    kcpPeer->setConnectionID(messageHeader.connectionID);
     kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
     
     if(messageHeader.messageType == ijoon::RAWBYTE_RELAY || messageHeader.messageType == ijoon::PROTOBUF_RELAY) {
@@ -217,13 +231,13 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             
             if(relayServer->map.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
-                ijoon::send(kcpPeer->getKcp(), kcpPeer->getConnectionID(), ijoon::REGISTRATION_RELAY_PEER_FAILED, nullptr, 0);
+                ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::REGISTRATION_RELAY_PEER_FAILED, nullptr, 0);
                 return;
             }
             
             if(relayServer->sessionCheckMap.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
-                ijoon::send(kcpPeer->getKcp(), kcpPeer->getConnectionID(), ijoon::REGISTRATION_RELAY_PEER_FAILED, nullptr, 0);
+                ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::REGISTRATION_RELAY_PEER_FAILED, nullptr, 0);
                 return;
             }
             
@@ -241,22 +255,17 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
                 // successfully registerred
                 relayServer->sessionCheckMap.erase(messageHeader.connectionID);
                 
-                std::shared_ptr<ijoon::KcpPeer> serverKcpPeer;
-                if(relayServer->kcpPeerMap.count(relayServer->serverPeer.getKey()) == 0) {
-                    serverKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(relayServer->socket,
-                                                                                       relayServer->serverPeer.getIP(),
-                                                                                       std::to_string(relayServer->serverPeer.getPort()), udp_output)
-                                                                    );
-                    relayServer->kcpPeerMap[relayServer->serverPeer.getKey()] = serverKcpPeer;
-                }
-                else {
-                    serverKcpPeer = relayServer->kcpPeerMap[relayServer->serverPeer.getKey()];
-                }
-                serverKcpPeer->setConnectionID(messageHeader.connectionID);
+                auto serverKcpPeer = getKcpPeer(relayServer, relayServer->serverPeer);
                 
-                ijoon::send(serverKcpPeer->getKcp(), serverKcpPeer->getConnectionID(), ijoon::RELAY_SESSION_CREATED, nullptr, 0);
+                ijoon::send(serverKcpPeer->getKcp(), messageHeader.connectionID, ijoon::RELAY_SESSION_CREATED, nullptr, 0);
             }
             
+            return;
+        }
+        case ijoon::PING_RELAY_PEER:
+        {
+            ijn_print(DP_DEBUG, "received PING_RELAY_PEER");
+            ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::PING_CONNECTED_PEER_RESPONSE, nullptr, 0);
             return;
         }
         default:
@@ -271,22 +280,15 @@ ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
-    ijoon::Peer peer;
+    auto peer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer());
     
     char *buffer = new char[MAX_PACKET_SIZE];
     
     while(!thread->isInterrupted()) {
-        int rcvSize = relayServer->socket->recvFrom(&peer, buffer, MAX_PACKET_SIZE);
+        int rcvSize = relayServer->socket->recvFrom(peer.get(), buffer, MAX_PACKET_SIZE);
         if(rcvSize < 0) continue;
         
-        std::shared_ptr<ijoon::KcpPeer> kcpPeer = nullptr;
-        if(relayServer->kcpPeerMap.count(peer.getKey()) == 0) {
-            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(relayServer->socket, peer.getIP(), std::to_string(peer.getPort()), udp_output));
-            relayServer->kcpPeerMap[peer.getKey()] = kcpPeer;
-        }
-        else {
-            kcpPeer = relayServer->kcpPeerMap.at(peer.getKey());
-        }
+        auto kcpPeer = getKcpPeer(relayServer, peer);
         
         kcpPeer->mutex.lock();
         ikcpcb *kcp = kcpPeer->getKcp();

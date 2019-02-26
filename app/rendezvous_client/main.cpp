@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
             targetAddress += seperator;
             targetAddress += vec[2];
             ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
-            client.send(client.rendezvousServerPeer, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
+            client.send(client.rendezvousServerPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
         else if(vec[0].compare("SEND") == 0) {
             ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);

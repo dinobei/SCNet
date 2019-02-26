@@ -20,7 +20,7 @@ namespace ijoon {
     class KcpPeer {
     public:
         KcpPeer(std::shared_ptr<ijoon::UDPSocket> socket, std::string ip, std::string port,
-                int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)): socket(socket), connectionID(0) {
+                int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)): socket(socket) {
             // setup peer object
             peer.setIP(ip);
             peer.setPort(port);
@@ -33,6 +33,8 @@ namespace ijoon {
             ikcp_nodelay(kcp, 0, 10, 0, 0);
             
             next = 0;
+            
+            lastPing = ijoon::ComputableTime::getCurrentTimeSec();
         }
         ~KcpPeer() {
             ikcp_release(kcp);
@@ -41,9 +43,6 @@ namespace ijoon {
         std::shared_ptr<ijoon::UDPSocket> getClientSocket()  {return this->socket;}
         ijoon::Peer getPeer() { return peer; }
         ikcpcb *getKcp() { return kcp; }
-        
-        void setConnectionID(int connectionID) { this->connectionID = connectionID; }
-        int getConnectionID() { return connectionID; }
         
     public:
         ijoon::Mutex mutex;
@@ -54,7 +53,6 @@ namespace ijoon {
         std::shared_ptr<ijoon::UDPSocket> socket;
         ijoon::Peer peer;
         ikcpcb *kcp;
-        int connectionID;
     };
     
     class RendezvousSession: public BaseSession {
