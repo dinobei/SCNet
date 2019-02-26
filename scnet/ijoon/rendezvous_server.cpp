@@ -251,6 +251,11 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATING_FAILED");
             
+            if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
+                ijn_print(DP_ERROR, "[RELAY_SESSION_CREATING_FAILED] relay connection info not exist, %d", messageHeader.connectionID);
+                break;
+            }
+            
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
             
             auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
