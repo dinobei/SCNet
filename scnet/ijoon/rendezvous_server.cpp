@@ -32,6 +32,19 @@ void ijoon::RendezvousServer::start() {
     checkThread->start(this);
 }
 
+std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::Peer> peer) {
+    std::shared_ptr<ijoon::KcpPeer> kcpPeer;
+    if(server->kcpPeerMap.count(peer->getKey()) == 0) {
+        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, peer->getIP(), std::to_string(peer->getPort()), udp_output));
+        server->kcpPeerMap[peer->getKey()] = kcpPeer;
+    }
+    else {
+        kcpPeer = server->kcpPeerMap.at(peer->getKey());
+    }
+    
+    return kcpPeer;
+}
+
 bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHeader) {
     auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
     
@@ -53,25 +66,8 @@ bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHea
     }
     
     // get sp/tp kcp peer
-    std::shared_ptr<ijoon::KcpPeer> sourceKcpPeer;
-    if(server->kcpPeerMap.count(publicSP->getKey()) == 0) {
-        sourceKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, publicSP->getIP(), std::to_string(publicSP->getPort()), udp_output));
-        server->kcpPeerMap[publicSP->getKey()] = sourceKcpPeer;
-    }
-    else {
-        sourceKcpPeer = server->kcpPeerMap.at(publicSP->getKey());
-    }
-    sourceKcpPeer->setConnectionID(messageHeader.connectionID);
-    
-    std::shared_ptr<ijoon::KcpPeer> targetKcpPeer;
-    if(server->kcpPeerMap.count(publicTP->getKey()) == 0) {
-        targetKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, publicTP->getIP(), std::to_string(publicTP->getPort()), udp_output));
-        server->kcpPeerMap[publicSP->getKey()] = targetKcpPeer;
-    }
-    else {
-        targetKcpPeer = server->kcpPeerMap.at(publicTP->getKey());
-    }
-    targetKcpPeer->setConnectionID(messageHeader.connectionID);
+    auto sourceKcpPeer = getKcpPeer(server, publicSP);
+    auto targetKcpPeer = getKcpPeer(server, publicTP);
     
     if(isTPPublic) { // pub/pub, pri/pub
         std::string data = publicTP->getIP() + seperator + std::to_string(publicTP->getPort()); // tp public address
@@ -192,7 +188,6 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
     }
     
     time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-    kcpPeer->setConnectionID(messageHeader.connectionID);
     kcpPeer->lastPing = currentTime;
     
     char *body = &packet[cursor];
@@ -219,25 +214,8 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
             
-            std::shared_ptr<ijoon::KcpPeer> sourceKcpPeer;
-            if(server->kcpPeerMap.count(connectionInfo->publicSP->getKey()) == 0) {
-                sourceKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, connectionInfo->publicSP->getIP(), std::to_string(connectionInfo->publicSP->getPort()), udp_output));
-                server->kcpPeerMap[connectionInfo->publicSP->getKey()] = sourceKcpPeer;
-            }
-            else {
-                sourceKcpPeer = server->kcpPeerMap.at(connectionInfo->publicSP->getKey());
-            }
-            sourceKcpPeer->setConnectionID(messageHeader.connectionID);
-            
-            std::shared_ptr<ijoon::KcpPeer> targetKcpPeer;
-            if(server->kcpPeerMap.count(connectionInfo->publicTP->getKey()) == 0) {
-                targetKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, connectionInfo->publicTP->getIP(), std::to_string(connectionInfo->publicTP->getPort()), udp_output));
-                server->kcpPeerMap[connectionInfo->publicSP->getKey()] = targetKcpPeer;
-            }
-            else {
-                targetKcpPeer = server->kcpPeerMap.at(connectionInfo->publicTP->getKey());
-            }
-            targetKcpPeer->setConnectionID(messageHeader.connectionID);
+            auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
+            auto targetKcpPeer = getKcpPeer(server, connectionInfo->publicTP);
             
             std::string data;
             data = peer.getIP() + seperator + std::to_string(peer.getPort()) + seperator + "1";
@@ -257,25 +235,8 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             }
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
             
-            std::shared_ptr<ijoon::KcpPeer> sourceKcpPeer;
-            if(server->kcpPeerMap.count(connectionInfo->publicSP->getKey()) == 0) {
-                sourceKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, connectionInfo->publicSP->getIP(), std::to_string(connectionInfo->publicSP->getPort()), udp_output));
-                server->kcpPeerMap[connectionInfo->publicSP->getKey()] = sourceKcpPeer;
-            }
-            else {
-                sourceKcpPeer = server->kcpPeerMap.at(connectionInfo->publicSP->getKey());
-            }
-            sourceKcpPeer->setConnectionID(messageHeader.connectionID);
-            
-            std::shared_ptr<ijoon::KcpPeer> targetKcpPeer;
-            if(server->kcpPeerMap.count(connectionInfo->publicTP->getKey()) == 0) {
-                targetKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, connectionInfo->publicTP->getIP(), std::to_string(connectionInfo->publicTP->getPort()), udp_output));
-                server->kcpPeerMap[connectionInfo->publicSP->getKey()] = targetKcpPeer;
-            }
-            else {
-                targetKcpPeer = server->kcpPeerMap.at(connectionInfo->publicTP->getKey());
-            }
-            targetKcpPeer->setConnectionID(messageHeader.connectionID);
+            auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
+            auto targetKcpPeer = getKcpPeer(server, connectionInfo->publicTP);
             
             // send connected packet
             std::string data = peer.getIP() + seperator + std::to_string(peer.getPort());
@@ -292,15 +253,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
             
-            std::shared_ptr<ijoon::KcpPeer> sourceKcpPeer;
-            if(server->kcpPeerMap.count(connectionInfo->publicSP->getKey()) == 0) {
-                sourceKcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, connectionInfo->publicSP->getIP(), std::to_string(connectionInfo->publicSP->getPort()), udp_output));
-                server->kcpPeerMap[connectionInfo->publicSP->getKey()] = sourceKcpPeer;
-            }
-            else {
-                sourceKcpPeer = server->kcpPeerMap.at(connectionInfo->publicSP->getKey());
-            }
-            sourceKcpPeer->setConnectionID(messageHeader.connectionID);
+            auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
             
             ijoon::send(sourceKcpPeer->getKcp(), messageHeader.connectionID, ijoon::CONNECTION_RELAY_SERVICE_FAILED, nullptr, 0);
             connection(server, messageHeader);
@@ -440,22 +393,15 @@ ijoon::THREAD_RET ijoon::rawRecvThreadFunc(void *param) {
     auto thread = static_cast<ijoon::Thread *>(param);
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     
-    ijoon::Peer peer;
+    auto peer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer());
     
     char *buffer = new char[MAX_PACKET_SIZE];
     
     while(true) {
-        int rcvSize = server->socket->recvFrom(&peer, buffer, MAX_PACKET_SIZE);
+        int rcvSize = server->socket->recvFrom(peer.get(), buffer, MAX_PACKET_SIZE);
         if(rcvSize < 0) continue;
         
-        std::shared_ptr<ijoon::KcpPeer> kcpPeer;
-        if(server->kcpPeerMap.count(peer.getKey()) != 0) {
-            kcpPeer = server->kcpPeerMap.at(peer.getKey());
-        }
-        else {
-            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(server->socket, peer.getIP(), std::to_string(peer.getPort()), udp_output));
-            server->kcpPeerMap[peer.getKey()] = kcpPeer;
-        }
+        auto kcpPeer = getKcpPeer(server, peer);
         
         kcpPeer->mutex.lock();
         ikcpcb *kcp = kcpPeer->getKcp();
