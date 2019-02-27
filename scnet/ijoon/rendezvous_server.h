@@ -5,7 +5,6 @@
 
 namespace ijoon {
     ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg);
-    
     ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
     ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
     
@@ -29,9 +28,7 @@ namespace ijoon {
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
         std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap; // public address, kcp peer
-        std::map<std::string, std::shared_ptr<ijoon::Peer>> rendezvousClientMap; // public address, private peer
         std::map<std::string, std::shared_ptr<KcpPeer>> relayServerMap;
-        ijoon::Mutex mutex;
         
         int connectionIDCursor;
         std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
@@ -39,5 +36,10 @@ namespace ijoon {
         ijoon::Thread *checkThread;        
         ijoon::Thread *recvThread;
         ijoon::Thread *rawRecvThread;
+        
+    public:
+        std::function<void(std::string, std::string, std::string, std::string, std::string)> registerRendezvousClient;
+        std::function<void(std::string, std::string)> removeRendezvousClient;
+        std::function<std::shared_ptr<ijoon::Peer>(std::string, std::string)> getRendezvousClient;
     };
 }
