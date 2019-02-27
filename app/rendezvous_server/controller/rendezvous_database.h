@@ -14,6 +14,8 @@
 
 #include "packet.pb.h"
 
+#include "../model/relay_server_model.h"
+
 using namespace std;
 
 namespace ijoon {
@@ -46,6 +48,13 @@ namespace ijoon {
         std::shared_ptr<ijoon::Peer> getRendezvousClient(std::string ip, std::string port);
         void updateRendezvousClient(std::string ip, std::string port);
         void removeRendezvousClient(std::string ip, std::string port);
+        
+        // RelayServer CRUD
+        void registrationRelayServer(std::string name, std::string pubIP, std::string pubPort, std::string version);
+        std::shared_ptr<std::vector<std::shared_ptr<ijoon::RelayServerModel>>> getRelayServerList();
+        std::shared_ptr<ijoon::RelayServerModel> getRelayServer(std::string ip, std::string port);
+        void updateRelayServer(std::string ip, std::string port);
+        void removeRelayServer(std::string ip, std::string port);
     };
 
 }
