@@ -129,8 +129,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
                     server->removeRendezvousClient(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
                     role = "(RendezvousClient)";
                 }
-                if(server->relayServerMap.count(key) != 0) {
-                    server->relayServerMap.erase(key);
+                if(server->isExistRelayServer(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()))) {
+                    server->removeRelayServer(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
                     role = "(RelayServer)";
                 }
                 iter = server->kcpPeerMap.erase(iter);
@@ -238,8 +238,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_REQUEST");
             
-            std::string key = peer.getKey();
-            server->relayServerMap[key] = kcpPeer;
+            server->registerRelayServer("unknown", kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()), "0.1");
             
             ijoon::send(kcpPeer->getKcp(), 0, ijoon::REGISTRATION_RELAY_SERVER_SUCCESS, nullptr, 0);
             break;
@@ -358,20 +357,16 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             server->connectionInfoMap[connectionID] = connectionInfo;
             
             messageHeader.connectionID = connectionID;
-            if(server->relayServerMap.size() == 0) {
+            
+            auto relayServerPeer = server->getRelayServerPeer();
+            if(relayServerPeer == nullptr) {
                 ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
                 ijoon::send(kcpPeer->getKcp(), connectionID, ijoon::CONNECTION_RELAY_SERVICE_FAILED, nullptr, 0);
                 connection(server, messageHeader);
                 break;
             }
             
-            // note: implement this (relay server selection algorithm)
-            std::shared_ptr<ijoon::KcpPeer> relayKcpPeer;
-            std::map<std::string, std::shared_ptr<ijoon::KcpPeer>>::iterator iter;
-            for(iter = server->relayServerMap.begin(); iter != server->relayServerMap.end() ; ++iter ) {
-                relayKcpPeer = iter->second;
-                break;
-            }
+            auto relayKcpPeer = getKcpPeer(server, relayServerPeer);
 
             std::string data;
             data += peer.getIP();

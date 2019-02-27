@@ -28,7 +28,6 @@ namespace ijoon {
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
         std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap; // public address, kcp peer
-        std::map<std::string, std::shared_ptr<KcpPeer>> relayServerMap;
         
         int connectionIDCursor;
         std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
@@ -41,5 +40,10 @@ namespace ijoon {
         std::function<void(std::string, std::string, std::string, std::string, std::string)> registerRendezvousClient;
         std::function<void(std::string, std::string)> removeRendezvousClient;
         std::function<std::shared_ptr<ijoon::Peer>(std::string, std::string)> getRendezvousClient;
+        
+        std::function<void(std::string, std::string, std::string, std::string)> registerRelayServer; // name, pub_ip, pub_port, ver
+        std::function<void(std::string, std::string)> removeRelayServer; // pub_ip, pub_port
+        std::function<bool(std::string, std::string)> isExistRelayServer; // pub_ip, pub_port
+        std::function<std::shared_ptr<ijoon::Peer>()> getRelayServerPeer;
     };
 }
