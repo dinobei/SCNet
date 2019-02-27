@@ -117,6 +117,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
         thread->sleep(checkIntervalMs);
         time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
         
+        server->mutexForKcpPeerMap.lock();
         auto iter = server->kcpPeerMap.begin();
         auto end = server->kcpPeerMap.end();
         while(iter != end) {
@@ -140,6 +141,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
                 ++iter;
             }
         }
+        server->mutexForKcpPeerMap.unlock();
     }
     
     return THREAD_EXIT;
@@ -412,10 +414,12 @@ ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
     
     while(!thread->isInterrupted()) {
         
+        server->mutexForKcpPeerMap.lock();
         auto iter = server->kcpPeerMap.begin();
         for(; iter != server->kcpPeerMap.end() ; ++iter) {
             updateKcpObject(server, iter->second);
         }
+        server->mutexForKcpPeerMap.unlock();
         
         ijn_msleep(10);
     }
@@ -435,7 +439,9 @@ ijoon::THREAD_RET ijoon::rawRecvThreadFunc(void *param) {
         int rcvSize = server->socket->recvFrom(peer.get(), buffer, MAX_PACKET_SIZE);
         if(rcvSize < 0) continue;
         
+        server->mutexForKcpPeerMap.lock();
         auto kcpPeer = getKcpPeer(server, peer);
+        server->mutexForKcpPeerMap.unlock();
         
         kcpPeer->mutex.lock();
         ikcpcb *kcp = kcpPeer->getKcp();

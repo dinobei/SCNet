@@ -28,6 +28,7 @@ namespace ijoon {
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
         std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap; // public address, kcp peer
+        ijoon::Mutex mutexForKcpPeerMap;
         
         int connectionIDCursor;
         std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
