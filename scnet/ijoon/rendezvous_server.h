@@ -32,6 +32,7 @@ namespace ijoon {
         
         int connectionIDCursor;
         std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
+        ijoon::Mutex mutexForConnectionInfoMap;
         
         ijoon::Thread *checkThread;        
         ijoon::Thread *recvThread;

@@ -47,7 +47,9 @@ std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::RendezvousServer *server, std:
 }
 
 bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHeader) {
+    server->mutexForConnectionInfoMap.lock();
     auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
+    server->mutexForConnectionInfoMap.unlock();
     
     // SP/TP nat check
     bool isSPPublic = false;
@@ -100,8 +102,9 @@ bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHea
         ijoon::send(targetKcpPeer->getKcp(), messageHeader.connectionID, ijoon::RENDEZVOUS_MSG::UDP_HOLE_PUNCHING_AVAILABLE, (char *)data.c_str(), data.length());
     }
     
+    server->mutexForConnectionInfoMap.lock();
     server->connectionInfoMap.erase(messageHeader.connectionID);
-    
+    server->mutexForConnectionInfoMap.unlock();
     return true;
 }
 
@@ -249,12 +252,15 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received RELAY_SESSION_READY");
             
+            server->mutexForConnectionInfoMap.lock();
             if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[RELAY_SESSION_READY] invalid request from relay server");
+                server->mutexForConnectionInfoMap.unlock();
                 break;
             }
             
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
+            server->mutexForConnectionInfoMap.unlock();
             
             auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
             auto targetKcpPeer = getKcpPeer(server, connectionInfo->publicTP);
@@ -271,11 +277,14 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATED");
             
+            server->mutexForConnectionInfoMap.lock();
             if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] relay connection info not exist, %d", messageHeader.connectionID);
+                server->mutexForConnectionInfoMap.unlock();
                 break;
             }
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
+            server->mutexForConnectionInfoMap.unlock();
             
             auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
             auto targetKcpPeer = getKcpPeer(server, connectionInfo->publicTP);
@@ -293,12 +302,15 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATING_FAILED");
             
+            server->mutexForConnectionInfoMap.lock();
             if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[RELAY_SESSION_CREATING_FAILED] relay connection info not exist, %d", messageHeader.connectionID);
+                server->mutexForConnectionInfoMap.unlock();
                 break;
             }
             
             auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
+            server->mutexForConnectionInfoMap.unlock();
             
             auto sourceKcpPeer = getKcpPeer(server, connectionInfo->publicSP);
             
@@ -356,7 +368,9 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             connectionInfo->privateSP = sourcePrivatePeer;
             connectionInfo->publicTP = targetPeer;
             connectionInfo->privateTP = targetPrivatePeer;
+            server->mutexForConnectionInfoMap.lock();
             server->connectionInfoMap[connectionID] = connectionInfo;
+            server->mutexForConnectionInfoMap.unlock();
             
             messageHeader.connectionID = connectionID;
             
