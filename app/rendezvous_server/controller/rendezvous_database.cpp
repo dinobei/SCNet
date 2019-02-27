@@ -62,7 +62,7 @@ std::shared_ptr<ijoon::Peer> ijoon::RendezvousDatabase::getRendezvousClient(std:
     std::shared_ptr<sql::PreparedStatement> prep_stmt;
     
     try {
-        prep_stmt = std::shared_ptr<sql::PreparedStatement>(con->prepareStatement("SELECT pub_ip, pub_port from RendezvousClient WHERE pub_ip=? AND pub_port=?"));
+        prep_stmt = std::shared_ptr<sql::PreparedStatement>(con->prepareStatement("SELECT pri_ip, pri_port from RendezvousClient WHERE pub_ip=? AND pub_port=?"));
         prep_stmt->setString(1, ip);
         prep_stmt->setString(2, port);
         res = std::shared_ptr<sql::ResultSet>(prep_stmt->executeQuery());
