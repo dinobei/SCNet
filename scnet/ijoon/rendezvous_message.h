@@ -25,6 +25,7 @@ namespace ijoon {
         REGISTRATION_RELAY_PEER_FAILED, // nullptr
         RELAY_SESSION_CREATED, // nullptr
         RELAY_SESSION_CREATING_FAILED, // nullptr
+        RELAY_SESSION_INVALID, // nullptr
         
         CONNECTION_RELAY_SERVICE_SUCCESS, // RelS-ip, RelS-port
         CONNECTION_RELAY_SERVICE_FAILED, // nullptr

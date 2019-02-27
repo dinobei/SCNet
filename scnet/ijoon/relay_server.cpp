@@ -44,16 +44,21 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
     auto serverKcpPeer = getKcpPeer(relayServer, relayServer->serverPeer);
+    ijoon::send(serverKcpPeer->getKcp(), 0, REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
     
     const int timeout = 3600;
+    const int pingIntervalSec = 30;
     while(!thread->isInterrupted()) {
+        thread->sleep(5 * 1000);
+        
+        time_t current = ijoon::ComputableTime::getCurrentTimeSec();
+        
         // periodically send registration packet
-        ijoon::send(serverKcpPeer->getKcp(), 0, REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
-        thread->sleep(60 * 1000);
+        if(serverKcpPeer->lastPing + pingIntervalSec < current) {
+            ijoon::send(serverKcpPeer->getKcp(), 0, REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
+        }
         
         // periodically check & erase peer
-        time_t current = ijoon::ComputableTime::getCurrentTimeSec();
-
         {
             auto iter = relayServer->kcpPeerMap.begin();
             auto end = relayServer->kcpPeerMap.end();
@@ -156,6 +161,7 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         bool isSP = false;
         if(!validationPeer(relayServer->map, relayServer->sessionCheckMap, messageHeader.connectionID, peer, isSP)) {
             ijn_print(DP_ERROR, "Invalid peer's relay packet");
+            ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::RELAY_SESSION_INVALID, nullptr, 0);
             return;
         }
         
@@ -265,7 +271,15 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         case ijoon::PING_RELAY_PEER:
         {
             ijn_print(DP_DEBUG, "received PING_RELAY_PEER");
-            ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::PING_CONNECTED_PEER_RESPONSE, nullptr, 0);
+            
+            bool isSP;
+            if(validationPeer(relayServer->map, relayServer->sessionCheckMap, messageHeader.connectionID, peer, isSP)) {
+                ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::PING_RELAY_PEER, nullptr, 0);
+            }
+            else {
+                relayServer->map.erase(messageHeader.connectionID);
+                ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::RELAY_SESSION_INVALID, nullptr, 0);
+            }
             return;
         }
         default:
