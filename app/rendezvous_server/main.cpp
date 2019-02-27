@@ -48,6 +48,44 @@ int main(int argc, char** argv) {
         return db->getRendezvousClient(ip, port);
     };
     
+    server.registerRelayServer = [](std::string name, std::string ip, std::string port, std::string version) {
+        auto relayPeer = db->getRelayServer(ip, port);
+        if(relayPeer == nullptr) {
+            db->registrationRelayServer(name, ip, port, version);
+        }
+        else {
+            db->updateRelayServer(ip, port);
+        }
+    };
+    
+    server.removeRelayServer = [](std::string ip, std::string port) {
+        db->removeRelayServer(ip, port);
+    };
+    
+    server.isExistRelayServer = [](std::string ip, std::string port)->bool {
+        if(db->getRelayServer(ip, port) == nullptr) {
+            return false;
+        }
+        return true;
+    };
+    
+    server.getRelayServerPeer = []()->std::shared_ptr<ijoon::Peer> {
+        auto relayServerList = db->getRelayServerList();
+        
+        int oldestPing = relayServerList->at(0)->ping;
+        int index = 0;
+        for(int i = 1 ; i < relayServerList->size() ; i++) {
+            if(relayServerList->at(i)->ping > oldestPing) {
+                index = i;
+                oldestPing = relayServerList->at(i)->ping;
+            }
+        }
+        
+        auto relayServerModel = relayServerList->at(index);
+        auto relayPeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(relayServerModel->publicIP, relayServerModel->publicPort));
+        return relayPeer;
+    };
+    
     getchar();
     
     return 0;
