@@ -21,6 +21,8 @@ void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned
 void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1);
 void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2);
 
+void onCameraListResponse(ijoon::RendezvousSession *session, CameraListResponse *response);
+
 int main(int argc, char** argv) {
     if(argc != 4) {
         printf("Usage : %s <rendezvous_server_ip> <rendezvous_server_port> <interface_name>\n", argv[0]);
@@ -32,6 +34,8 @@ int main(int argc, char** argv) {
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(1, onReceivedPacket1);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType1, Packet1, onPacket1);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType2, Packet2, onPacket2);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, cameraListRequest, CameraListRequest, nullptr);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, cameraListResponse, CameraListResponse, onCameraListResponse);
     
     ijoon::RendezvousClient client(argv[1], argv[2], argv[3]);
     client.onConnectingCallback = onConnecting;
@@ -119,6 +123,9 @@ int main(int argc, char** argv) {
             pkt2->set_str(value);
             rendezvousSession->send(pkt2);
         }
+        else if(vec[0].compare("get_camera_list") == 0) {
+            client.send(client.rendezvousServerPeer, 0, std::shared_ptr<CameraListRequest>(new CameraListRequest()));
+        }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
             printf("CONN [TARGET_PEER_IP] [TARGET_PEER_PORT]\n");
@@ -135,9 +142,13 @@ int main(int argc, char** argv) {
             printf("command type 4: SENDPB2 (Protobuf Packet2 send using uniqueID)\n");
             printf("SENDPB2 [CONNECTION_ID] [STRING_VALUE]\n");
             printf("example) SENDPB2 1 helloworld\n");
+            
+            printf("command type 5: get_camera_list (Protobuf CameraListRequest send to RendezvousServer)\n");
+            printf("get_camera_list\n");
+            printf("example) get_camera_list\n");
         }
         else {
-            ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"SEND\" or \"SENDPB1\" or \"SENDPB2\"");
+            ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"SEND\" or \"SENDPB1\" or \"SENDPB2\" or \"get_camera_list\"");
         }
 
         
@@ -179,4 +190,19 @@ void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1) {
 }
 void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2) {
     printf("onPacket2 called, connectionID=%u, str=%s\n", session->getConnectionID(), pkt2->str().c_str());
+}
+
+void onCameraListResponse(ijoon::RendezvousSession *session, CameraListResponse *response) {
+    for(int i = 0 ; i < response->cameralist_size() ; i++) {
+        ijn_print(DP_INFO, "%d) [name=%s, serial=%s] %s:%s %s:%s %u",
+                  i+1,
+                  response->cameralist(i).name().c_str(),
+                  response->cameralist(i).serial().c_str(),
+                  response->cameralist(i).publicip().c_str(),
+                  response->cameralist(i).publicport().c_str(),
+                  response->cameralist(i).privateip().c_str(),
+                  response->cameralist(i).privateport().c_str(),
+                  response->cameralist(i).ping()
+                  );
+    }
 }
