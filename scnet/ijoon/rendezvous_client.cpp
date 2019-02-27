@@ -122,7 +122,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
     
     auto serverKcpPeer = getKcpPeer(client, client->rendezvousServerPeer);
     
-    const int timeoutSec = 180;
+    const int timeoutSec = 60;
     const int pingIntervalSec = 30;
     const int checkMinIntervalSec = 25;
     const int loopIntervalMs = 5 * 1000;

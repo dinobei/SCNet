@@ -46,7 +46,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
     auto serverKcpPeer = getKcpPeer(relayServer, relayServer->serverPeer);
     ijoon::send(serverKcpPeer->getKcp(), 0, REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
     
-    const int timeout = 3600;
+    const int timeout = 60;
     const int pingIntervalSec = 30;
     while(!thread->isInterrupted()) {
         thread->sleep(5 * 1000);
