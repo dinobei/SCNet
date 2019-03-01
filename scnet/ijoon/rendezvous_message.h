@@ -48,6 +48,4 @@ namespace ijoon {
         
         RENDEZVOUS_MSG_END,
     };
-    
-    #define MAX_PACKET_SIZE 65535
 }

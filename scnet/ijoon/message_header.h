@@ -15,6 +15,9 @@ namespace ijoon {
     #define HEADER_ELEMENTS                 5
     #define MAX_PACKET_HEADER_SIZE          (7 * HEADER_ELEMENTS)
     
+    #define MAX_PACKET_SIZE 655350
+    #define MAX_WAIT_SEND 100
+    
     struct MessageHeader {
         google::protobuf::uint32 dataSize;
         google::protobuf::uint32 packetType;
