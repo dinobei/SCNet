@@ -88,9 +88,7 @@ namespace ijoon {
         
         bool send(int packetType, char *message, unsigned int length) override;
         bool send(std::shared_ptr<google::protobuf::Message> message) override;
-        
-    public:
-        time_t lastPing;
+        int getSendBufSize();
         
     private:
         std::shared_ptr<ijoon::UDPSocket> socket;

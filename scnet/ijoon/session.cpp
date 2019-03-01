@@ -253,3 +253,16 @@ bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> m
     }
     return false;
 }
+
+int ijoon::RendezvousSession::getSendBufSize() {
+    if(this->privateKcpPeer != nullptr) {
+        return ikcp_waitsnd(this->privateKcpPeer->getKcp());
+    }
+    else if(this->publicKcpPeer != nullptr) {
+        return ikcp_waitsnd(this->publicKcpPeer->getKcp());
+    }
+    else if(this->relayKcpPeer != nullptr) {
+        return ikcp_waitsnd(this->relayKcpPeer->getKcp());
+    }
+    return -1;
+}
