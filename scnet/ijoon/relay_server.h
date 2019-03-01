@@ -34,6 +34,9 @@ namespace ijoon {
         std::map<int, std::shared_ptr<RelayPeerInfo>> map;
         std::map<int, int> sessionCheckMap;
         
+        ijoon::Mutex mutexForKcpPeerMap;
+        ijoon::Mutex mutexForMap;
+        
         ijoon::Thread *rawRecvThread;
         ijoon::Thread *recvThread;
         ijoon::Thread *registerThread;
