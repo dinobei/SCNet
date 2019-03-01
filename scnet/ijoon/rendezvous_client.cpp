@@ -134,6 +134,27 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
         
         thread->sleep(loopIntervalMs);
         
+        {
+            client->mutexForKcpPeerMap.lock();
+            auto iter = client->kcpPeerMap.begin();
+            auto end = client->kcpPeerMap.end();
+            while(iter != end) {
+                auto kcpPeer = iter->second;
+                if(kcpPeer->lastPing + timeoutSec < currentTime) {
+                    ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
+                    iter = client->kcpPeerMap.erase(iter);
+                    continue;
+                }
+                else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                    ijoon::send(iter->second->getKcp(), 0, PING_REQUEST, nullptr, 0);
+                }
+                
+                ++iter;
+            }
+            client->mutexForKcpPeerMap.unlock();
+            
+        }
+        
         // send ping and check to relay server, connected peer
         client->mutexForRendezvousSessionMap.lock();
         auto iter = client->rendezvousSessionMap.begin();
@@ -149,9 +170,6 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
                     ijn_print(DP_ERROR, "relay peer removed, %lu", relayKcpPeer->lastPing);
                     rendezvousSession->clearRelayKcpPeer();
                 }
-                else if(relayKcpPeer->lastPing < currentTime - checkMinIntervalSec) {
-                    ijoon::send(relayKcpPeer->getKcp(), rendezvousSession->getConnectionID(), PING_RELAY_PEER, nullptr, 0);
-                }
                 relayKcpPeer->mutex.unlock();
             }
             
@@ -162,9 +180,6 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
                     ijn_print(DP_ERROR, "public peer removed, %lu", publicKcpPeer->lastPing);
                     rendezvousSession->clearPublicKcpPeer();
                 }
-                else if(publicKcpPeer->lastPing < currentTime - checkMinIntervalSec) {
-                    ijoon::send(publicKcpPeer->getKcp(), rendezvousSession->getConnectionID(), PING_CONNECTED_PEER, nullptr, 0);
-                }
                 publicKcpPeer->mutex.unlock();
             }
             
@@ -174,9 +189,6 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
                 if(privateKcpPeer->lastPing + timeoutSec < currentTime) {
                     ijn_print(DP_ERROR, "private peer removed, %lu", privateKcpPeer->lastPing);
                     rendezvousSession->clearPrivateKcpPeer();
-                }
-                else if(privateKcpPeer->lastPing < currentTime - checkMinIntervalSec) {
-                    ijoon::send(privateKcpPeer->getKcp(), rendezvousSession->getConnectionID(), PING_CONNECTED_PEER, nullptr, 0);
                 }
                 privateKcpPeer->mutex.unlock();
             }
@@ -548,22 +560,6 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_FAILED");
             return;
         }
-        case ijoon::PING_CONNECTED_PEER:
-        {
-            ijn_print(DP_DEBUG, "received PING_CONNECTED_PEER");
-            ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::PING_CONNECTED_PEER_RESPONSE, nullptr, 0);
-            return;
-        }
-        case ijoon::PING_CONNECTED_PEER_RESPONSE:
-        {
-            ijn_print(DP_DEBUG, "received PING_CONNECTED_PEER_RESPONSE");
-            return;
-        }
-        case ijoon::PING_RELAY_PEER:
-        {
-            ijn_print(DP_DEBUG, "received PING_RELAY_PEER");
-            return;
-        }
         case ijoon::RELAY_SESSION_INVALID:
         {
             ijn_print(DP_DEBUG, "received RELAY_SESSION_INVALID, %d", messageHeader.connectionID);
@@ -583,6 +579,17 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
                 // callback to user (disconnected)
                 ijn_print(DP_INFO, "Disconnected, connectionID=%d", messageHeader.connectionID);
             }
+            return;
+        }
+        case ijoon::PING_REQUEST:
+        {
+            ijn_print(DP_DEBUG, "received PING_REQUEST, from %s", peer.getKey().c_str());
+            ijoon::send(kcpPeer->getKcp(), 0, ijoon::PING_RESPONSE, nullptr, 0);
+            return;
+        }
+        case ijoon::PING_RESPONSE:
+        {
+            ijn_print(DP_DEBUG, "received PING_RESPONSE, from %s", peer.getKey().c_str());
             return;
         }
         default:

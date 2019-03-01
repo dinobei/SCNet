@@ -8,9 +8,8 @@ namespace ijoon {
         REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, // (Serial), SP public ip, SP public port
         REGISTRATION_RELAY_SERVER_REQUEST, // nullptr
         REGISTRATION_RELAY_SERVER_SUCCESS, // nullptr
-        PING_RELAY_PEER, // nullptr
-        PING_CONNECTED_PEER, // nullptr
-        PING_CONNECTED_PEER_RESPONSE, // nullptr
+        PING_REQUEST, // nullptr
+        PING_RESPONSE, // nullptr
         
         CONNECTION_REQUEST, // TP public ip, TP public port
         

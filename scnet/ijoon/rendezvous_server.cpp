@@ -114,7 +114,8 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     
     const int timeout = 180;
-    const int checkIntervalMs = 5000;
+    const int checkIntervalMs = 5 * 1000;
+    const int pingIntervalSec = 30;
     while(!thread->isInterrupted())
     {
         thread->sleep(checkIntervalMs);
@@ -139,10 +140,13 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
                 }
                 iter = server->kcpPeerMap.erase(iter);
                 ijn_print(DP_INFO, "kcpPeer%s removed, %s, (%u)", role.c_str(), key.c_str(), kcpPeer->lastPing);
+                continue;
             }
-            else {
-                ++iter;
+            else if(iter->second->lastPing + pingIntervalSec < currentTime) {
+                ijoon::send(iter->second->getKcp(), 0, PING_REQUEST, nullptr, 0);
             }
+            
+            ++iter;
         }
         server->mutexForKcpPeerMap.unlock();
     }
@@ -391,6 +395,17 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             ijoon::send(relayKcpPeer->getKcp(), connectionID, ijoon::RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
             break;
+        }
+        case ijoon::PING_REQUEST:
+        {
+            ijn_print(DP_DEBUG, "received PING_REQUEST, from %s", peer.getKey().c_str());
+            ijoon::send(kcpPeer->getKcp(), 0, ijoon::PING_RESPONSE, nullptr, 0);
+            return;
+        }
+        case ijoon::PING_RESPONSE:
+        {
+            ijn_print(DP_DEBUG, "received PING_RESPONSE, from %s", peer.getKey().c_str());
+            return;
         }
         default:
         {

@@ -69,10 +69,13 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
                 if(kcpPeer->lastPing + timeout < current) {
                     ijn_print(DP_INFO, "removed kcpPeer: %s", iter->second->getPeer().getKey().c_str());
                     iter = relayServer->kcpPeerMap.erase(iter);
+                    continue;
                 }
-                else {
-                    ++iter;
+                else if(kcpPeer->lastPing + pingIntervalSec < current) {
+                    ijoon::send(iter->second->getKcp(), 0, PING_REQUEST, nullptr, 0);
                 }
+                
+                ++iter;
             }
             relayServer->mutexForKcpPeerMap.unlock();
         }
@@ -329,18 +332,15 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             
             return;
         }
-        case ijoon::PING_RELAY_PEER:
+        case ijoon::PING_REQUEST:
         {
-            ijn_print(DP_DEBUG, "received PING_RELAY_PEER");
-            
-            bool isSP;
-            if(validationPeer(relayServer->map, relayServer->sessionCheckMap, messageHeader.connectionID, peer, isSP)) {
-                ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::PING_RELAY_PEER, nullptr, 0);
-            }
-            else {
-                relayServer->map.erase(messageHeader.connectionID);
-                ijoon::send(kcpPeer->getKcp(), messageHeader.connectionID, ijoon::RELAY_SESSION_INVALID, nullptr, 0);
-            }
+            ijn_print(DP_DEBUG, "received PING_REQUEST, from %s", peer.getKey().c_str());
+            ijoon::send(kcpPeer->getKcp(), 0, ijoon::PING_RESPONSE, nullptr, 0);
+            return;
+        }
+        case ijoon::PING_RESPONSE:
+        {
+            ijn_print(DP_DEBUG, "received PING_RESPONSE, from %s", peer.getKey().c_str());
             return;
         }
         default:
