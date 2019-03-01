@@ -43,4 +43,6 @@ namespace ijoon {
     
     bool sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length);
     bool sendRelay(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
+    
+    bool sendRelayPacket(ikcpcb *kcp, uint connectionID, int messageType, int packetType, char *message, unsigned int length);
 }

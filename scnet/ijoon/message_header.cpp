@@ -110,6 +110,32 @@ bool ijoon::send(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobu
     return true;
 }
 
+bool ijoon::sendRelayPacket(ikcpcb *kcp, uint connectionID, int messageType, int packetType, char *message, unsigned int length) {
+    int waitsnd = ikcp_waitsnd(kcp);
+    if(waitsnd > MAX_WAIT_SEND) {
+        return false;
+    }
+    
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
+    char *buf = new char[size];
+    google::protobuf::io::ArrayOutputStream aos(buf,size);
+    google::protobuf::io::CodedOutputStream coded_output(&aos);
+    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
+    coded_output.WriteVarint32(length); // data size
+    coded_output.WriteVarint32(packetType); // packet type
+    coded_output.WriteVarint32(messageType); // message type
+    coded_output.WriteVarint32(0); // crypt type
+    coded_output.WriteVarint32(connectionID); // connection id
+    
+    if(length != 0)
+        coded_output.WriteRaw(message, length);
+    
+    ikcp_send(kcp, buf, coded_output.ByteCount());
+    
+    delete []buf;
+    return true;
+}
+
 bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
     char *buf = new char[size];
