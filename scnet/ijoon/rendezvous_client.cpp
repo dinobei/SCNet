@@ -146,7 +146,6 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
                 ++iter;
             }
             client->mutexForKcpPeerMap.unlock();
-            
         }
         
         // send ping and check to relay server, connected peer
@@ -261,6 +260,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             else {
                 ijn_print(DP_ERROR, "No callback wrapper");
             }
+            delete message;
             return;
         }
         case ijoon::RAWBYTE:
