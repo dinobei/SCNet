@@ -72,6 +72,8 @@ int main(int argc, char** argv) {
     server.getRelayServerPeer = []()->std::shared_ptr<ijoon::Peer> {
         auto relayServerList = db->getRelayServerList();
         
+        if(relayServerList->size() == 0) return nullptr;
+        
         int oldestPing = relayServerList->at(0)->ping;
         int index = 0;
         for(int i = 1 ; i < relayServerList->size() ; i++) {
