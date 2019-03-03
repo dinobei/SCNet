@@ -598,20 +598,23 @@ void updateKcpObject(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::Kcp
     char *buffer = new char[MAX_PACKET_SIZE];
     
     IUINT32 current = iclock();
+    
+    kcpPeer->mutex.lock();
+    ikcpcb *kcp = kcpPeer->getKcp();
+    
+    int rcvSize = ikcp_recv(kcp, buffer, MAX_PACKET_SIZE);
+    if(rcvSize > 0) {
+        // callback to upper users
+        buffer[rcvSize] = '\0';
+        onCallback(client, kcpPeer, buffer, rcvSize);
+    }
+    
     if(current >= kcpPeer->next) {
-        kcpPeer->mutex.lock();
-        ikcpcb *kcp = kcpPeer->getKcp();
-        int rcvSize = ikcp_recv(kcp, buffer, MAX_PACKET_SIZE);
         ikcp_update(kcp, current);
         kcpPeer->next = ikcp_check(kcp, current);
-        
-        if(rcvSize > 0) {
-            // callback to upper users
-            buffer[rcvSize] = '\0';
-            onCallback(client, kcpPeer, buffer, rcvSize);
-        }
-        kcpPeer->mutex.unlock();
     }
+    
+    kcpPeer->mutex.unlock();
     
     delete []buffer;
 }
