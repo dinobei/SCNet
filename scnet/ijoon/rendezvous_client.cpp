@@ -117,22 +117,16 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
     std::string data = localIP + seperator + std::to_string(localPort);
     if(!client->serial.empty()) data += seperator + client->serial;
     
+    // send registration message to rendezvous server
+    ijoon::send(client->rendezvousServerKcpPeer->getKcp(), 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
+    
     const int timeoutSec = 60;
     const int pingIntervalSec = 30;
-    const int checkMinIntervalSec = 25;
     const int loopIntervalMs = 5 * 1000;
-    client->rendezvousServerKcpPeer->lastPing = 0;
     while(!thread->isInterrupted()) {
-        time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-        
-        // send and ping to rendezvous server
-        client->rendezvousServerKcpPeer->mutex.lock();
-        if(client->rendezvousServerKcpPeer->lastPing + pingIntervalSec < currentTime) {
-            ijoon::send(client->rendezvousServerKcpPeer->getKcp(), 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
-        }
-        client->rendezvousServerKcpPeer->mutex.unlock();
-        
         thread->sleep(loopIntervalMs);
+        
+        time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
         
         {
             client->mutexForKcpPeerMap.lock();
