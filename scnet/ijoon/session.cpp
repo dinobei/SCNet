@@ -255,14 +255,15 @@ bool ijoon::RendezvousSession::send(std::shared_ptr<google::protobuf::Message> m
 }
 
 int ijoon::RendezvousSession::getSendBufSize() {
+    int waitsnd = -1;
     if(this->privateKcpPeer != nullptr) {
-        return ikcp_waitsnd(this->privateKcpPeer->getKcp());
+        waitsnd = ikcp_waitsnd(this->privateKcpPeer->getKcp());
     }
     else if(this->publicKcpPeer != nullptr) {
-        return ikcp_waitsnd(this->publicKcpPeer->getKcp());
+        waitsnd = ikcp_waitsnd(this->publicKcpPeer->getKcp());
     }
     else if(this->relayKcpPeer != nullptr) {
-        return ikcp_waitsnd(this->relayKcpPeer->getKcp());
+        waitsnd = ikcp_waitsnd(this->relayKcpPeer->getKcp());
     }
-    return -1;
+    return waitsnd;
 }

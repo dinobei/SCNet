@@ -30,7 +30,7 @@ namespace ijoon {
             kcp->output = output;
             
             ikcp_wndsize(kcp, 128, 128);
-            ikcp_nodelay(kcp, 0, 10, 0, 0);
+            ikcp_nodelay(kcp, 1, 20, 2, 1);
             
             next = 0;
             
