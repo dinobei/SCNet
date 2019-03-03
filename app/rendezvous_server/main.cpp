@@ -74,13 +74,17 @@ int main(int argc, char** argv) {
         
         if(relayServerList->size() == 0) return nullptr;
         
-        int oldestPing = relayServerList->at(0)->ping;
+        int latestPing = relayServerList->at(0)->ping;
         int index = 0;
         for(int i = 1 ; i < relayServerList->size() ; i++) {
-            if(relayServerList->at(i)->ping > oldestPing) {
+            if(relayServerList->at(i)->ping > latestPing) {
                 index = i;
-                oldestPing = relayServerList->at(i)->ping;
+                latestPing = relayServerList->at(i)->ping;
             }
+        }
+        
+        if( latestPing + 60 < ijoon::ComputableTime::getCurrentTimeSec()) {
+            return nullptr;
         }
         
         auto relayServerModel = relayServerList->at(index);
