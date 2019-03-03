@@ -105,11 +105,13 @@ bool validationPeer(std::map<int, std::shared_ptr<ijoon::RelayPeerInfo>> map, st
     
     // does it exist in map
     if(map.count(connectionID) == 0) {
+        ijn_print(DP_ERROR, "validation failed, connectionID not exist");
         return false;
     }
     
     // does it checked session
     if(sessionCheckMap.count(connectionID) != 0) {
+        ijn_print(DP_ERROR, "validation failed, connection not checked");
         return false;
     }
     
@@ -124,6 +126,7 @@ bool validationPeer(std::map<int, std::shared_ptr<ijoon::RelayPeerInfo>> map, st
         return true;
     }
     
+    ijn_print(DP_ERROR, "validation failed, invalid target peer info");
     return false;
 }
 
