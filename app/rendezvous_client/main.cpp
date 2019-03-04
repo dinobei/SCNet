@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
             targetAddress += seperator;
             targetAddress += vec[2];
             ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
-            ijoon::send(client.rendezvousServerKcpPeer->getKcp(), 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
+            ijoon::send(client.rendezvousServerKcpPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
         else if(vec[0].compare("SEND") == 0) {
             ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
             rendezvousSession->send(pkt2);
         }
         else if(vec[0].compare("get_camera_list") == 0) {
-            ijoon::send(client.rendezvousServerKcpPeer->getKcp(), 0, std::shared_ptr<CameraListRequest>(new CameraListRequest()));
+            ijoon::send(client.rendezvousServerKcpPeer, 0, std::shared_ptr<CameraListRequest>(new CameraListRequest()));
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
