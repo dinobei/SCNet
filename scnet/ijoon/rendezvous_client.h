@@ -9,7 +9,7 @@ namespace ijoon {
     
     class RendezvousClient {
     public:
-        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = ""): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname), serial(serial) {
+        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = ""): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname), serial(serial), lastRegistrationTime(0) {
             rendezvousServerKcpPeer = getKcpPeer(std::shared_ptr<ijoon::Peer>(new ijoon::Peer(ip, port)));
         }
         ~RendezvousClient() {}
@@ -30,6 +30,8 @@ namespace ijoon {
         std::shared_ptr<ijoon::KcpPeer> rendezvousServerKcpPeer;
         std::string ifname;
         std::string serial;
+        
+        long lastRegistrationTime;
         
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;

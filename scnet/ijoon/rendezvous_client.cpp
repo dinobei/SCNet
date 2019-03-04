@@ -126,6 +126,10 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
         
         time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
         
+        if(client->lastRegistrationTime + pingIntervalSec < currentTime) {
+            ijoon::send(client->rendezvousServerKcpPeer, 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
+        }
+        
         {
             client->mutexForKcpPeerMap.lock();
             auto iter = client->kcpPeerMap.begin();
@@ -286,6 +290,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
         {
             auto vec = ijoon::paramParser(body, 2);
             if(vec == nullptr) break;
+            client->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
             ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
             return;
         }

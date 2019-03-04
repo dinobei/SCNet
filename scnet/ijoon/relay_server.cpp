@@ -54,7 +54,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThread(void *arg) {
         time_t current = ijoon::ComputableTime::getCurrentTimeSec();
         
         // periodically send registration packet
-        if(serverKcpPeer->lastPing + pingIntervalSec < current) {
+        if(relayServer->lastRegistrationTime + pingIntervalSec < current) {
             ijoon::send(serverKcpPeer, 0, REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
         }
         
@@ -272,6 +272,7 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         case ijoon::REGISTRATION_RELAY_SERVER_SUCCESS: // from RanS
         {
             ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_SUCCESS");
+            relayServer->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
             return;
         }
         case ijoon::REGISTRATION_RELAY_PEER_REQUEST: // from SP, TP

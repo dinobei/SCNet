@@ -18,7 +18,7 @@ namespace ijoon {
     
     class RelayServer {
     public:
-        RelayServer(int port, std::string ranIP, std::string ranPort): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))) {
+        RelayServer(int port, std::string ranIP, std::string ranPort): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))), lastRegistrationTime(0) {
             serverPeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(ranIP, ranPort));
         }
         ~RelayServer() {}
@@ -43,5 +43,7 @@ namespace ijoon {
         ijoon::Thread *registerThread;
         
         std::shared_ptr<ijoon::Peer> serverPeer;
+
+        long lastRegistrationTime;
     };
 }
