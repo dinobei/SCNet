@@ -5,7 +5,6 @@
 
 namespace ijoon {
     ijoon::THREAD_RET THREAD_API registerThread(void *arg);
-    ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
     ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
     
     class RelayPeerInfo {
@@ -25,6 +24,8 @@ namespace ijoon {
         ~RelayServer() {}
         
         void start();
+        
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);
         
     public:
         int serverPort;

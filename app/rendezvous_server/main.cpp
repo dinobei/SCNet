@@ -8,9 +8,10 @@
 
 using namespace example;
 
-std::shared_ptr<ijoon::RendezvousDatabase> db;
+std::string dbName, dbServAddr, dbUser, dbPwd;
 
 void onCameraListRequest(ijoon::RendezvousSession *rendezvousSession, CameraListRequest *cameraListRequest) {
+    auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
     auto cameraList = db->getRendezvousClientList();
     rendezvousSession->send(cameraList);
 }
@@ -24,13 +25,16 @@ int main(int argc, char** argv) {
     ijoon::initGlobalVariables();
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, example::PacketType::cameraListRequest, CameraListRequest, onCameraListRequest);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, example::PacketType::cameraListResponse, CameraListResponse, nullptr);
-
-    db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(argv[2], argv[3], argv[4], argv[5]));
+    
+    dbName = argv[2];
+    dbServAddr = argv[3];
+    dbUser = argv[4];
+    dbPwd = argv[5];
     
     ijoon::RendezvousServer server(atoi(argv[1]));
     server.start();
     server.registerRendezvousClient = [](std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort) {
-        
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         auto privatePeer = db->getRendezvousClient(publicIP, publicPort);
         if(privatePeer == nullptr) {
             db->registrationRendezvousClient(publicIP, publicPort, privateIP, privatePort, "test_serial");
@@ -41,14 +45,17 @@ int main(int argc, char** argv) {
     };
     
     server.removeRendezvousClient = [](std::string ip, std::string port) {
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         db->removeRendezvousClient(ip, port);
     };
     
     server.getRendezvousClient = [](std::string ip, std::string port)->std::shared_ptr<ijoon::Peer> {
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         return db->getRendezvousClient(ip, port);
     };
     
     server.registerRelayServer = [](std::string name, std::string ip, std::string port, std::string version) {
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         auto relayPeer = db->getRelayServer(ip, port);
         if(relayPeer == nullptr) {
             db->registrationRelayServer(name, ip, port, version);
@@ -59,10 +66,12 @@ int main(int argc, char** argv) {
     };
     
     server.removeRelayServer = [](std::string ip, std::string port) {
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         db->removeRelayServer(ip, port);
     };
     
     server.isExistRelayServer = [](std::string ip, std::string port)->bool {
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         if(db->getRelayServer(ip, port) == nullptr) {
             return false;
         }
@@ -70,6 +79,7 @@ int main(int argc, char** argv) {
     };
     
     server.getRelayServerPeer = []()->std::shared_ptr<ijoon::Peer> {
+        auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         auto relayServerList = db->getRelayServerList();
         
         if(relayServerList->size() == 0) return nullptr;

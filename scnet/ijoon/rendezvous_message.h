@@ -1,6 +1,6 @@
 #pragma once
 #include "rendezvous_server.h"
-
+#include "session.h"
 
 namespace ijoon {
     enum RENDEZVOUS_MSG {
@@ -47,4 +47,12 @@ namespace ijoon {
         
         RENDEZVOUS_MSG_END,
     };
+    
+    bool send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int packetType, char *message, unsigned int length);
+    bool send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
+    
+    bool sendRelayPacket(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int messageType, int packetType, char *message, unsigned int length);
+    bool sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int packetType, char *message, unsigned int length);
+    bool sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
+
 }

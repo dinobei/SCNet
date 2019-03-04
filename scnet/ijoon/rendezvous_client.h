@@ -5,7 +5,6 @@
 
 namespace ijoon {
     ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg);
-    ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
     ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
     
     class RendezvousClient {

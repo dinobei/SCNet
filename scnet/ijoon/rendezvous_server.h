@@ -5,7 +5,6 @@
 
 namespace ijoon {
     ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg);
-    ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
     ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
     
     class ConnectionInfo {
@@ -37,6 +36,8 @@ namespace ijoon {
         ijoon::Thread *checkThread;        
         ijoon::Thread *recvThread;
         ijoon::Thread *rawRecvThread;
+        
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);
         
     public:
         std::function<void(std::string, std::string, std::string, std::string, std::string)> registerRendezvousClient;
