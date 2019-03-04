@@ -6,7 +6,6 @@
 
 #include <cstring>
 #include <ijoon/coreutils.h>
-#include "ikcp.h"
 
 namespace ijoon {
     #define MAGIC_PACKET_LENGTH             2
@@ -37,12 +36,4 @@ namespace ijoon {
     
     bool readHeader(char *packet, int length, ijoon::MessageHeader &messageHeader, int &cursor);
     void makeHeader(char *buf, ijoon::MessageHeader &messageHeader);
-    
-    bool send(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length);
-    bool send(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
-    
-    bool sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length);
-    bool sendRelay(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message);
-    
-    bool sendRelayPacket(ikcpcb *kcp, uint connectionID, int messageType, int packetType, char *message, unsigned int length);
 }

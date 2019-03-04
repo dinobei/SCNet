@@ -1,5 +1,6 @@
 #include "message_header.h"
 #include "registry.h"
+#include "rendezvous_message.h"
 
 char seperator = ' ';
 
@@ -63,7 +64,7 @@ bool ijoon::readHeader(char *packet, int length, ijoon::MessageHeader &messageHe
     return true;
 }
 
-bool ijoon::send(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length) {
+bool ijoon::send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
@@ -78,13 +79,15 @@ bool ijoon::send(ikcpcb *kcp, uint connectionID, int packetType, char *message, 
     if(length != 0)
         coded_output.WriteRaw(message, length);
     
-    ikcp_send(kcp, buf, coded_output.ByteCount());
+    kcpPeer->mutex.lock();
+    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
+    kcpPeer->mutex.unlock();
     
     delete []buf;
     return true;
 }
 
-bool ijoon::send(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -104,14 +107,18 @@ bool ijoon::send(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobu
     
     message->SerializeToCodedStream(&coded_output);
     
-    ikcp_send(kcp, buf, coded_output.ByteCount());
+    kcpPeer->mutex.lock();
+    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
+    kcpPeer->mutex.unlock();
     
     delete []buf;
     return true;
 }
 
-bool ijoon::sendRelayPacket(ikcpcb *kcp, uint connectionID, int messageType, int packetType, char *message, unsigned int length) {
-    int waitsnd = ikcp_waitsnd(kcp);
+bool ijoon::sendRelayPacket(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int messageType, int packetType, char *message, unsigned int length) {
+    kcpPeer->mutex.lock();
+    int waitsnd = ikcp_waitsnd(kcpPeer->getKcp());
+    kcpPeer->mutex.unlock();
     if(waitsnd > MAX_WAIT_SEND) {
         return false;
     }
@@ -130,13 +137,15 @@ bool ijoon::sendRelayPacket(ikcpcb *kcp, uint connectionID, int messageType, int
     if(length != 0)
         coded_output.WriteRaw(message, length);
     
-    ikcp_send(kcp, buf, coded_output.ByteCount());
+    kcpPeer->mutex.lock();
+    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
+    kcpPeer->mutex.unlock();
     
     delete []buf;
     return true;
 }
 
-bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *message, unsigned int length) {
+bool ijoon::sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
@@ -151,13 +160,15 @@ bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, int packetType, char *mess
     if(length != 0)
         coded_output.WriteRaw(message, length);
     
-    ikcp_send(kcp, buf, coded_output.ByteCount());
+    kcpPeer->mutex.lock();
+    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
+    kcpPeer->mutex.unlock();
     
     delete []buf;
     return true;
 }
 
-bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
+bool ijoon::sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
     int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
@@ -177,7 +188,9 @@ bool ijoon::sendRelay(ikcpcb *kcp, uint connectionID, std::shared_ptr<google::pr
     
     message->SerializeToCodedStream(&coded_output);
     
-    ikcp_send(kcp, buf, coded_output.ByteCount());
+    kcpPeer->mutex.lock();
+    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
+    kcpPeer->mutex.unlock();
     
     delete []buf;
     return true;
