@@ -112,8 +112,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
     else
         printf("localPort: Error get local port\n"); // handle error
     
-    std::string data = localIP + seperator + std::to_string(localPort);
-    if(!client->serial.empty()) data += seperator + client->serial;
+    std::string data = localIP + seperator + std::to_string(localPort) + seperator + client->serial;
     
     // send registration message to rendezvous server
     ijoon::send(client->rendezvousServerKcpPeer, 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());

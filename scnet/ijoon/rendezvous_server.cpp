@@ -329,12 +329,15 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_REQUEST");
             
-            auto vec = ijoon::paramParser(body, 2);
+            auto vec = ijoon::paramParser(body, 3);
             if(vec == nullptr) break;
             
             // Callback to user (serial, public address, private address)
             if(server->registerRendezvousClient != nullptr) {
-                server->registerRendezvousClient("temp_serial", peer.getIP(), std::to_string(peer.getPort()), vec->at(0), vec->at(1));
+                std::string localIP = vec->at(0);
+                std::string localPort = vec->at(1);
+                std::string serial = vec->at(2);
+                server->registerRendezvousClient(serial, peer.getIP(), std::to_string(peer.getPort()), localIP, localPort);
             }
             
             ijn_print(DP_INFO, "Registered client info: private=%s:%s, public=%s", vec->at(0).c_str(), vec->at(1).c_str(), peer.getKey().c_str());

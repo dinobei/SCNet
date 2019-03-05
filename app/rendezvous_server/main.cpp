@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
         auto db = std::shared_ptr<ijoon::RendezvousDatabase>(new ijoon::RendezvousDatabase(dbName, dbServAddr, dbUser, dbPwd));
         auto privatePeer = db->getRendezvousClient(publicIP, publicPort);
         if(privatePeer == nullptr) {
-            db->registrationRendezvousClient(publicIP, publicPort, privateIP, privatePort, "test_serial");
+            db->registrationRendezvousClient(publicIP, publicPort, privateIP, privatePort, serial);
         }
         else {
             db->updateRendezvousClient(publicIP, publicPort);
