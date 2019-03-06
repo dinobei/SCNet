@@ -24,12 +24,8 @@ add_custom_command(
     VERBATIM
 )
 
-find_library(MYSQLCPPCONN_LIBRARY mysqlcppconn HINTS /usr/local/lib)
-message("MYSQLCPPCONN_LIBRARY=" ${MYSQLCPPCONN_LIBRARY})
-
 add_executable(rendezvous_server ${header_files} ${source_files} ${proto_compiled_files})
 target_link_libraries (rendezvous_server ${the_library})
-target_link_libraries(rendezvous_server ${MYSQLCPPCONN_LIBRARY})
 
 target_include_directories(rendezvous_server PUBLIC ${proto_output_path})
 add_custom_target(compile_protoc_rendezvous_server DEPENDS ${proto_compiled_files})
