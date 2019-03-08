@@ -293,14 +293,25 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
             return;
         }
-        case ijoon::CONNECTION_FAILED:
+        case ijoon::CONNECTION_TARGET_INVALID:
         {
-            ijn_print(DP_DEBUG, "received CONNECTION_FAILED");
-            if(client->onConnectFailedCallback != nullptr) {
+            ijn_print(DP_DEBUG, "received CONNECTION_TARGET_INVALID");
+            if(client->onConnectionTargetInvalidCallback != nullptr) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-                client->onConnectFailedCallback(rendezvousSession);
+                client->onConnectionTargetInvalidCallback(rendezvousSession);
             }
             return;
+        }
+        case ijoon::CONNECTION_ID_CREATED:
+        {
+            auto vec = ijoon::paramParser(body, 2);
+            if(vec == nullptr) break;
+            
+            if(client->onConnectionIDCreatedCallback != nullptr) {
+                client->onConnectionIDCreatedCallback(messageHeader.connectionID, vec->at(0), vec->at(1));
+            }
+            
+            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::CONNECTION_ID_RECEIVED, (char *)vec->at(0).c_str(), vec->at(0).size());
         }
         case ijoon::DIRECT_CONNECTION_AVAILABLE: // SP only
         {

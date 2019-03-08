@@ -36,6 +36,8 @@ namespace ijoon {
         
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectionTargetInvalidCallback;
+        std::function<void(int connectionID, std::string targetIP, std::string targetPort)> onConnectionIDCreatedCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectFailedCallback;
         
         std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);

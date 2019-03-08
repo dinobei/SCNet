@@ -13,6 +13,9 @@ namespace ijoon {
         
         CONNECTION_REQUEST, // TP public ip, TP public port
         
+        CONNECTION_ID_CREATED, // TP public ip, TP public port (RanS to SP)
+        CONNECTION_ID_RECEIVED, // TP public ip (SP to RanS)
+        CONNECTION_TARGET_INVALID, // TP public ip, TP public port
         CONNECTION_FAILED, // nullptr
         
         // relay

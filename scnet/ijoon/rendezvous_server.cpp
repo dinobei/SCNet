@@ -353,14 +353,9 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received CONNECTION_REQUEST, body= %s", body);
         
+            std::string bodyStr = body;
             auto vec = ijoon::paramParser(body, 2);
             if(vec == nullptr) break;
-            
-            // create connectionID
-            if(server->connectionIDCursor > 1000000000) {
-                server->connectionIDCursor = 1;
-            }
-            int connectionID = server->connectionIDCursor++;
             
             auto sourcePrivatePeer = server->getRendezvousClient(peer.getIP(), std::to_string(peer.getPort()));
             auto targetPrivatePeer = server->getRendezvousClient(vec->at(0), vec->at(1));
@@ -368,9 +363,15 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             if(peer.getKey() == targetPeer->getKey() ||
                sourcePrivatePeer == nullptr ||
                targetPrivatePeer == nullptr) {
-                ijoon::send(kcpPeer, connectionID, ijoon::CONNECTION_FAILED, nullptr, 0);
+                ijoon::send(kcpPeer, 0, ijoon::CONNECTION_TARGET_INVALID, (char *)bodyStr.c_str(), bodyStr.size());
                 break;
             }
+            
+            // create connectionID
+            if(server->connectionIDCursor > 1000000000) {
+                server->connectionIDCursor = 1;
+            }
+            int connectionID = server->connectionIDCursor++;
             
             std::shared_ptr<ijoon::ConnectionInfo> connectionInfo = std::shared_ptr<ijoon::ConnectionInfo>(new ijoon::ConnectionInfo());
             connectionInfo->connectionID = connectionID;
@@ -384,10 +385,18 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             messageHeader.connectionID = connectionID;
             
+            ijoon::send(kcpPeer, connectionID, ijoon::CONNECTION_ID_CREATED, (char *)bodyStr.c_str(), bodyStr.size());
+            return;
+        }
+        case ijoon::CONNECTION_ID_RECEIVED:
+        {
+            auto vec = ijoon::paramParser(body, 1);
+            if(vec == nullptr) break;
+            
             auto relayServerPeer = server->getRelayServerPeer();
             if(relayServerPeer == nullptr) {
                 ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
-                ijoon::send(kcpPeer, connectionID, ijoon::CONNECTION_RELAY_SERVICE_FAILED, nullptr, 0);
+                ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::CONNECTION_RELAY_SERVICE_FAILED, nullptr, 0);
                 connection(server, messageHeader);
                 break;
             }
@@ -399,8 +408,8 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             data += seperator;
             data += vec->at(0);
             
-            ijoon::send(relayKcpPeer, connectionID, ijoon::RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
-            break;
+            ijoon::send(relayKcpPeer, messageHeader.connectionID, ijoon::RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
+            return;
         }
         case ijoon::PING_REQUEST:
         {
