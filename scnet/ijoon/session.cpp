@@ -12,6 +12,7 @@ bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
     coded_output.WriteVarint32(packetType); // packet type
     coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::RAWBYTE); // message type
     coded_output.WriteVarint32(0); // crypt type
+    coded_output.WriteVarint32(0); // connectionID
     
     coded_output.WriteRaw(message, length);
     
@@ -40,6 +41,7 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
     coded_output.WriteVarint32(typeInt); // packet type
     coded_output.WriteVarint32(0); // message type
     coded_output.WriteVarint32(0); // crypt type
+    coded_output.WriteVarint32(0); // connectionID
     
     message->SerializeToCodedStream(&coded_output);
     
@@ -68,6 +70,7 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     coded_output.WriteVarint32(typeInt); // packet type
     coded_output.WriteVarint32(0); // message type
     coded_output.WriteVarint32(0); // crypt type
+    coded_output.WriteVarint32(0); // connectionID
     
     message->SerializeToCodedStream(&coded_output);
     
