@@ -7,7 +7,7 @@
 
 using namespace example;
 
-void onCameraListRequest(ijoon::RendezvousSession *rendezvousSession, CameraListRequest *cameraListRequest) {
+void onCameraListRequest(std::shared_ptr<ijoon::RendezvousSession> rendezvousSession, CameraListRequest *cameraListRequest) {
     ijn_print(DP_INFO, "called onCameraListRequest()");
 }
 

@@ -209,7 +209,7 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             if(callbackWrapper != nullptr) {
                 auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(relayServer->socket, 0));
                 rendezvousSession->setPublicKcpPeer(kcpPeer);
-                callbackWrapper->callback(rendezvousSession.get(), message);
+                callbackWrapper->callback(rendezvousSession, message);
             }
             else {
                 ijn_print(DP_ERROR, "No callback wrapper");
@@ -229,7 +229,7 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             if(callbackWrapper != nullptr) {
                 auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(relayServer->socket, 0));
                 rendezvousSession->setPublicKcpPeer(kcpPeer);
-                callbackWrapper->callback(rendezvousSession.get(), body, messageHeader.dataSize);
+                callbackWrapper->callback(rendezvousSession, body, messageHeader.dataSize);
             }
             else {
                 printf("unregistered raw message received. body=%s", body);

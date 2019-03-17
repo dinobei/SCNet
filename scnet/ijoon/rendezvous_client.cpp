@@ -250,7 +250,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             message->ParseFromArray(body, messageHeader.dataSize);
             auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
-                callbackWrapper->callback(rendezvousSession.get(), message);
+                callbackWrapper->callback(rendezvousSession, message);
             }
             else {
                 ijn_print(DP_ERROR, "No callback wrapper");
@@ -267,7 +267,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
             auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
-                callbackWrapper->callback(rendezvousSession.get(), body, messageHeader.dataSize);
+                callbackWrapper->callback(rendezvousSession, body, messageHeader.dataSize);
             }
             else {
                 printf("unregistered raw message received. body=%s", body);

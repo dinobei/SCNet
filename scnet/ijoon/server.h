@@ -29,9 +29,7 @@ namespace ijoon {
     public:
         Server(std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
         Server(int identifier, std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        ~Server() {
-            delete sess;
-        }
+        ~Server() {}
         
         // Server control method
         void attach();
@@ -45,14 +43,14 @@ namespace ijoon {
         int getIdentifier() { return identifier; }
         int getTimeoutMillis() { return timeoutMillis; }
         BlockingQueue<MessageWrapper *> *getEventQueue() { return eventQueue; }
-        Session *getSession() { return sess; }
+        std::shared_ptr<Session> getSession() { return sess; }
         
         // Connection lifecycle
-        std::function<void(Session *)> onAttaching;
-        std::function<void(Session *)> onAttachFailed;
-        std::function<void(Session *)> onAttached;
-        std::function<void(Session *)> onDetached;
-        std::function<void(Session *)> onDetach;
+        std::function<void(std::shared_ptr<Session>)> onAttaching;
+        std::function<void(std::shared_ptr<Session>)> onAttachFailed;
+        std::function<void(std::shared_ptr<Session>)> onAttached;
+        std::function<void(std::shared_ptr<Session>)> onDetached;
+        std::function<void(std::shared_ptr<Session>)> onDetach;
         
     public:
         Thread *mainThread;
@@ -60,7 +58,7 @@ namespace ijoon {
         Thread *recvThread;
         
     private:
-        Session *sess;
+        std::shared_ptr<Session> sess;
         int identifier;
         
         BlockingQueue<MessageWrapper *> *eventQueue;

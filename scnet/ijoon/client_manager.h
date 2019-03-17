@@ -17,9 +17,9 @@ namespace ijoon {
         bool stop();
         
         int clientSize();
-        Session* session(int socketId);
+        std::shared_ptr<Session> session(int socketId);
         
-        bool addClient(std::shared_ptr<TCPSocket> clientSocket, Session *sess);
+        bool addClient(std::shared_ptr<TCPSocket> clientSocket, std::shared_ptr<Session> sess);
         bool removeClient(std::shared_ptr<TCPSocket> clientSocket);
         bool removeClient(int socketId);
         
@@ -33,14 +33,14 @@ namespace ijoon {
         std::function<void()> onServerStopped;
         
         // Client lifecycle
-        std::function<void(Session *)> onClientConnected;
-        std::function<void(Session *)> onClientServiceStarted;
-        std::function<void(Session *)> onClientServiceTimeout;
-        std::function<void(Session *)> onClientServiceDisconnected;
-        std::function<void(Session *)> onClientServiceStopped;
+        std::function<void(std::shared_ptr<Session>)> onClientConnected;
+        std::function<void(std::shared_ptr<Session>)> onClientServiceStarted;
+        std::function<void(std::shared_ptr<Session>)> onClientServiceTimeout;
+        std::function<void(std::shared_ptr<Session>)> onClientServiceDisconnected;
+        std::function<void(std::shared_ptr<Session>)> onClientServiceStopped;
 
     private:
-        std::map<int, Session *> clientMap;
+        std::map<int, std::shared_ptr<Session>> clientMap;
         Thread *thread;
         ushort port;
         int recvTimeoutMs;

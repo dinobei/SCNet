@@ -8,20 +8,20 @@
 #include "get_image.pb.h"
 using namespace example;
 
-void onPacket1(ijoon::Session *sess, Packet1 *pkt1);
-void onPacket2(ijoon::Session *sess, Packet2 *pkt2);
-void onPacket3(ijoon::Session *sess, Packet3 *pkt3);
-void onPacket4(ijoon::Session *sess, Packet4 *pkt4);
-void onArrayMessage(ijoon::Session *sess, ArrayMessage *arrayMessage);
-void onImageResponse(ijoon::Session *sess, ImageResponse *imageResponse);
-void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length);
-void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length);
+void onPacket1(std::shared_ptr<ijoon::Session> sess, Packet1 *pkt1);
+void onPacket2(std::shared_ptr<ijoon::Session> sess, Packet2 *pkt2);
+void onPacket3(std::shared_ptr<ijoon::Session> sess, Packet3 *pkt3);
+void onPacket4(std::shared_ptr<ijoon::Session> sess, Packet4 *pkt4);
+void onArrayMessage(std::shared_ptr<ijoon::Session> sess, ArrayMessage *arrayMessage);
+void onImageResponse(std::shared_ptr<ijoon::Session> sess, ImageResponse *imageResponse);
+void onRawByteArray(std::shared_ptr<ijoon::Session> session, void *buffer, unsigned int length);
+void onRawByteArray2(std::shared_ptr<ijoon::Session> session, void *buffer, unsigned int length);
 
-void onAttaching(ijoon::Session *sess);
-void attachFailed(ijoon::Session *sess);
-void attached(ijoon::Session *sess);
-void detached(ijoon::Session *sess);
-void detach(ijoon::Session *sess);
+void onAttaching(std::shared_ptr<ijoon::Session> sess);
+void attachFailed(std::shared_ptr<ijoon::Session> sess);
+void attached(std::shared_ptr<ijoon::Session> sess);
+void detached(std::shared_ptr<ijoon::Session> sess);
+void detach(std::shared_ptr<ijoon::Session> sess);
 
 int main(int argv, char** argc)
 {
@@ -99,23 +99,23 @@ int main(int argv, char** argc)
     return 0;
 }
 
-void onPacket1(ijoon::Session *sess, Packet1 *pkt1) {
+void onPacket1(std::shared_ptr<ijoon::Session> sess, Packet1 *pkt1) {
     ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
 }
 
-void onPacket2(ijoon::Session *sess, Packet2 *pkt2) {
+void onPacket2(std::shared_ptr<ijoon::Session> sess, Packet2 *pkt2) {
     ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
 }
 
-void onPacket3(ijoon::Session *sess, Packet3 *pkt3) {
+void onPacket3(std::shared_ptr<ijoon::Session> sess, Packet3 *pkt3) {
     ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
 }
 
-void onPacket4(ijoon::Session *sess, Packet4 *pkt4) {
+void onPacket4(std::shared_ptr<ijoon::Session> sess, Packet4 *pkt4) {
     ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
 }
 
-void onArrayMessage(ijoon::Session *sess, ArrayMessage *arrayMessage) {
+void onArrayMessage(std::shared_ptr<ijoon::Session> sess, ArrayMessage *arrayMessage) {
     ijn_print(DP_INFO, "[onArrayMessage()] received array size: %d, message: ", arrayMessage->strarr_size());
     for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
         printf("%s ", arrayMessage->strarr(i).c_str());
@@ -123,14 +123,14 @@ void onArrayMessage(ijoon::Session *sess, ArrayMessage *arrayMessage) {
     printf("\n");
 }
 
-void onImageResponse(ijoon::Session *sess, ImageResponse *imageResponse) {
+void onImageResponse(std::shared_ptr<ijoon::Session> sess, ImageResponse *imageResponse) {
     const char *imageBuffer = imageResponse->imagebuffer().c_str();
     ImageHeader header = imageResponse->header();
     
     ijn_print(DP_DEBUG, "[onImageResponse()] imageResponse received, name=%s, width=%d, height=%d, size=%d", header.name().c_str(), header.width(), header.height(), header.size());
 }
 
-void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length)
+void onRawByteArray(std::shared_ptr<ijoon::Session> session, void *buffer, unsigned int length)
 {
     char *message = nullptr;
     if(buffer != nullptr) {
@@ -141,7 +141,7 @@ void onRawByteArray(ijoon::Session *session, void *buffer, unsigned int length)
     ijn_print(DP_DEBUG, "onRawByteArray, length: %u %s", length, message);
 }
 
-void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length)
+void onRawByteArray2(std::shared_ptr<ijoon::Session> session, void *buffer, unsigned int length)
 {
     char *message = nullptr;
     if(buffer != nullptr) {
@@ -153,22 +153,22 @@ void onRawByteArray2(ijoon::Session *session, void *buffer, unsigned int length)
 }
 
 
-void onAttaching(ijoon::Session *sess) {
+void onAttaching(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] attaching", sess->getClientSocket()->getSocketIdentifier());
 }
 
-void attachFailed(ijoon::Session *sess) {
+void attachFailed(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] attachFailed", sess->getClientSocket()->getSocketIdentifier());
 }
 
-void attached(ijoon::Session *sess) {
+void attached(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] attached", sess->getClientSocket()->getSocketIdentifier());
 }
 
-void detached(ijoon::Session *sess) {
+void detached(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] detached", sess->getClientSocket()->getSocketIdentifier());
 }
 
-void detach(ijoon::Session *sess) {
+void detach(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] detach", sess->getClientSocket()->getSocketIdentifier());
 }

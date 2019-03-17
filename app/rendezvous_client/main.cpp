@@ -16,12 +16,12 @@ void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session);
 void onConnected(std::shared_ptr<ijoon::RendezvousSession> session);
 void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session);
 
-void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
-void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned int length);
-void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1);
-void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2);
+void onReceivedPacket0(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length);
+void onReceivedPacket1(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length);
+void onPacket1(std::shared_ptr<ijoon::RendezvousSession> session, Packet1 *pkt1);
+void onPacket2(std::shared_ptr<ijoon::RendezvousSession> session, Packet2 *pkt2);
 
-void onCameraListResponse(ijoon::RendezvousSession *session, CameraListResponse *response);
+void onCameraListResponse(std::shared_ptr<ijoon::RendezvousSession> session, CameraListResponse *response);
 
 int main(int argc, char** argv) {
     if(argc != 4) {
@@ -169,7 +169,7 @@ void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session) {
     printf("onConnectFailed called, connectionID=%u\n", session->getConnectionID());
 }
 
-void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
+void onReceivedPacket0(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length) {
     if(length > 100) {
         printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", session->getConnectionID(), length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
     }
@@ -177,7 +177,7 @@ void onReceivedPacket0(ijoon::RendezvousSession *session, void *buffer, unsigned
         printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%s\n", session->getConnectionID(), length, buffer);
     }
 }
-void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned int length) {
+void onReceivedPacket1(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length) {
     if(length > 100) {
         printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", session->getConnectionID(), length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
     }
@@ -185,14 +185,14 @@ void onReceivedPacket1(ijoon::RendezvousSession *session, void *buffer, unsigned
         printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%s\n", session->getConnectionID(), length, buffer);
     }
 }
-void onPacket1(ijoon::RendezvousSession *session, Packet1 *pkt1) {
+void onPacket1(std::shared_ptr<ijoon::RendezvousSession> session, Packet1 *pkt1) {
     printf("onPacket1 called, connectionID=%u, number=%d\n", session->getConnectionID(), pkt1->number());
 }
-void onPacket2(ijoon::RendezvousSession *session, Packet2 *pkt2) {
+void onPacket2(std::shared_ptr<ijoon::RendezvousSession> session, Packet2 *pkt2) {
     printf("onPacket2 called, connectionID=%u, str=%s\n", session->getConnectionID(), pkt2->str().c_str());
 }
 
-void onCameraListResponse(ijoon::RendezvousSession *session, CameraListResponse *response) {
+void onCameraListResponse(std::shared_ptr<ijoon::RendezvousSession> session, CameraListResponse *response) {
     for(int i = 0 ; i < response->cameralist_size() ; i++) {
         ijn_print(DP_INFO, "%d) [name=%s, serial=%s] %s:%s %s:%s %u",
                   i+1,

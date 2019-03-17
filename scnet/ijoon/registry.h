@@ -11,51 +11,53 @@ namespace ijoon {
 
 class AbstractCallbackWrapper {
 public:
-    virtual void callback(ijoon::BaseSession *session, google::protobuf::Message *message) {}
-    virtual void callback(ijoon::BaseSession *session, char *message, unsigned int length) {}
+    virtual void callback(std::shared_ptr<ijoon::BaseSession> session, google::protobuf::Message *message) {}
+    virtual void callback(std::shared_ptr<ijoon::BaseSession> session, char *message, unsigned int length) {}
 };
 
 template <class S, class T>
 class CallbackWrapper : public AbstractCallbackWrapper{
 public:
-    CallbackWrapper(std::function<void(S *, T *)> _callbackFunc) {
+    CallbackWrapper(std::function<void(std::shared_ptr<S>, T *)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~CallbackWrapper() {}
     
-    void callback(ijoon::BaseSession *session, google::protobuf::Message *message) override {
+    void callback(std::shared_ptr<ijoon::BaseSession> session, google::protobuf::Message *message) override {
         if(callbackFunc == nullptr) return;
         if(message == nullptr) {
-            callbackFunc(static_cast<S *>(session), nullptr);
+            
+            
+            callbackFunc(std::static_pointer_cast<S>(session), nullptr);
             return;
         }
         
-        callbackFunc(static_cast<S *>(session), static_cast<T *>((void *)message));
+        callbackFunc(std::static_pointer_cast<S>(session), static_cast<T *>((void *)message));
     }
     
 public:
-    std::function<void(S *, T *)> callbackFunc;
+    std::function<void(std::shared_ptr<S>, T *)> callbackFunc;
 };
 
 template <class S>
 class RawCallbackWrapper : public AbstractCallbackWrapper{
 public:
-    RawCallbackWrapper(std::function<void(S *, void *, unsigned int)> _callbackFunc) {
+    RawCallbackWrapper(std::function<void(std::shared_ptr<S>, void *, unsigned int)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~RawCallbackWrapper() {}
     
-    void callback(ijoon::BaseSession *session, char *message, unsigned int length) override {
+    void callback(std::shared_ptr<ijoon::BaseSession> session, char *message, unsigned int length) override {
         if(message == nullptr) {
-            callbackFunc(static_cast<S *>(session), nullptr, 0);
+            callbackFunc(std::static_pointer_cast<S>(session), nullptr, 0);
             return;
         }
-        
-        callbackFunc(static_cast<S *>(session), (void *)message, length);
+
+        callbackFunc(std::static_pointer_cast<S>(session), (void *)message, length);
     }
     
 public:
-    std::function<void(S *, void *, unsigned int)> callbackFunc;
+    std::function<void(std::shared_ptr<S>, void *, unsigned int)> callbackFunc;
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>

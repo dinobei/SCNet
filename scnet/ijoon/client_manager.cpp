@@ -22,7 +22,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         while(!thread->isInterrupted()) {
             auto client = servSocket.accept();
             
-            auto sess = new ijoon::Session(client);
+            auto sess = std::shared_ptr<ijoon::Session>(new ijoon::Session(client));
             server->addClient(client, sess);
             if(server->onClientConnected != nullptr)
                 server->onClientConnected(sess);
@@ -57,7 +57,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     {
                         auto client = servSocket.accept();
                         
-                        auto sess = new ijoon::Session(client);
+                        auto sess = std::shared_ptr<ijoon::Session>(new ijoon::Session(client));
                         server->addClient(client, sess);
                         if(server->onClientConnected != nullptr)
                             server->onClientConnected(sess);
@@ -244,7 +244,7 @@ bool ijoon::ClientManager::stop() {
     return false;
 }
 
-bool ijoon::ClientManager::addClient(std::shared_ptr<TCPSocket> clientSocket, Session *sess) {
+bool ijoon::ClientManager::addClient(std::shared_ptr<TCPSocket> clientSocket, std::shared_ptr<Session> sess) {
     int retryCnt = 10;
     do {
         if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
@@ -270,9 +270,6 @@ bool ijoon::ClientManager::removeClient(int socketId) {
     if(this->clientMap.count(socketId) == 0)
         return false;
     
-    ijoon::Session *sess = this->clientMap[socketId];
-    delete sess;
-    
     this->clientMap.erase(socketId);
     return true;
 }
@@ -281,7 +278,7 @@ int ijoon::ClientManager::clientSize() {
     return this->clientMap.size();
 }
 
-ijoon::Session* ijoon::ClientManager::session(int socketId) {
+std::shared_ptr<ijoon::Session> ijoon::ClientManager::session(int socketId) {
     assert(this->clientMap.count(socketId) != 0);
     return this->clientMap[socketId];
 }
