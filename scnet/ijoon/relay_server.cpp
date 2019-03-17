@@ -21,6 +21,8 @@ void ijoon::RelayServer::start() {
 
     recvThread = new ijoon::Thread(ijoon::recvThreadFunc, "recv thread");
     recvThread->start(this);
+    rawRecvThread = new ijoon::Thread(ijoon::rawRecvThreadFunc, "raw recv thread");
+    rawRecvThread->start(this);
     registerThread = new ijoon::Thread(ijoon::registerThread, "relay register thread");
     registerThread->start(this);
 }
@@ -337,16 +339,15 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
     }
 }
 
-ijoon::THREAD_RET THREAD_API ijoon::recvThreadFunc(void *arg) {
+ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
     auto peer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer());
     
     char *rawBuffer = new char[MAX_PACKET_SIZE];
-    char *buffer = new char[MAX_PACKET_SIZE];
     
-    relayServer->socket->option(SocketOptionType::SOCK_RCVTIMEO_MS, 1);
+    relayServer->socket->option(SocketOptionType::SOCK_RCVTIMEO_MS, 1000);
     
     while(!thread->isInterrupted()) {
         int rcvSize = relayServer->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);
@@ -362,7 +363,19 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThreadFunc(void *arg) {
             ikcp_update(kcp, current);
             kcpPeer->mutex.unlock();
         }
-        
+    }
+    
+    delete []rawBuffer;
+    return THREAD_EXIT;
+}
+
+ijoon::THREAD_RET THREAD_API ijoon::recvThreadFunc(void *arg) {
+    ijoon::Thread *thread = (ijoon::Thread *)arg;
+    ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
+    
+    char *buffer = new char[MAX_PACKET_SIZE];
+    
+    while(!thread->isInterrupted()) {
         relayServer->mutexForKcpPeerMap.lock();
         
         IUINT32 current = iclock();
@@ -389,6 +402,5 @@ ijoon::THREAD_RET THREAD_API ijoon::recvThreadFunc(void *arg) {
     
     ijn_print(DP_DEBUG, "recvThread finished");
     delete[] buffer;
-    delete[] rawBuffer;
     return THREAD_EXIT;
 }
