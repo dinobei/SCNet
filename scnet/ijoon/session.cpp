@@ -39,7 +39,7 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
     coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
     coded_output.WriteVarint32(message->ByteSize()); // data size
     coded_output.WriteVarint32(typeInt); // packet type
-    coded_output.WriteVarint32(0); // message type
+    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::PROTOBUF); // message type
     coded_output.WriteVarint32(0); // crypt type
     coded_output.WriteVarint32(0); // connectionID
     
@@ -68,7 +68,7 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
     coded_output.WriteVarint32(message->ByteSize()); // data size
     coded_output.WriteVarint32(typeInt); // packet type
-    coded_output.WriteVarint32(0); // message type
+    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::PROTOBUF); // message type
     coded_output.WriteVarint32(0); // crypt type
     coded_output.WriteVarint32(0); // connectionID
     
