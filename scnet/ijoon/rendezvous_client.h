@@ -16,6 +16,7 @@ namespace ijoon {
         ~RendezvousClient() {}
         
         void start();
+        void stop();
 
     public:
         std::shared_ptr<UDPSocket> socket;

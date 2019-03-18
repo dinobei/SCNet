@@ -80,6 +80,13 @@ void ijoon::RendezvousClient::start() {
     recvThread->start(this);
 }
 
+void ijoon::RendezvousClient::stop() {
+    ijn_print(DP_INFO, "Rendezvous client stop...");
+    
+    registerThread->interrupt();
+    recvThread->interrupt();
+}
+
 std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(std::shared_ptr<ijoon::Peer> peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
     if(this->kcpPeerMap.count(peer->getKey()) == 0) {
@@ -140,6 +147,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
                         client->onServerDisconnected();
                     }
                 }
+                continue;
                 
             }
             else {
