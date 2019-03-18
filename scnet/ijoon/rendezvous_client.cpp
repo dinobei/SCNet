@@ -76,6 +76,8 @@ void ijoon::RendezvousClient::start() {
     ijn_print(DP_INFO, "Rendezvous client start...");
     registerThread = new ijoon::Thread(registerThreadFunc, "register thread");
     registerThread->start(this);
+    rawRecvThread = new ijoon::Thread(rawRecvThreadFunc, "raw recv thread");
+    rawRecvThread->start(this);
     recvThread = new ijoon::Thread(recvThreadFunc, "recv thread");
     recvThread->start(this);
 }
@@ -630,23 +632,22 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
     }
 }
 
-ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
-    auto thread = static_cast<ijoon::Thread *>(param);
-    ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
+ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
+    ijoon::Thread *thread = (ijoon::Thread *)arg;
+    ijoon::RendezvousClient *rendezvousClient = (ijoon::RendezvousClient *)thread->getParam();
     
-    auto peer = std::shared_ptr<ijoon::Peer>(new Peer());
+    auto peer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer());
     
     char *rawBuffer = new char[MAX_PACKET_SIZE];
-    char *buffer = new char[MAX_PACKET_SIZE];
     
-    client->socket->option(SocketOptionType::SOCK_RCVTIMEO_MS, 1);
+    rendezvousClient->socket->option(SocketOptionType::SOCK_RCVTIMEO_MS, 1000);
     
     while(!thread->isInterrupted()) {
-        int rcvSize = client->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);
+        int rcvSize = rendezvousClient->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);
         if(rcvSize > 0) {
-            client->mutexForKcpPeerMap.lock();
-            auto kcpPeer = client->getKcpPeer(peer);
-            client->mutexForKcpPeerMap.unlock();
+            rendezvousClient->mutexForKcpPeerMap.lock();
+            auto kcpPeer = rendezvousClient->getKcpPeer(peer);
+            rendezvousClient->mutexForKcpPeerMap.unlock();
             
             kcpPeer->mutex.lock();
             ikcpcb *kcp = kcpPeer->getKcp();
@@ -655,7 +656,19 @@ ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
             ikcp_update(kcp, current);
             kcpPeer->mutex.unlock();
         }
-        
+    }
+    
+    delete []rawBuffer;
+    return THREAD_EXIT;
+}
+
+ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
+    auto thread = static_cast<ijoon::Thread *>(param);
+    ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
+    
+    char *buffer = new char[MAX_PACKET_SIZE];
+    
+    while(!thread->isInterrupted()) {
         client->mutexForKcpPeerMap.lock();
 
         IUINT32 current = iclock();
@@ -682,6 +695,5 @@ ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
     
     ijn_print(DP_DEBUG, "recvThread finished");
     delete[] buffer;
-    delete[] rawBuffer;
     return THREAD_EXIT;
 }
