@@ -116,6 +116,9 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
     
     // send registration message to rendezvous server
     ijoon::send(client->rendezvousServerKcpPeer, 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
+    if(client->onServerConnecting != nullptr) {
+        client->onServerConnecting();
+    }
     
     const int timeoutSec = 60;
     const int pingIntervalSec = 30;
@@ -126,7 +129,22 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
         time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
         
         if(client->lastRegistrationTime + pingIntervalSec < currentTime) {
-            ijoon::send(client->rendezvousServerKcpPeer, 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
+            if(client->lastRegistrationTime + timeoutSec < currentTime) {
+                if(client->lastRegistrationTime == 0) {
+                    if(client->onServerConnectFailed != nullptr) {
+                        client->onServerConnectFailed();
+                    }
+                }
+                else {
+                    if(client->onServerDisconnected != nullptr) {
+                        client->onServerDisconnected();
+                    }
+                }
+                
+            }
+            else {
+                ijoon::send(client->rendezvousServerKcpPeer, 0, ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, (char *)data.c_str(), data.length());
+            }
         }
         
         {
@@ -291,6 +309,10 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             if(vec == nullptr) break;
             client->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
             ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
+            
+            if(client->lastRegistrationTime == 0 && client->onServerConnected != nullptr) {
+                client->onServerConnected(vec->at(0), vec->at(1));
+            }
             return;
         }
         case ijoon::CONNECTION_TARGET_INVALID:

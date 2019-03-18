@@ -34,6 +34,11 @@ namespace ijoon {
         
         long lastRegistrationTime;
         
+        std::function<void()> onServerConnecting;
+        std::function<void()> onServerConnectFailed;
+        std::function<void(std::string extIP, std::string extPort)> onServerConnected;
+        std::function<void()> onServerDisconnected;
+        
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;
         std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectionTargetInvalidCallback;
