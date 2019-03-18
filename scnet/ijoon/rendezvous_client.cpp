@@ -315,12 +315,14 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
         {
             auto vec = ijoon::paramParser(body, 2);
             if(vec == nullptr) break;
-            client->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
-            ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
             
             if(client->lastRegistrationTime == 0 && client->onServerConnected != nullptr) {
                 client->onServerConnected(vec->at(0), vec->at(1));
             }
+            
+            client->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
+            ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
+            
             return;
         }
         case ijoon::CONNECTION_TARGET_INVALID:
