@@ -86,7 +86,15 @@ void ijoon::RendezvousClient::stop() {
     ijn_print(DP_INFO, "Rendezvous client stop...");
     
     registerThread->interrupt();
+    rawRecvThread->interrupt();
     recvThread->interrupt();
+    
+    registerThread->join();
+    rawRecvThread->join();
+    recvThread->join();
+    
+    kcpPeerMap.clear();
+    rendezvousSessionMap.clear();
 }
 
 std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(std::shared_ptr<ijoon::Peer> peer) {
@@ -223,6 +231,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
         client->mutexForRendezvousSessionMap.unlock();
     }
     
+    ijn_print(DP_DEBUG, "registerThread finished");
     return THREAD_EXIT;
 }
 
@@ -658,6 +667,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
         }
     }
     
+    ijn_print(DP_DEBUG, "rawRecvThread finished");
     delete []rawBuffer;
     return THREAD_EXIT;
 }
