@@ -42,16 +42,6 @@ std::string getIPAddress(const char *ifname) {
                  ipAddress = addressBuffer;
                  break;
              }
-        } else if (ifa->ifa_addr->sa_family == AF_INET6) { // check it is IP6
-            // is a valid IP6 Address
-            if(strcmp(ifa->ifa_name, ifname)==0) {
-                void * tmpAddrPtr =&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
-                char addressBuffer[INET6_ADDRSTRLEN];
-                inet_ntop(AF_INET6, tmpAddrPtr, addressBuffer, INET6_ADDRSTRLEN);
-                ipAddress = addressBuffer;
-                break;
-            }
-            
         }
     }
     if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
