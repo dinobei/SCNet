@@ -23,7 +23,7 @@ int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 std::string getIPAddress(const char *ifname) {
     assert(ifname!=nullptr);
     
-    std::string ipAddress;
+    std::string ipAddress="";
     struct ifaddrs * ifAddrStruct=NULL;
     struct ifaddrs * ifa=NULL;
     
@@ -46,7 +46,6 @@ std::string getIPAddress(const char *ifname) {
     }
     if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
     
-    assert(!ipAddress.empty());
     return ipAddress;
 }
 
@@ -104,7 +103,16 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
 
-    std::string localIP = getIPAddress(client->ifname.c_str());
+    std::string localIP;
+    while(true) {
+        localIP = getIPAddress(client->ifname.c_str());
+        if(!localIP.empty()) {
+            break;
+        }
+
+        ijn_msleep(5000);
+    }
+
     printf("localIP: %s\n", localIP.c_str());
     int localPort = 0;
     struct sockaddr_in sin;
