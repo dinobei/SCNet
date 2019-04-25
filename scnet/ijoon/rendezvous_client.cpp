@@ -581,16 +581,6 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
             ijn_print(DP_DEBUG, "received CONNECTION_RELAY_SERVICE_FAILED");
             return;
         }
-        case ijoon::REGISTRATION_RELAY_PEER_SUCCESS:
-        {
-            ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_SUCCESS");
-            return;
-        }
-        case ijoon::REGISTRATION_RELAY_PEER_FAILED:
-        {
-            ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_FAILED");
-            return;
-        }
         case ijoon::RELAY_SESSION_INVALID:
         {
             ijn_print(DP_DEBUG, "received RELAY_SESSION_INVALID, %d", messageHeader.connectionID);

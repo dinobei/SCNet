@@ -289,13 +289,11 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             
             if(relayServer->map.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
-                ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::REGISTRATION_RELAY_PEER_FAILED, nullptr, 0);
                 return;
             }
             
             if(relayServer->sessionCheckMap.count(messageHeader.connectionID) == 0) {
                 ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
-                ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::REGISTRATION_RELAY_PEER_FAILED, nullptr, 0);
                 return;
             }
             
