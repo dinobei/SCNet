@@ -32,10 +32,10 @@ int main(int argc, char** argv) {
     ijoon::initGlobalVariables();
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(0, onReceivedPacket0);
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(1, onReceivedPacket1);
-    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType1, Packet1, onPacket1);
-    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, packetType2, Packet2, onPacket2);
-    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, cameraListRequest, CameraListRequest, nullptr);
-    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, cameraListResponse, CameraListResponse, onCameraListResponse);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetType1, Packet1, onPacket1);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetType2, Packet2, onPacket2);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(cameraListRequest, CameraListRequest, nullptr);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(cameraListResponse, CameraListResponse, onCameraListResponse);
     
     ijoon::RendezvousClient client(argv[1], argv[2], argv[3]);
     client.onConnectingCallback = onConnecting;

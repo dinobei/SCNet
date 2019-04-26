@@ -184,14 +184,14 @@ extern Registry<int, google::protobuf::Message* >* BaseMessageRegistry;
 #define PP_CAT_II(p, res) res
 #define UNIQUE_NAME(base) PP_CAT(base, __LINE__)
 
-#define SCNET_PROTOBUF_MESSAGE_REGISTRATION(ns, packetTypeInt, messageClassName, callbackFunc) \
+#define SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     BaseMessageRegistry, \
                     packetTypeInt, \
                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
                     BaseMessageRegistry, \
-                    #ns "." #messageClassName, \
+                    messageClassName().GetTypeName(), \
                     packetTypeInt); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     BaseMessageRegistry, \
@@ -213,14 +213,14 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     packetTypeInt, \
                     new RawCallbackWrapper<ijoon::RendezvousSession>(callbackFunc))
 
-#define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(ns, packetTypeInt, messageClassName, callbackFunc) \
+#define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     BaseMessageRegistry, \
                     packetTypeInt, \
                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
                     BaseMessageRegistry, \
-                    #ns "." #messageClassName, \
+                    messageClassName().GetTypeName(), \
                     packetTypeInt); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     BaseMessageRegistry, \

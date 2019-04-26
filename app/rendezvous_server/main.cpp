@@ -18,8 +18,8 @@ int main(int argc, char** argv) {
     }
     
     ijoon::initGlobalVariables();
-    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, example::PacketType::cameraListRequest, CameraListRequest, onCameraListRequest);
-    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example, example::PacketType::cameraListResponse, CameraListResponse, nullptr);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example::PacketType::cameraListRequest, CameraListRequest, onCameraListRequest);
+    SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example::PacketType::cameraListResponse, CameraListResponse, nullptr);
     
     ijoon::RendezvousServer server(atoi(argv[1]));
     server.start();
