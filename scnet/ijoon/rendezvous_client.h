@@ -4,10 +4,6 @@
 #include "session.h"
 
 namespace ijoon {
-    ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg);
-    ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
-    ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
-    
     class RendezvousClient {
     public:
         RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = "unknown"): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname), serial(serial), lastRegistrationTime(0) {

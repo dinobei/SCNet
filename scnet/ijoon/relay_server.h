@@ -4,10 +4,6 @@
 #include "session.h"
 
 namespace ijoon {
-    ijoon::THREAD_RET THREAD_API registerThread(void *arg);
-    ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
-    ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
-    
     class RelayPeerInfo {
     public:
         RelayPeerInfo() {}

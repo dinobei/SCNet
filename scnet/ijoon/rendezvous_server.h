@@ -4,9 +4,6 @@
 #include "session.h"
 
 namespace ijoon {
-    ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg);
-    ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
-    
     class ConnectionInfo {
     public:
         uint connectionID;

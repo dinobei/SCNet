@@ -1,4 +1,5 @@
 include_directories(${${the_library}_include_directories})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 file(GLOB_RECURSE header_files *.h)
 file(GLOB_RECURSE source_files *.cpp)

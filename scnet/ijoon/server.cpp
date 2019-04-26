@@ -1,7 +1,11 @@
 #include "server.h"
 #include "registry.h"
 
-void *ijoon::clientMainThread(void *arg)
+ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
+
+ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::Server *server = (ijoon::Server *)thread->getParam();
@@ -30,9 +34,9 @@ void *ijoon::clientMainThread(void *arg)
             }
         }
 
-        server->sendThread = new ijoon::Thread(ijoon::sendThread, "sendThread");
+        server->sendThread = new ijoon::Thread(sendThreadFunc, "sendThread");
         server->sendThread->start((void *)server);
-        server->recvThread = new ijoon::Thread(ijoon::recvThread, "recvThread");
+        server->recvThread = new ijoon::Thread(recvThreadFunc, "recvThread");
         server->recvThread->start((void *)server);
 
         // CALLBACK::ATTACHED
@@ -63,7 +67,7 @@ void *ijoon::clientMainThread(void *arg)
     return NULL;
 }
 
-void *ijoon::recvThread(void *arg)
+ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::Server *server = (ijoon::Server *)thread->getParam();
@@ -134,14 +138,14 @@ void *ijoon::recvThread(void *arg)
     return NULL;
 }
 
-void *ijoon::sendThread(void *arg)
+ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::Server *server = (ijoon::Server *)thread->getParam();
 
     while(!thread->isInterrupted())
     {
-        MessageWrapper *messageWrapper = server->getEventQueue()->get(50*1000);
+        ijoon::MessageWrapper *messageWrapper = server->getEventQueue()->get(50*1000);
         if(messageWrapper == NULL)
         {
             continue; // timeout
@@ -192,7 +196,7 @@ void *ijoon::sendThread(void *arg)
 void ijoon::Server::attach() {
     this->eventQueue = new ijoon::BlockingQueue<MessageWrapper *>();
 
-    this->mainThread = new ijoon::Thread(clientMainThread, "mainThread");
+    this->mainThread = new ijoon::Thread(clientMainThreadFunc, "mainThread");
     this->mainThread->start(this);
 }
 

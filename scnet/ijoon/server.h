@@ -7,10 +7,6 @@
 #include "session.h"
 
 namespace ijoon {
-    void *clientMainThread(void *arg);
-    void *sendThread(void *arg);
-    void *recvThread(void *arg);
-    
     class MessageWrapper {
     public:
         MessageWrapper(google::protobuf::Message *message): messageType(MESSAGE_TYPE::PROTOBUF), message(message) {

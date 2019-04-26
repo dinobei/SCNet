@@ -62,32 +62,24 @@ else()
         endif()
     endif()
 
-    set(Protobuf_LIBRARIES ${PROJECT_BINARY_DIR}/third-party/protobuf/cmake/${PB_LIB_NAME})
     set(Protobuf_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/third-party/protobuf/src)
-
-    message("Protobuf_LIBRARIES: " ${Protobuf_LIBRARIES})
     message("Protobuf_INCLUDE_DIRS: " ${Protobuf_INCLUDE_DIRS})
 
     set(protobuf_BUILD_TESTS OFF CACHE BOOL "build test off")
     set(protobuf_WITH_ZLIB OFF CACHE BOOL "build zlib off")
     add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/protobuf/cmake)
-    list(APPEND scnet_library_dependencies ${Protobuf_LIBRARIES})
+    list(APPEND scnet_library_dependencies libprotobuf)
     list(APPEND scnet_include_directories ${Protobuf_INCLUDE_DIRS})
 endif()
 
 # coreutils library
-set(COREUTILS_LIB_NAME coreutils)
-makeLibraryName(COREUTILS_LIB_NAME scnet_BUILD_SHARED)
-
-set(Coreutils_LIBRARIES ${PROJECT_BINARY_DIR}/third-party/coreutils/bin/$<CONFIG>/${COREUTILS_LIB_NAME})
 set(Coreutils_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/third-party/coreutils/coreutils)
-message("Coreutils_LIBRARIES: " ${Coreutils_LIBRARIES})
 message("Coreutils_INCLUDE_DIRS: " ${Coreutils_INCLUDE_DIRS})
 
 set(coreutils_BUILD_APPS OFF CACHE BOOL "build app off")
 set(coreutils_BUILD_SHARED OFF CACHE BOOL "build shared off")
 add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/coreutils)
-list(APPEND scnet_library_dependencies ${Coreutils_LIBRARIES})
+list(APPEND scnet_library_dependencies coreutils)
 list(APPEND scnet_include_directories ${Coreutils_INCLUDE_DIRS})
 
 

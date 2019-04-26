@@ -33,6 +33,7 @@ int main(int argc, char** argv) {
     
     server.getRendezvousClient = [](std::string ip, std::string port)->std::shared_ptr<ijoon::Peer> {
         ijn_print(DP_INFO, "called getRendezvousClient()");
+		return nullptr;
     };
     
     server.registerRelayServer = [](std::string name, std::string ip, std::string port, std::string version) {

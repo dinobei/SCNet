@@ -3,7 +3,10 @@
 #include <map>
 #include <fstream>
 #include <sys/stat.h>
+
+#ifndef __IJN_WINDOWS__
 #include <sys/select.h>
+#endif
 
 #include "registry.h"
 

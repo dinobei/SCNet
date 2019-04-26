@@ -4,10 +4,12 @@
 #include <cstring>
 #include "ikcp.h"
 #include "registry.h"
+#include "utils.h"
 
 extern char seperator;
 
-IUINT32 iclock();
+ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
 
 int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 //    ijn_print(DP_DEBUG, "udp_output len : %d.", len);
@@ -106,7 +108,7 @@ bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHea
     return true;
 }
 
-ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
+ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
@@ -141,7 +143,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
                 continue;
             }
             else if(iter->second->lastPing + pingIntervalSec < currentTime) {
-                ijoon::send(iter->second, 0, PING_REQUEST, nullptr, 0);
+                ijoon::send(iter->second, 0, ijoon::PING_REQUEST, nullptr, 0);
             }
             
             ++iter;
@@ -150,30 +152,6 @@ ijoon::THREAD_RET THREAD_API ijoon::rendezvousCheckThreadFunc(void *arg)
     }
     
     return THREAD_EXIT;
-}
-
-/* get system time */
-void itimeofday(long *sec, long *usec)
-{
-    struct timeval time;
-    gettimeofday(&time, NULL);
-    if (sec) *sec = time.tv_sec;
-    if (usec) *usec = time.tv_usec;
-}
-
-/* get clock in millisecond 64 */
-IINT64 iclock64(void)
-{
-    long s, u;
-    IINT64 value;
-    itimeofday(&s, &u);
-    value = ((IINT64)s) * 1000 + (u / 1000);
-    return value;
-}
-
-IUINT32 iclock()
-{
-    return (IUINT32)(iclock64() & 0xfffffffful);
 }
 
 void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer> kcpPeer, char *packet, int recvSize) {
@@ -430,16 +408,16 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
     }
 }
 
-ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
+ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param) {
     auto thread = static_cast<ijoon::Thread *>(param);
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     
-    auto peer = std::shared_ptr<ijoon::Peer>(new Peer());
+    auto peer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer());
     
     char *rawBuffer = new char[MAX_PACKET_SIZE];
     char *buffer = new char[MAX_PACKET_SIZE];
     
-    server->socket->option(SocketOptionType::SOCK_RCVTIMEO_MS, 1);
+    server->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, 1);
     
     while(!thread->isInterrupted()) {
         int rcvSize = server->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);

@@ -2,12 +2,21 @@
 #include "rendezvous_message.h"
 #include "message_header.h"
 #include "session.h"
+
+#ifndef __IJN_WINDOWS__
 #include <ifaddrs.h>
+#endif
+
 #include <cstring>
 #include "registry.h"
 #include <assert.h>
+#include "utils.h"
 
 extern char seperator;
+
+ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param);
 
 int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 //    ijn_print(DP_DEBUG, "udp_output len : %d.", len);
@@ -19,14 +28,49 @@ int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
     return 0;
 }
 
+#ifdef __IJN_WINDOWS__
+// reference: https://stackoverflow.com/a/3120382
+std::string GetPrimaryIp()
+{
+	int sock = socket(AF_INET, SOCK_DGRAM, 0);
+	assert(sock != -1);
+
+	const char* kGoogleDnsIp = "8.8.8.8";
+	uint16_t kDnsPort = 53;
+	struct sockaddr_in serv;
+	memset(&serv, 0, sizeof(serv));
+	serv.sin_family = AF_INET;
+	serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
+	serv.sin_port = htons(kDnsPort);
+
+	int err = connect(sock, (const sockaddr*)&serv, sizeof(serv));
+	assert(err != -1);
+
+	sockaddr_in name;
+	socklen_t namelen = sizeof(name);
+	err = getsockname(sock, (sockaddr*)&name, &namelen);
+	assert(err != -1);
+
+	char buffer[255] = { 0, };
+	const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, sizeof(buffer));
+	assert(p);
+
+	closesocket(sock);
+	return std::string(buffer);
+}
+#endif
+
 // reference: https://stackoverflow.com/a/265978
 std::string getIPAddress(const char *ifname) {
-    assert(ifname!=nullptr);
-    
-    std::string ipAddress="";
-    struct ifaddrs * ifAddrStruct=NULL;
-    struct ifaddrs * ifa=NULL;
-    
+#ifdef __IJN_WINDOWS__
+	std::string ipAddress = GetPrimaryIp();
+#else
+	assert(ifname != nullptr);
+
+	std::string ipAddress = "";
+	struct ifaddrs * ifAddrStruct = NULL;
+	struct ifaddrs * ifa = NULL;
+
     getifaddrs(&ifAddrStruct);
     
     for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
@@ -45,7 +89,7 @@ std::string getIPAddress(const char *ifname) {
         }
     }
     if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
-    
+#endif
     return ipAddress;
 }
 
@@ -99,7 +143,7 @@ std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(std::shared_
     return kcpPeer;
 }
 
-ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
+ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
 
@@ -175,7 +219,7 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
                     continue;
                 }
                 else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
-                    ijoon::send(iter->second, 0, PING_REQUEST, nullptr, 0);
+                    ijoon::send(iter->second, 0, ijoon::PING_REQUEST, nullptr, 0);
                 }
                 
                 ++iter;
@@ -231,30 +275,6 @@ ijoon::THREAD_RET THREAD_API ijoon::registerThreadFunc(void *arg) {
     
     ijn_print(DP_DEBUG, "registerThread finished");
     return THREAD_EXIT;
-}
-
-/* get system time */
-void itimeofday(long *sec, long *usec)
-{
-    struct timeval time;
-    gettimeofday(&time, NULL);
-    if (sec) *sec = time.tv_sec;
-    if (usec) *usec = time.tv_usec;
-}
-
-/* get clock in millisecond 64 */
-IINT64 iclock64(void)
-{
-    long s, u;
-    IINT64 value;
-    itimeofday(&s, &u);
-    value = ((IINT64)s) * 1000 + (u / 1000);
-    return value;
-}
-
-IUINT32 iclock()
-{
-    return (IUINT32)(iclock64() & 0xfffffffful);
 }
 
 void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer> kcpPeer, char *packet, int recvSize) {
@@ -639,7 +659,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
     }
 }
 
-ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
+ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousClient *rendezvousClient = (ijoon::RendezvousClient *)thread->getParam();
     
@@ -647,7 +667,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
     
     char *rawBuffer = new char[MAX_PACKET_SIZE];
     
-    rendezvousClient->socket->option(SocketOptionType::SOCK_RCVTIMEO_MS, 1000);
+    rendezvousClient->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, 1000);
     
     while(!thread->isInterrupted()) {
         int rcvSize = rendezvousClient->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);
@@ -670,7 +690,7 @@ ijoon::THREAD_RET THREAD_API ijoon::rawRecvThreadFunc(void *arg) {
     return THREAD_EXIT;
 }
 
-ijoon::THREAD_RET ijoon::recvThreadFunc(void *param) {
+ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param) {
     auto thread = static_cast<ijoon::Thread *>(param);
     ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
     
