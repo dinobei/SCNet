@@ -177,17 +177,18 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         return;
     }
     
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
     switch (messageHeader.messageType) {
         case ijoon::PROTOBUF:
         {
             ijn_print(DP_INFO, "User message received, PROTOBUF");
-            google::protobuf::Message *message = BaseMessageRegistry->Create(messageHeader.packetType);
+            google::protobuf::Message *message = registry->Create(messageHeader.packetType);
             if(message == nullptr) {
                 ijn_print(DP_INFO, "Unknown protobuf packet_type(%d) reveiced", messageHeader.packetType);
                 return;
             }
             message->ParseFromArray(body, messageHeader.dataSize);
-            auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+            auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
                 auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(relayServer->socket, 0));
                 rendezvousSession->setPublicKcpPeer(kcpPeer);
@@ -207,7 +208,7 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             
             ijn_print(DP_INFO, "User message received, RAWBYTE");
             
-            auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+            auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
                 auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(relayServer->socket, 0));
                 rendezvousSession->setPublicKcpPeer(kcpPeer);

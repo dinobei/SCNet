@@ -29,7 +29,6 @@ int main(int argc, char** argv) {
         exit(-1);
     }
     
-    ijoon::initGlobalVariables();
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(0, onReceivedPacket0);
     SCNET_RAW_UDP_MESSAGE_REGISTRATION(1, onReceivedPacket1);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetType1, Packet1, onPacket1);

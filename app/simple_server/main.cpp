@@ -30,7 +30,6 @@ void onRawByteArray(std::shared_ptr<ijoon::Session> session, void *buffer, unsig
 void onRawByteArray2(std::shared_ptr<ijoon::Session> session, void *buffer, unsigned int length);
 
 int main(int argv, char** argc) {
-    ijoon::initGlobalVariables();
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType1, Packet1, onPacket1);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType2, Packet2, onPacket2);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType3, Packet3, onPacket3);

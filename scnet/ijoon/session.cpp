@@ -26,7 +26,8 @@ bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
 }
 
 bool ijoon::Session::send(google::protobuf::Message *message) {
-    int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
         exit(-1);
@@ -55,7 +56,8 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
 }
 
 bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
-    int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
         exit(-1);
@@ -119,7 +121,8 @@ bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
 }
 
 google::protobuf::Message *ijoon::Session::recvProtobufBody(MessageHeader &messageHeader) {
-    google::protobuf::Message *response = BaseMessageRegistry->Create(messageHeader.packetType);
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    google::protobuf::Message *response = registry->Create(messageHeader.packetType);
     if(response == nullptr) {
         ijn_print(DP_INFO, "Unknown packet type(=%d)", messageHeader.packetType);
         return nullptr;

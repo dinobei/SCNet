@@ -17,7 +17,6 @@ int main(int argc, char** argv) {
         exit(-1);
     }
     
-    ijoon::initGlobalVariables();
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example::PacketType::cameraListRequest, CameraListRequest, onCameraListRequest);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example::PacketType::cameraListResponse, CameraListResponse, nullptr);
     

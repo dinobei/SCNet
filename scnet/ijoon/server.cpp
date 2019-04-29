@@ -72,6 +72,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::Server *server = (ijoon::Server *)thread->getParam();
 
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
     while(!thread->isInterrupted())
     {
         int fd_num = server->getSession()->getClientSocket()->event(5000);
@@ -97,7 +98,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
             {
                 google::protobuf::Message *message = server->getSession()->recvProtobufBody(messageHeader);
                 if(message == nullptr) break;
-                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                 if(callbackWrapper == nullptr) {
                     delete message;
                     break;
@@ -109,7 +110,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
             case ijoon::MESSAGE_TYPE::RAWBYTE:
             {
                 char *message = server->getSession()->recvRawBody(messageHeader);
-                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                 if(callbackWrapper == nullptr) {
                     delete message;
                     break;
