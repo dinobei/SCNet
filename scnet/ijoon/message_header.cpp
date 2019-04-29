@@ -88,7 +88,8 @@ bool ijoon::send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int
 }
 
 bool ijoon::send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
-    int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
         exit(-1);
@@ -169,7 +170,8 @@ bool ijoon::sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID
 }
 
 bool ijoon::sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
-    int typeInt = BaseMessageRegistry->GetType(message->GetTypeName());
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
         ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
         exit(-1);

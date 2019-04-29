@@ -36,6 +36,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         FD_SET(servSocket.getSocketIdentifier(), &reads);
         
         fd_max = servSocket.getSocketIdentifier();
+        auto registry = Registry<int, google::protobuf::Message* >().Get();
         while(!thread->isInterrupted()) {
             cpy_reads = reads;
             timeout.tv_sec = server->getRecvTimeoutMs() / 1000;
@@ -90,7 +91,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                             {
                                 google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
                                 if(message == nullptr) continue;
-                                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                                 if(callbackWrapper == nullptr) {
                                     delete message;
                                     break;
@@ -102,7 +103,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                             case ijoon::MESSAGE_TYPE::RAWBYTE:
                             {
                                 char *message = sess->recvRawBody(messageHeader);
-                                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                                 if(callbackWrapper == nullptr) {
                                     delete message;
                                     break;
@@ -141,6 +142,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     if(server->onClientServiceStarted != nullptr)
         server->onClientServiceStarted(sess);
     
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
     while(1) {
         int fd_num = sess->getClientSocket()->event(server->getRecvTimeoutMs());
         if(fd_num < 0) {
@@ -166,7 +168,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             {
                 google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
                 if(message == nullptr) break;
-                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                 if(callbackWrapper == nullptr) {
                     delete message;
                     break;
@@ -178,7 +180,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             case ijoon::MESSAGE_TYPE::RAWBYTE:
             {
                 char *message = sess->recvRawBody(messageHeader);
-                AbstractCallbackWrapper *callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
                 if(callbackWrapper == nullptr) {
                     delete message;
                     break;

@@ -193,16 +193,17 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
     char *body = &packet[cursor];
     
     kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
     switch (messageHeader.messageType) {
         case ijoon::PROTOBUF:
         {
-            google::protobuf::Message *message = BaseMessageRegistry->Create(messageHeader.packetType);
+            google::protobuf::Message *message = registry->Create(messageHeader.packetType);
             if(message == nullptr) {
                 ijn_print(DP_INFO, "Unknown protobuf packet_type(%d) reveiced", messageHeader.packetType);
                 return;
             }
             message->ParseFromArray(body, messageHeader.dataSize);
-            auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+            auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
                 auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(server->socket, 0));
                 rendezvousSession->setPublicKcpPeer(kcpPeer);
@@ -221,7 +222,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
                 break;
             }
             
-            auto callbackWrapper = BaseMessageRegistry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+            auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
                 auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(server->socket, 0));
                 rendezvousSession->setPublicKcpPeer(kcpPeer);
