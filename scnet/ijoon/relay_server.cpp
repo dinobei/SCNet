@@ -290,8 +290,6 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
                 relayServer->sessionCheckMap[messageHeader.connectionID]++;
             }
             
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::REGISTRATION_RELAY_PEER_SUCCESS, nullptr, 0);
-            
             if(relayServer->sessionCheckMap[messageHeader.connectionID] >= 2) {
                 // successfully registerred
                 relayServer->sessionCheckMap.erase(messageHeader.connectionID);
