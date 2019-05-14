@@ -10,9 +10,8 @@ namespace ijoon {
     
     class RendezvousClient {
     public:
-        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = "unknown"): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), ifname(ifname), serial(serial), lastRegistrationTime(0) {
+        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = "unknown"): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), serverPing(0), serverIP(ip), serverPort(port), ifname(ifname), serial(serial) {
             assert(!serial.empty());
-            rendezvousServerKcpPeer = getKcpPeer(std::shared_ptr<ijoon::Peer>(new ijoon::Peer(ip, port)));
         }
         ~RendezvousClient() {}
         
@@ -30,23 +29,30 @@ namespace ijoon {
         ijoon::Mutex mutexForKcpPeerMap;
         ijoon::Mutex mutexForRendezvousSessionMap;
         
-        std::shared_ptr<ijoon::KcpPeer> rendezvousServerKcpPeer;
+        int serverPing;
+        
+        std::string serverIP;
+        std::string serverPort;
         std::string ifname;
         std::string serial;
         
-        long lastRegistrationTime;
+        void onServerConnectingCallback();
+        void onServerConnectFailedCallback();
+        void onServerConnectedCallback(std::string extIP, std::string extPort);
+        void onServerDisconnectedCallback();
         
         std::function<void()> onServerConnecting;
         std::function<void()> onServerConnectFailed;
         std::function<void(std::string extIP, std::string extPort)> onServerConnected;
         std::function<void()> onServerDisconnected;
         
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectingCallback;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectedCallback;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectionTargetInvalidCallback;
-        std::function<void(int connectionID, std::string targetIP, std::string targetPort)> onConnectionIDCreatedCallback;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectFailedCallback;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnecting;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnected;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectionTargetInvalid;
+        std::function<void(int connectionID, std::string targetIP, std::string targetPort)> onConnectionIDCreated;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectFailed;
+        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onDisconnected;
         
-        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer peer);
     };
 }

@@ -37,9 +37,9 @@ int main(int argc, char** argv) {
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(cameraListResponse, CameraListResponse, onCameraListResponse);
     
     ijoon::RendezvousClient client(argv[1], argv[2], argv[3]);
-    client.onConnectingCallback = onConnecting;
-    client.onConnectedCallback = onConnected;
-    client.onConnectFailedCallback = onConnectFailed;
+    client.onConnecting = onConnecting;
+    client.onConnected = onConnected;
+    client.onConnectFailed = onConnectFailed;
     client.start();
     
     while(true) {
@@ -67,7 +67,8 @@ int main(int argc, char** argv) {
             targetAddress += seperator;
             targetAddress += vec[2];
             ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
-            ijoon::send(client.rendezvousServerKcpPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
+            auto serverPeer = client.getKcpPeer(ijoon::Peer(client.serverIP, client.serverPort));
+            ijoon::send(serverPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
         else if(vec[0].compare("SEND") == 0) {
             ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);
@@ -123,7 +124,8 @@ int main(int argc, char** argv) {
             rendezvousSession->send(pkt2);
         }
         else if(vec[0].compare("get_camera_list") == 0) {
-            ijoon::send(client.rendezvousServerKcpPeer, 0, std::shared_ptr<CameraListRequest>(new CameraListRequest()));
+            auto serverPeer = client.getKcpPeer(ijoon::Peer(client.serverIP, client.serverPort));
+            ijoon::send(serverPeer, 0, std::shared_ptr<CameraListRequest>(new CameraListRequest()));
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
