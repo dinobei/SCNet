@@ -113,9 +113,9 @@ ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg)
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     
-    const int timeout = 180;
+    const int timeout = 60;
     const int checkIntervalMs = 5 * 1000;
-    const int pingIntervalSec = 30;
+    const int pingIntervalSec = 20;
     while(!thread->isInterrupted())
     {
         thread->sleep(checkIntervalMs);
@@ -126,8 +126,8 @@ ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg)
         auto end = server->kcpPeerMap.end();
         while(iter != end) {
             std::string role = "";
-            if(iter->second->lastPing + timeout < currentTime) {
-                auto kcpPeer = iter->second;
+            auto kcpPeer = iter->second;
+            if(kcpPeer->lastPing + timeout < currentTime) {
                 std::string key = kcpPeer->getPeer().getKey();
                 auto privatePeer = server->getRendezvousClient(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
                 if(privatePeer != nullptr) {
@@ -142,7 +142,7 @@ ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg)
                 ijn_print(DP_INFO, "kcpPeer%s removed, %s, (%u)", role.c_str(), key.c_str(), kcpPeer->lastPing);
                 continue;
             }
-            else if(iter->second->lastPing + pingIntervalSec < currentTime) {
+            else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
                 ijoon::send(iter->second, 0, ijoon::PING_REQUEST, nullptr, 0);
             }
             

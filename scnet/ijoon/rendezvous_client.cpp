@@ -169,36 +169,13 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     std::string data = localIP + seperator + std::to_string(localPort) + seperator + client->serial;
     
     const int timeoutSec = 60;
-    const int pingIntervalSec = 30;
+    const int pingIntervalSec = 20;
     const int loopIntervalMs = 5 * 1000;
     bool connFlag = false;
     
     auto serverPeer = ijoon::Peer(client->serverIP, client->serverPort);
     while(!thread->isInterrupted()) {
         time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-        
-        auto serverKcpPeer = client->getKcpPeer(serverPeer);
-        
-        if(client->serverPing == 0) {
-            // send registration packet
-            if(connFlag) {
-                client->onServerConnectFailedCallback();
-            }
-            
-            connFlag = true;
-            client->onServerConnectingCallback();
-            ijoon::send(serverKcpPeer,
-                        0,
-                        ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
-                        (char *)data.c_str(),
-                        data.length());
-        }
-        else if(client->serverPing + timeoutSec < currentTime) {
-            // disconnected
-            connFlag = false;
-            client->serverPing = 0;
-            client->onServerDisconnectedCallback();
-        }
 
         client->mutexForKcpPeerMap.lock();
         auto iter = client->kcpPeerMap.begin();
@@ -206,6 +183,11 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
         while(iter != end) {
             auto kcpPeer = iter->second;
             if(kcpPeer->lastPing + timeoutSec < currentTime) {
+                if(kcpPeer->getPeer().getIP() == serverPeer.getIP() &&
+                   kcpPeer->getPeer().getPort() == serverPeer.getPort()) {
+                    ++iter;
+                    continue;
+                }
                 ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
                 iter = client->kcpPeerMap.erase(iter);
                 continue;
@@ -263,6 +245,39 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
             }
         }
         client->mutexForRendezvousSessionMap.unlock();
+        
+        if(!client->isConected) {
+            // send registration packet
+            if(connFlag) {
+                client->mutexForKcpPeerMap.lock();
+                client->kcpPeerMap.erase(serverPeer.getKey());
+                client->mutexForKcpPeerMap.unlock();
+                client->socket = std::shared_ptr<ijoon::UDPSocket>(new ijoon::UDPSocket(0));
+                
+                client->onServerConnectFailedCallback();
+            }
+            else {
+                connFlag = true;
+            }
+            
+            client->onServerConnectingCallback();
+            ijoon::send(client->getKcpPeer(serverPeer),
+                        0,
+                        ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
+                        (char *)data.c_str(),
+                        data.length());
+        }
+        else if(client->getKcpPeer(serverPeer)->lastPing + timeoutSec < currentTime) {
+            // disconnected
+            client->mutexForKcpPeerMap.lock();
+            client->kcpPeerMap.erase(serverPeer.getKey());
+            client->mutexForKcpPeerMap.unlock();
+            
+            connFlag = false;
+            client->isConected = false;
+            client->socket = std::shared_ptr<ijoon::UDPSocket>(new ijoon::UDPSocket(0));
+            client->onServerDisconnectedCallback();
+        }
         
         thread->sleep(loopIntervalMs);
     }
@@ -340,11 +355,11 @@ void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::Kc
             auto vec = ijoon::paramParser(body, 2);
             if(vec == nullptr) break;
             
-//            if(client->lastRegistrationTime == 0 && client->onServerConnected != nullptr) {
-//                client->onServerConnected(vec->at(0), vec->at(1));
-//            }
-//
-//            client->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
+            if(!client->isConected) {
+                client->isConected = true;
+                client->onServerConnectedCallback(vec->at(0), vec->at(1));
+            }
+            
             ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
             
             return;

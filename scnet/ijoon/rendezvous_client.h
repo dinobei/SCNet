@@ -6,7 +6,7 @@
 namespace ijoon {
     class RendezvousClient {
     public:
-        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = "unknown"): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), serverPing(0), serverIP(ip), serverPort(port), ifname(ifname), serial(serial) {
+        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = "unknown"): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), serverIP(ip), serverPort(port), ifname(ifname), serial(serial), isConected(false) {
             assert(!serial.empty());
         }
         ~RendezvousClient() {}
@@ -25,12 +25,11 @@ namespace ijoon {
         ijoon::Mutex mutexForKcpPeerMap;
         ijoon::Mutex mutexForRendezvousSessionMap;
         
-        int serverPing;
-        
         std::string serverIP;
         std::string serverPort;
         std::string ifname;
         std::string serial;
+        bool isConected;
         
         void onServerConnectingCallback();
         void onServerConnectFailedCallback();
