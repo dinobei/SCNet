@@ -159,8 +159,8 @@ std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(ijoon::Peer 
 }
 
 ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
-    ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::RendezvousClient *client = (ijoon::RendezvousClient *)thread->getParam();
+    auto thread = static_cast<ijoon::Thread *>(arg);
+    auto client = static_cast<ijoon::RendezvousClient *>(thread->getParam());
 
     std::string localIP = getIPAddress(client->ifname.c_str());
     int localPort = getPort(client);
@@ -271,9 +271,9 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     return THREAD_EXIT;
 }
 
-void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer> kcpPeer, char *packet, int recvSize) {
+void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::KcpPeer>& kcpPeer, char *packet, int recvSize) {
     ijoon::Peer peer = kcpPeer->getPeer();
-    ijoon::MessageHeader messageHeader;
+    ijoon::MessageHeader messageHeader{};
     int cursor = 0;
     if(!ijoon::readHeader(packet, recvSize, messageHeader, cursor)) {
         return;
@@ -286,7 +286,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
     char *body = &packet[cursor];
     
     kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
-    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    auto registry = Registry<int, google::protobuf::Message *>::Get();
     switch(messageHeader.messageType) {
         case ijoon::PROTOBUF:
         {
@@ -351,7 +351,10 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
         }
         case ijoon::CONNECTION_TARGET_INVALID:
         {
-            ijn_print(DP_DEBUG, "received CONNECTION_TARGET_INVALID");
+            auto vec = ijoon::paramParser(body, 2);
+            if(vec == nullptr) break;
+            
+            ijn_print(DP_DEBUG, "received CONNECTION_TARGET_INVALID, TP=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
             if(client->onConnectionTargetInvalid != nullptr) {
                 auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
                 client->onConnectionTargetInvalid(rendezvousSession);
