@@ -24,7 +24,6 @@ namespace ijoon {
         RELAY_SERVER_INFORMATION, // RelS-ip, RelS-port, 1(SP) or 0(TP)
         REGISTRATION_RELAY_PEER_REQUEST, // 1(SP) or 0(TP) or nullptr for ping
         RELAY_SESSION_CREATED, // nullptr
-        RELAY_SESSION_CREATING_FAILED, // nullptr
         RELAY_SESSION_INVALID, // nullptr
         
         CONNECTION_RELAY_SERVICE_SUCCESS, // RelS-ip, RelS-port

@@ -283,27 +283,6 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             
             break;
         }
-        case ijoon::RELAY_SESSION_CREATING_FAILED: // from RelS
-        {
-            ijn_print(DP_DEBUG, "received RELAY_SESSION_CREATING_FAILED");
-            
-            server->mutexForConnectionInfoMap.lock();
-            if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
-                ijn_print(DP_ERROR, "[RELAY_SESSION_CREATING_FAILED] relay connection info not exist, %d", messageHeader.connectionID);
-                server->mutexForConnectionInfoMap.unlock();
-                break;
-            }
-            
-            auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
-            server->mutexForConnectionInfoMap.unlock();
-            
-            auto sourceKcpPeer = server->getKcpPeer(connectionInfo->publicSP);
-            
-            ijoon::send(sourceKcpPeer, messageHeader.connectionID, ijoon::CONNECTION_RELAY_SERVICE_FAILED, nullptr, 0);
-            
-            connection(server, messageHeader);
-            break;
-        }
         case ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST: // from SP, TP
         {
             ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_REQUEST");
