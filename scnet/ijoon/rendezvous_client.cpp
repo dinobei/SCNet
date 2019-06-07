@@ -367,7 +367,7 @@ void onCallback(ijoon::RendezvousClient *client, std::shared_ptr<ijoon::KcpPeer>
                 client->onConnectionIDCreated(messageHeader.connectionID, vec->at(0), vec->at(1));
             }
             
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::CONNECTION_ID_RECEIVED, (char *)vec->at(0).c_str(), vec->at(0).size());
+            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::CONNECTION_ID_RECEIVED, nullptr, 0);
         }
         case ijoon::DIRECT_CONNECTION_AVAILABLE: // SP only
         {

@@ -348,23 +348,29 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
         }
         case ijoon::CONNECTION_ID_RECEIVED:
         {
-            auto vec = ijoon::paramParser(body, 1);
-            if(vec == nullptr) break;
-            
             auto relayServerPeer = server->getRelayServerPeer();
             if(relayServerPeer == nullptr) {
-                ijn_print(DP_INFO, "[CONNECTION_REQUEST] no relay server");
+                ijn_print(DP_INFO, "[CONNECTION_ID_RECEIVED] no relay server");
                 ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::CONNECTION_RELAY_SERVICE_FAILED, nullptr, 0);
                 connection(server, messageHeader);
                 break;
             }
+            
+            server->mutexForConnectionInfoMap.lock();
+            if(server->connectionInfoMap.count(messageHeader.connectionID) == 0) {
+                ijn_print(DP_ERROR, "[CONNECTION_ID_RECEIVED] relay connection info not exist, %d", messageHeader.connectionID);
+                server->mutexForConnectionInfoMap.unlock();
+                break;
+            }
+            auto connectionInfo = server->connectionInfoMap[messageHeader.connectionID];
+            server->mutexForConnectionInfoMap.unlock();
             
             auto relayKcpPeer = server->getKcpPeer(relayServerPeer);
 
             std::string data;
             data += peer.getIP();
             data += seperator;
-            data += vec->at(0);
+            data += connectionInfo->publicTP->getIP().c_str();
             
             ijoon::send(relayKcpPeer, messageHeader.connectionID, ijoon::RELAY_SERVICE_REQUEST, (char *)data.c_str(), data.length());
             return;
