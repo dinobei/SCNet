@@ -12,6 +12,11 @@
 using namespace std;
 using namespace example;
 
+void onServerConnecting();
+void onServerConnectFailed();
+void onServerConnected(std::string extIP, std::string extPort);
+void onServerDisconnected();
+
 void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session);
 void onConnected(std::shared_ptr<ijoon::RendezvousSession> session);
 void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session);
@@ -37,6 +42,10 @@ int main(int argc, char** argv) {
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(cameraListResponse, CameraListResponse, onCameraListResponse);
     
     ijoon::RendezvousClient client(argv[1], argv[2], argv[3]);
+    client.onServerConnecting = onServerConnecting;
+    client.onServerConnectFailed = onServerConnectFailed;
+    client.onServerConnected = onServerConnected;
+    client.onServerDisconnected = onServerDisconnected;
     client.onConnecting = onConnecting;
     client.onConnected = onConnected;
     client.onConnectFailed = onConnectFailed;
@@ -53,8 +62,8 @@ int main(int argc, char** argv) {
         std::vector<std::string> vec;
         char *token = std::strtok((char *)&sendBuf, &seperator);
         while (token != NULL) {
-            vec.push_back(token);
-            token = std::strtok(NULL, &seperator);
+            vec.emplace_back(token);
+            token = std::strtok(nullptr, &seperator);
         }
         if(vec[0].compare("CONN") == 0) {
             if(vec.size() != 3) {
@@ -70,7 +79,7 @@ int main(int argc, char** argv) {
             auto serverPeer = client.getKcpPeer(ijoon::Peer(client.serverIP, client.serverPort));
             ijoon::send(serverPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
         }
-        else if(vec[0].compare("SEND") == 0) {
+        else if(vec[0] == "SEND") {
             ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);
             if(vec.size() != 4) {
                 ijn_print(DP_ERROR, "invalid parameter: CONNECTION_ID, PACKET_TYPE, YOUR_MESSAGE");
@@ -148,6 +157,9 @@ int main(int argc, char** argv) {
             printf("get_camera_list\n");
             printf("example) get_camera_list\n");
         }
+        else if(vec[0].compare("q") == 0 || vec[0].compare("Q") == 0) {
+            break;
+        }
         else {
             ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"SEND\" or \"SENDPB1\" or \"SENDPB2\" or \"get_camera_list\"");
         }
@@ -158,6 +170,22 @@ int main(int argc, char** argv) {
     
     getchar();
     return 0;
+}
+
+void onServerConnecting() {
+    ijn_print(DP_DEBUG, "onServerConnecting...");
+}
+
+void onServerConnectFailed() {
+    ijn_print(DP_DEBUG, "onServerConnectFailed...");
+}
+
+void onServerConnected(std::string extIP, std::string extPort) {
+    ijn_print(DP_DEBUG, "onServerConnected... %s:%s", extIP.c_str(), extPort.c_str());
+}
+
+void onServerDisconnected() {
+    ijn_print(DP_DEBUG, "onServerDisconnected...");
 }
 
 void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session) {
