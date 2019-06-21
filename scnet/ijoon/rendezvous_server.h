@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <map>
 #include <ijoon/coreutils.h>
 #include "session.h"
