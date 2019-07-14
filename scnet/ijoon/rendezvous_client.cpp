@@ -213,7 +213,6 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
                 if(relayKcpPeer->lastPing + timeoutSec < currentTime) {
                     ijn_print(DP_ERROR, "relay peer removed, %lu", relayKcpPeer->lastPing);
                     rendezvousSession->clearRelayKcpPeer();
-                    relayKcpPeer->getPeer().getKey();
                 }
             }
             
@@ -234,11 +233,13 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
             }
             
             if(!rendezvousSession->isConnected()) {
-                int connectionID = rendezvousSession->getConnectionID();
                 iterSessionMap = client->rendezvousSessionMap.erase(iterSessionMap);
                 
                 // callback to user (disconnected)
-                ijn_print(DP_INFO, "Disconnected, connectionID=%d", connectionID);
+                if(client->onDisconnected != nullptr) {
+                    client->onDisconnected(rendezvousSession);
+                }
+                ijn_print(DP_INFO, "Disconnected, connectionID=%d", rendezvousSession->getConnectionID());
             }
             else {
                 ++iterSessionMap;
@@ -277,6 +278,13 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
             client->isConected = false;
             client->socket = std::shared_ptr<ijoon::UDPSocket>(new ijoon::UDPSocket(0));
             client->onServerDisconnectedCallback();
+        }
+        else {
+            ijoon::send(client->getKcpPeer(serverPeer),
+                        0,
+                        ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
+                        (char *)data.c_str(),
+                        data.length());
         }
         
         thread->sleep(loopIntervalMs);
