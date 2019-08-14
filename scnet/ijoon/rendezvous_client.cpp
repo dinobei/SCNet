@@ -114,6 +114,10 @@ std::shared_ptr<ijoon::RendezvousSession> getRendezvousSessionSafety(ijoon::Rend
         if(messageHeader.connectionID != 0) {
             client->rendezvousSessionMap[messageHeader.connectionID] = rendezvousSession;
         }
+        else {
+            auto serverPeer = ijoon::Peer(client->serverIP, client->serverPort);
+            rendezvousSession->setPublicKcpPeer(client->getKcpPeer(serverPeer));
+        }
         return rendezvousSession;
     }
     
