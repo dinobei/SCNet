@@ -7,7 +7,29 @@
 
 using namespace example;
 
-void onCameraListRequest(std::shared_ptr<ijoon::RendezvousSession> rendezvousSession, CameraListRequest *cameraListRequest) {
+struct RendezvousClientInfo {
+    std::string serial;
+    std::string publicIP;
+    std::string publicPort;
+    std::string privateIP;
+    std::string privatePort;
+    std::string mac;
+    std::string version;
+    
+};
+
+struct RelayServerInfo {
+    std::string name;
+    std::string ip;
+    std::string port;
+    std::string version;
+    
+};
+
+std::map<std::string, RendezvousClientInfo> rendezvousClientMap;
+std::map<std::string, RelayServerInfo> relayServerMap;
+
+void onCameraListRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, CameraListRequest *cameraListRequest) {
     ijn_print(DP_INFO, "called onCameraListRequest()");
 }
 
@@ -22,34 +44,85 @@ int main(int argc, char** argv) {
     
     ijoon::RendezvousServer server(atoi(argv[1]));
     server.start();
-    server.registerRendezvousClient = [](std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort) {
+    server.registerRendezvousClient = [](std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort, std::string mac, std::string version) {
         ijn_print(DP_INFO, "called registerRendezvousClient()");
+        RendezvousClientInfo info;
+        info.serial = serial;
+        info.publicIP = publicIP;
+        info.publicPort = publicPort;
+        info.privateIP = privateIP;
+        info.privatePort = privatePort;
+        info.mac = mac;
+        info.version = version;
+        rendezvousClientMap[publicIP + ":" + publicPort] = info;
     };
     
     server.removeRendezvousClient = [](std::string ip, std::string port) {
-        ijn_print(DP_INFO, "called removeRendezvousClient()");
+        try {
+            rendezvousClientMap.erase(ip+":"+port);
+            ijn_print(DP_INFO, "renCMap.size() : %d", rendezvousClientMap.size());
+        }
+        catch(std::exception e) {
+            
+        }
     };
     
     server.getRendezvousClient = [](std::string ip, std::string port)->std::shared_ptr<ijoon::Peer> {
-        ijn_print(DP_INFO, "called getRendezvousClient()");
+        try {
+            auto renC = rendezvousClientMap.at(ip+":"+port);
+            return std::shared_ptr<ijoon::Peer>(new ijoon::Peer(renC.privateIP, renC.privatePort));
+        }
+        catch(std::exception e) {
+            
+        }
+        
 		return nullptr;
     };
     
     server.registerRelayServer = [](std::string name, std::string ip, std::string port, std::string version) {
-        ijn_print(DP_INFO, "called registerRelayServer()");
+        RelayServerInfo info;
+        info.name = name;
+        info.ip = ip;
+        info.port = port;
+        info.version = version;
+        relayServerMap[ip+":"+port] = info;
     };
     
     server.removeRelayServer = [](std::string ip, std::string port) {
-        ijn_print(DP_INFO, "called removeRelayServer()");
+        try {
+            relayServerMap.erase(ip+":"+port);
+            ijn_print(DP_INFO, "relayServerMap.size() : %d", relayServerMap.size());
+        }
+        catch(std::exception e) {
+            
+        }
     };
     
     server.isExistRelayServer = [](std::string ip, std::string port)->bool {
-        ijn_print(DP_INFO, "called isExistRelayServer()");
+        try {
+            auto relS = relayServerMap.at(ip+":"+port);
+            int cnt = relayServerMap.count(ip+":"+port);
+            if(cnt > 0) {
+                return true;
+            }
+        }
+        catch(std::exception e) {
+            
+        }
+        
         return false;
     };
     
     server.getRelayServerPeer = []()->std::shared_ptr<ijoon::Peer> {
-        ijn_print(DP_INFO, "called getRelayServerPeer()");
+        try {
+            auto begin = relayServerMap.begin();
+            if(begin != relayServerMap.end()) {
+                return std::shared_ptr<ijoon::Peer>(new ijoon::Peer(begin->second.ip, begin->second.port));
+            }
+        }
+        catch(std::exception e) {
+            
+        }
         return nullptr;
     };
     

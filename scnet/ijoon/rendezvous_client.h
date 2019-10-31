@@ -2,18 +2,101 @@
 #include <ijoon/coreutils.h>
 #include <functional>
 #include "session.h"
+#include "registry.h"
+#include "rendezvous_message.h"
+#include "rendezvous_client_callback.h"
 
 namespace ijoon {
+    class RendezvousClientLifeCycleCallback {
+    public:
+        void onServerConnectingCallback();
+        void onServerConnectFailedCallback();
+        void onServerConnectedCallback(std::string extIP, std::string extPort);
+        void onServerDisconnectedCallback();
+        
+        void onConnectingCallback(int connectionID);
+        void onConnectedCallback(std::shared_ptr<ijoon::KcpPeer> rendezvousClient);
+        void onConnectFailedCallback(std::string ip, std::string port);
+        void onDisconnectedCallback(std::shared_ptr<ijoon::KcpPeer> rendezvousClient);
+        
+    public:
+        std::function<void()> onServerConnecting;
+        std::function<void()> onServerConnectFailed;
+        std::function<void(std::string extIP, std::string extPort)> onServerConnected;
+        std::function<void()> onServerDisconnected;
+        
+        std::function<void(int connectionID)> onConnecting;
+        std::function<void(std::shared_ptr<ijoon::KcpPeer> rendezvousClient)> onConnected;
+        std::function<void(std::string ip, std::string port)> onConnectFailed;
+        std::function<void(std::shared_ptr<ijoon::KcpPeer> rendezvousClient)> onDisconnected;
+    };
+
+    // reference for singleton: https://stackoverflow.com/a/52308483
     class RendezvousClient {
     public:
-        RendezvousClient(std::string ip, std::string port, std::string ifname, std::string serial = "unknown"): socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))), serverIP(ip), serverPort(port), ifname(ifname), serial(serial), isConected(false) {
-            assert(!serial.empty());
+        static void init(std::string ip, std::string port, std::string serial, std::string mac, std::string version) // enable moving in
+        {
+            getInstanceImpl(&ip, &port, &serial, &mac, &version);
         }
-        ~RendezvousClient() {}
+        
+        static RendezvousClient& getInstance() {
+            return getInstanceImpl();
+        }
         
         void start();
         void stop();
-
+        void connect(std::string ip, std::string port);
+        
+        RendezvousClient(RendezvousClient const&) = delete;
+        void operator=(RendezvousClient const&) = delete;
+    private:
+        static RendezvousClient& getInstanceImpl(std::string* const ip = nullptr,
+                                                 std::string* const port = nullptr,
+                                                 std::string* const serial = nullptr,
+                                                 std::string* const mac = nullptr,
+                                                 std::string* const version = nullptr) {
+            static RendezvousClient instance{ ip, port, serial, mac, version };
+            return instance;
+        }
+        
+        RendezvousClient(std::string* const ip, std::string* const port, std::string* const serial, std::string* const mac, std::string* const version):
+            socket(std::shared_ptr<UDPSocket>(new UDPSocket(0))),
+            serverIP{ ip ? move(*ip) : std::string{} },
+            serverPort{ port ? move(*port) : std::string{} },
+            serial{ serial ? move(*serial) : std::string{} },
+            mac{ mac ? move(*mac) : std::string{} },
+            version{ version ? move(*version) : std::string{} }
+        {
+            if(nullptr == ip || nullptr == port ||
+               nullptr == serial || nullptr == mac || nullptr == version) {
+                throw std::runtime_error{"RendezvousClient did not initialized properly"};
+            }
+            
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_RESPONSE, onRegistrationRendezvousClientResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_RELAY_SERVICE_RESULT, onConnectionRelayServiceResult);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_REQUEST, onDirectConnectionRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_RESPONSE, onDirectConnectionResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_REQUEST, onReverseConnectionRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_RESPONSE, onReverseConnectionResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_REQUEST, onUdpHolePunchingRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_RESPONSE, onUdpHolePunchingResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_TARGET_INVALID, onConnectionTargetInvalid);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_ID_CREATED, onConnectionIdCreated);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_AVAILABLE, onDirectConnectionAvailable);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_READY, onReverseConnectionReady);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION, onReverseConnection);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_AVAILABLE, onUdpHolePunchingAvailable);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVER_INFORMATION, onRelayServerInformation);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SESSION_INVALID, onRelaySessionInvalid);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVER_DISCONNECTED, onRelayServerDisconnected);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_REQUEST, onPingRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_RESPONSE, onPingResponse);
+            
+            auto serverKcpPeer = getKcpPeer(ijoon::Peer(serverIP, serverPort));
+            serverKcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
+        }
+        ~RendezvousClient() {}
+        
     public:
         std::shared_ptr<UDPSocket> socket;
         ijoon::Thread *registerThread;
@@ -21,33 +104,20 @@ namespace ijoon {
         ijoon::Thread *rawRecvThread;
         
         std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
-        std::map<int, std::shared_ptr<ijoon::RendezvousSession>> rendezvousSessionMap;
+        std::multimap<int, ijoon::Peer> connFilterMap;
         ijoon::Mutex mutexForKcpPeerMap;
-        ijoon::Mutex mutexForRendezvousSessionMap;
+        ijoon::Mutex mutexForConnFilterMap;
         
         std::string serverIP;
         std::string serverPort;
-        std::string ifname;
         std::string serial;
-        bool isConected;
+        std::string mac;
+        std::string version;
+        uint connectionID;
         
-        void onServerConnectingCallback();
-        void onServerConnectFailedCallback();
-        void onServerConnectedCallback(std::string extIP, std::string extPort);
-        void onServerDisconnectedCallback();
-        
-        std::function<void()> onServerConnecting;
-        std::function<void()> onServerConnectFailed;
-        std::function<void(std::string extIP, std::string extPort)> onServerConnected;
-        std::function<void()> onServerDisconnected;
-        
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnecting;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnected;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectionTargetInvalid;
-        std::function<void(int connectionID, std::string targetIP, std::string targetPort)> onConnectionIDCreated;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onConnectFailed;
-        std::function<void(std::shared_ptr<RendezvousSession> rendezvousClient)> onDisconnected;
-        
+        ijoon::RendezvousClientLifeCycleCallback callback;
+
         std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer peer);
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(int connectionID);
     };
 }

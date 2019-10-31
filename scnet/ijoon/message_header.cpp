@@ -12,7 +12,10 @@ std::shared_ptr<std::vector<std::string>> ijoon::paramParser(char *param, int pa
         token = std::strtok(NULL, &seperator);
     }
     if(vec->size() != paramSize) {
-        ijn_print(DP_ERROR, "invalid parameters");
+        ijn_print(DP_ERROR, "invalid parameters, %d != %d", vec->size(), paramSize);
+        for(int i = 0 ; i < vec->size() ; i++) {
+            ijn_print(DP_INFO, "%d) %s", i+1, vec->at(i).c_str());
+        }
         return nullptr;
     }
     return vec;
@@ -61,139 +64,5 @@ bool ijoon::readHeader(char *packet, int length, ijoon::MessageHeader &messageHe
     }
     
     makeHeader(&packet[MAGIC_PACKET_LENGTH], messageHeader);
-    return true;
-}
-
-bool ijoon::send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int packetType, char *message, unsigned int length) {
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(length); // data size
-    coded_output.WriteVarint32(packetType); // packet type
-    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::RAWBYTE); // message type
-    coded_output.WriteVarint32(0); // crypt type
-    coded_output.WriteVarint32(connectionID); // connection id
-    
-    if(length != 0)
-        coded_output.WriteRaw(message, length);
-    
-    kcpPeer->mutex.lock();
-    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
-    kcpPeer->mutex.unlock();
-    
-    delete []buf;
-    return true;
-}
-
-bool ijoon::send(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
-    auto registry = Registry<int, google::protobuf::Message *>().Get();
-    int typeInt = registry->GetType(message->GetTypeName());
-    if(typeInt < 0) {
-        ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
-        exit(-1);
-    }
-    
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSize();
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(ijoon::MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(message->ByteSize()); // data size
-    coded_output.WriteVarint32(typeInt); // packet type
-    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::PROTOBUF); // message type
-    coded_output.WriteVarint32(0); // crypt type
-    coded_output.WriteVarint32(connectionID); // connection id
-    
-    message->SerializeToCodedStream(&coded_output);
-    
-    kcpPeer->mutex.lock();
-    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
-    kcpPeer->mutex.unlock();
-    
-    delete []buf;
-    return true;
-}
-
-bool ijoon::sendRelayPacket(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int messageType, int packetType, char *message, unsigned int length) {
-    kcpPeer->mutex.lock();
-    int waitsnd = ikcp_waitsnd(kcpPeer->getKcp());
-    kcpPeer->mutex.unlock();
-    if(waitsnd > MAX_WAIT_SEND) {
-        return false;
-    }
-    
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(length); // data size
-    coded_output.WriteVarint32(packetType); // packet type
-    coded_output.WriteVarint32(messageType); // message type
-    coded_output.WriteVarint32(0); // crypt type
-    coded_output.WriteVarint32(connectionID); // connection id
-    
-    if(length != 0)
-        coded_output.WriteRaw(message, length);
-    
-    kcpPeer->mutex.lock();
-    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
-    kcpPeer->mutex.unlock();
-    
-    delete []buf;
-    return true;
-}
-
-bool ijoon::sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, int packetType, char *message, unsigned int length) {
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(length); // data size
-    coded_output.WriteVarint32(packetType); // packet type
-    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::RAWBYTE_RELAY); // message type
-    coded_output.WriteVarint32(0); // crypt type
-    coded_output.WriteVarint32(connectionID); // connection id
-    
-    if(length != 0)
-        coded_output.WriteRaw(message, length);
-    
-    kcpPeer->mutex.lock();
-    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
-    kcpPeer->mutex.unlock();
-    
-    delete []buf;
-    return true;
-}
-
-bool ijoon::sendRelay(std::shared_ptr<ijoon::KcpPeer> kcpPeer, uint connectionID, std::shared_ptr<google::protobuf::Message> message) {
-    auto registry = Registry<int, google::protobuf::Message *>().Get();
-    int typeInt = registry->GetType(message->GetTypeName());
-    if(typeInt < 0) {
-        ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
-        exit(-1);
-    }
-    
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSize();
-    char *buf = new char[size];
-    google::protobuf::io::ArrayOutputStream aos(buf,size);
-    google::protobuf::io::CodedOutputStream coded_output(&aos);
-    coded_output.WriteRaw(ijoon::MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(message->ByteSize()); // data size
-    coded_output.WriteVarint32(typeInt); // packet type
-    coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::PROTOBUF_RELAY); // message type
-    coded_output.WriteVarint32(0); // crypt type
-    coded_output.WriteVarint32(connectionID); // connection id
-    
-    message->SerializeToCodedStream(&coded_output);
-    
-    kcpPeer->mutex.lock();
-    ikcp_send(kcpPeer->getKcp(), buf, coded_output.ByteCount());
-    kcpPeer->mutex.unlock();
-    
-    delete []buf;
     return true;
 }

@@ -17,20 +17,21 @@ void onServerConnectFailed();
 void onServerConnected(std::string extIP, std::string extPort);
 void onServerDisconnected();
 
-void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session);
-void onConnected(std::shared_ptr<ijoon::RendezvousSession> session);
-void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session);
+void onConnecting(int connectionID);
+void onConnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer);
+void onConnectFailed(std::string ip, std::string port);
+void onDisconnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer);
 
-void onReceivedPacket0(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length);
-void onReceivedPacket1(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length);
-void onPacket1(std::shared_ptr<ijoon::RendezvousSession> session, Packet1 *pkt1);
-void onPacket2(std::shared_ptr<ijoon::RendezvousSession> session, Packet2 *pkt2);
+void onReceivedPacket0(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length);
+void onReceivedPacket1(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length);
+void onPacket1(std::shared_ptr<ijoon::KcpPeer> kcpPeer, Packet1 *pkt1);
+void onPacket2(std::shared_ptr<ijoon::KcpPeer> kcpPeer, Packet2 *pkt2);
 
-void onCameraListResponse(std::shared_ptr<ijoon::RendezvousSession> session, CameraListResponse *response);
+void onCameraListResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, CameraListResponse *response);
 
 int main(int argc, char** argv) {
-    if(argc != 4) {
-        printf("Usage : %s <rendezvous_server_ip> <rendezvous_server_port> <interface_name>\n", argv[0]);
+    if(argc != 3) {
+        printf("Usage : %s <rendezvous_server_ip> <rendezvous_server_port>\n", argv[0]);
         exit(-1);
     }
     
@@ -41,14 +42,16 @@ int main(int argc, char** argv) {
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(cameraListRequest, CameraListRequest, nullptr);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(cameraListResponse, CameraListResponse, onCameraListResponse);
     
-    ijoon::RendezvousClient client(argv[1], argv[2], argv[3]);
-    client.onServerConnecting = onServerConnecting;
-    client.onServerConnectFailed = onServerConnectFailed;
-    client.onServerConnected = onServerConnected;
-    client.onServerDisconnected = onServerDisconnected;
-    client.onConnecting = onConnecting;
-    client.onConnected = onConnected;
-    client.onConnectFailed = onConnectFailed;
+    ijoon::RendezvousClient::init(argv[1], argv[2], "SeRiAl", "12:34:56:78:9a:bc", "1.0.0");
+    ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
+    client.callback.onServerConnecting = onServerConnecting;
+    client.callback.onServerConnected = onServerConnected;
+    client.callback.onServerDisconnected = onServerDisconnected;
+    
+    client.callback.onConnecting = onConnecting;
+    client.callback.onConnected = onConnected;
+    client.callback.onConnectFailed = onConnectFailed;
+    client.callback.onDisconnected = onDisconnected;
     client.start();
     
     while(true) {
@@ -65,19 +68,22 @@ int main(int argc, char** argv) {
             vec.emplace_back(token);
             token = std::strtok(nullptr, &seperator);
         }
+        
+        std::transform(vec[0].begin(), vec[0].end(), vec[0].begin(),
+                       [](unsigned char c){ return std::toupper(c); });
+        
         if(vec[0].compare("CONN") == 0) {
             if(vec.size() != 3) {
-                ijn_print(DP_ERROR, "invalid parameter: MESSAGE");
+                ijn_print(DP_ERROR, "invalid parameter: CONN [TARGET_IP] [TARGET_PORT]");
                 continue;
             }
-            
-            std::string targetAddress;
-            targetAddress = vec[1];
-            targetAddress += seperator;
-            targetAddress += vec[2];
-            ijn_print(DP_INFO, "CONNECTION_REQUEST: %s", sendBuf);
-            auto serverPeer = client.getKcpPeer(ijoon::Peer(client.serverIP, client.serverPort));
-            ijoon::send(serverPeer, 0, ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
+
+            try {
+                client.connect(vec[1], vec[2]);
+            }
+            catch(std::string msg) {
+                ijn_print(DP_INFO, "%s", msg.c_str());
+            }
         }
         else if(vec[0] == "SEND") {
             ijn_print(DP_INFO, "SEND PACKET: %s", sendBuf);
@@ -89,12 +95,13 @@ int main(int argc, char** argv) {
             int packetType = atoi(vec[2].c_str());
             std::string message = vec[3];
             
-            auto rendezvousSession = client.rendezvousSessionMap[connectionID];
-            if(rendezvousSession == nullptr) {
+            auto kcpPeer = client.getKcpPeer(connectionID);
+            if(kcpPeer == nullptr) {
                 ijn_print(DP_ERROR, "invalid connectionID");
                 continue;
             }
-            rendezvousSession->send(packetType, (char *)message.c_str(), message.length());
+            
+            kcpPeer->send(packetType, (char *)message.c_str(), message.length());
         }
         else if(vec[0].compare("SENDPB1") == 0) {
             ijn_print(DP_INFO, "SEND PROTOBUF PACKET: %s", sendBuf);
@@ -105,14 +112,15 @@ int main(int argc, char** argv) {
             uint connectionID = atoi(vec[1].c_str());
             int value = atoi(vec[2].c_str());
             
-            auto rendezvousSession = client.rendezvousSessionMap[connectionID];
-            if(rendezvousSession == nullptr) {
+            auto kcpPeer = client.getKcpPeer(connectionID);
+            if(kcpPeer == nullptr) {
                 ijn_print(DP_ERROR, "invalid connectionID");
                 continue;
             }
+            
             auto pkt1 = std::shared_ptr<Packet1>(new Packet1());
             pkt1->set_number(value);
-            rendezvousSession->send(pkt1);
+            kcpPeer->send(pkt1);
         }
         else if(vec[0].compare("SENDPB2") == 0) {
             ijn_print(DP_INFO, "SEND PROTOBUF PACKET: %s", sendBuf);
@@ -123,18 +131,19 @@ int main(int argc, char** argv) {
             uint connectionID = atoi(vec[1].c_str());
             std::string value = vec[2];
             
-            auto rendezvousSession = client.rendezvousSessionMap[connectionID];
-            if(rendezvousSession == nullptr) {
+            auto kcpPeer = client.getKcpPeer(connectionID);
+            if(kcpPeer == nullptr) {
                 ijn_print(DP_ERROR, "invalid connectionID");
                 continue;
             }
+
             auto pkt2 = std::shared_ptr<Packet2>(new Packet2());
             pkt2->set_str(value);
-            rendezvousSession->send(pkt2);
+            kcpPeer->send(pkt2);
         }
-        else if(vec[0].compare("get_camera_list") == 0) {
-            auto serverPeer = client.getKcpPeer(ijoon::Peer(client.serverIP, client.serverPort));
-            ijoon::send(serverPeer, 0, std::shared_ptr<CameraListRequest>(new CameraListRequest()));
+        else if(vec[0].compare("LIST") == 0) {
+            auto serverKcpPeer = client.getKcpPeer(ijoon::Peer(client.serverIP, client.serverPort));
+            serverKcpPeer->send(std::shared_ptr<CameraListRequest>(new CameraListRequest()));
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
@@ -157,11 +166,22 @@ int main(int argc, char** argv) {
             printf("get_camera_list\n");
             printf("example) get_camera_list\n");
         }
+        else if(vec[0].compare("STATUS") == 0) {
+            printf("\n");
+            for(auto iter = client.kcpPeerMap.begin() ; iter != client.kcpPeerMap.end() ; ++iter) {
+                ijn_print(DP_ERROR, "%s", iter->first.c_str());
+            }
+            ijn_print(DP_ERROR, "------------");
+            for(auto iter = client.connFilterMap.begin() ; iter != client.connFilterMap.end() ; ++iter) {
+                ijn_print(DP_ERROR, "%d, %s", iter->first, iter->second.getKey().c_str());
+            }
+            printf("\n");
+        }
         else if(vec[0].compare("q") == 0 || vec[0].compare("Q") == 0) {
             break;
         }
         else {
-            ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"SEND\" or \"SENDPB1\" or \"SENDPB2\" or \"get_camera_list\"");
+            ijn_print(DP_ERROR, "invalid command: \"CONN\" or \"SEND\" or \"SENDPB1\" or \"SENDPB2\" or \"LIST\"");
         }
 
         
@@ -188,40 +208,43 @@ void onServerDisconnected() {
     ijn_print(DP_DEBUG, "onServerDisconnected...");
 }
 
-void onConnecting(std::shared_ptr<ijoon::RendezvousSession> session) {
-    printf("onConnecting called, connectionID=%u\n", session->getConnectionID());
+void onConnecting(int connectionID) {
+    printf("onConnecting called, connectionID=%u\n", connectionID);
 }
-void onConnected(std::shared_ptr<ijoon::RendezvousSession> session) {
-    printf("onConnected called, connectionID=%u\n", session->getConnectionID());
+void onConnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer) {
+    printf("onConnected called, connectionID=%u\n", kcpPeer->connectionID);
 }
-void onConnectFailed(std::shared_ptr<ijoon::RendezvousSession> session) {
-    printf("onConnectFailed called, connectionID=%u\n", session->getConnectionID());
+void onConnectFailed(std::string ip, std::string port) {
+    printf("onConnectFailed called, %s:%s\n", ip.c_str(), port.c_str());
 }
-
-void onReceivedPacket0(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length) {
-    if(length > 100) {
-        printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", session->getConnectionID(), length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
-    }
-    else {
-        printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%s\n", session->getConnectionID(), length, buffer);
-    }
-}
-void onReceivedPacket1(std::shared_ptr<ijoon::RendezvousSession> session, void *buffer, unsigned int length) {
-    if(length > 100) {
-        printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", session->getConnectionID(), length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
-    }
-    else {
-        printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%s\n", session->getConnectionID(), length, buffer);
-    }
-}
-void onPacket1(std::shared_ptr<ijoon::RendezvousSession> session, Packet1 *pkt1) {
-    printf("onPacket1 called, connectionID=%u, number=%d\n", session->getConnectionID(), pkt1->number());
-}
-void onPacket2(std::shared_ptr<ijoon::RendezvousSession> session, Packet2 *pkt2) {
-    printf("onPacket2 called, connectionID=%u, str=%s\n", session->getConnectionID(), pkt2->str().c_str());
+void onDisconnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer) {
+    printf("onDisconnected called, connectionID=%u, address=%s\n", kcpPeer->connectionID, kcpPeer->getPeer().getKey().c_str());
 }
 
-void onCameraListResponse(std::shared_ptr<ijoon::RendezvousSession> session, CameraListResponse *response) {
+void onReceivedPacket0(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+    if(length > 100) {
+        printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", kcpPeer->connectionID, length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
+    }
+    else {
+        printf("onReceivedPacket0 called, connectionID=%u, length=%d, buffer=%s\n", kcpPeer->connectionID, length, buffer);
+    }
+}
+void onReceivedPacket1(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+    if(length > 100) {
+        printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%c%c%c...\n", kcpPeer->connectionID, length, ((char *)buffer)[0], ((char *)buffer)[1], ((char *)buffer)[2]);
+    }
+    else {
+        printf("onReceivedPacket1 called, connectionID=%u, length=%d, buffer=%s\n", kcpPeer->connectionID, length, buffer);
+    }
+}
+void onPacket1(std::shared_ptr<ijoon::KcpPeer> kcpPeer, Packet1 *pkt1) {
+    printf("onPacket1 called, connectionID=%u, number=%d\n", kcpPeer->connectionID, pkt1->number());
+}
+void onPacket2(std::shared_ptr<ijoon::KcpPeer> kcpPeer, Packet2 *pkt2) {
+    printf("onPacket2 called, connectionID=%u, str=%s\n", kcpPeer->connectionID, pkt2->str().c_str());
+}
+
+void onCameraListResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, CameraListResponse *response) {
     for(int i = 0 ; i < response->cameralist_size() ; i++) {
         ijn_print(DP_INFO, "%d) [name=%s, serial=%s] %s:%s %s:%s %u",
                   i+1,

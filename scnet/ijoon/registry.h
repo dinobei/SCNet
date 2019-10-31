@@ -212,7 +212,7 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
                     Registry<int, google::protobuf::Message *>().Get(), \
                     ijoon::MESSAGE_TYPE::RAWBYTE, \
                     packetTypeInt, \
-                    new RawCallbackWrapper<ijoon::RendezvousSession>(callbackFunc))
+                    new RawCallbackWrapper<ijoon::KcpPeer>(callbackFunc))
 
 #define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
@@ -227,6 +227,6 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     Registry<int, google::protobuf::Message *>().Get(), \
                     ijoon::MESSAGE_TYPE::PROTOBUF, \
                     packetTypeInt, \
-                    new CallbackWrapper<ijoon::RendezvousSession, messageClassName>(callbackFunc))
+                    new CallbackWrapper<ijoon::KcpPeer, messageClassName>(callbackFunc))
 
 #endif

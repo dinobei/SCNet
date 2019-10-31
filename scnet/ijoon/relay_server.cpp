@@ -13,9 +13,6 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
 ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
 
 int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
-//    ijn_print(DP_DEBUG, "udp_output len : %d.", len);
-//    ijn_print(DP_DEBUG, "udp_output buf : %s.", buf);
-    
     ijoon::KcpPeer *kcpPeer = (ijoon::KcpPeer *)user;
     ijoon::Peer peer = kcpPeer->getPeer();
     kcpPeer->getClientSocket()->sendTo(&peer, const_cast<char *>(buf), len);
@@ -35,12 +32,12 @@ void ijoon::RelayServer::start() {
 
 std::shared_ptr<ijoon::KcpPeer> ijoon::RelayServer::getKcpPeer(std::shared_ptr<ijoon::Peer> peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
-    if(this->kcpPeerMap.count(peer->getKey()) == 0) {
+    
+    try {
+        kcpPeer = this->kcpPeerMap.at(peer->getKey());
+    } catch (std::exception e) {
         kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer->getIP(), std::to_string(peer->getPort()), udp_output));
         this->kcpPeerMap[peer->getKey()] = kcpPeer;
-    }
-    else {
-        kcpPeer = this->kcpPeerMap.at(peer->getKey());
     }
     
     return kcpPeer;
@@ -50,59 +47,130 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
-    auto serverKcpPeer = relayServer->getKcpPeer(relayServer->serverPeer);
-    ijoon::send(serverKcpPeer, 0, ijoon::REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
-    
-    const int timeout = 60;
-    const int pingIntervalSec = 30;
+    const int timeoutSec = 15;
+    const int pingIntervalSec = 5;
     const int loopIntervalMs = 5 * 1000;
+    bool connFlag = false;
     while(!thread->isInterrupted()) {
-        thread->sleep(loopIntervalMs);
-        
-        time_t current = ijoon::ComputableTime::getCurrentTimeSec();
-        
-        // periodically send registration packet
-        if(relayServer->lastRegistrationTime + pingIntervalSec < current) {
-            ijoon::send(serverKcpPeer, 0, ijoon::REGISTRATION_RELAY_SERVER_REQUEST, nullptr, 0);
-        }
+        time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
         
         // periodically check & erase peer
-        {
-            relayServer->mutexForKcpPeerMap.lock();
-            auto iter = relayServer->kcpPeerMap.begin();
-            auto end = relayServer->kcpPeerMap.end();
-            while(iter != end) {
-                auto kcpPeer = iter->second;
-                if(kcpPeer->lastPing + timeout < current) {
-                    ijn_print(DP_INFO, "removed kcpPeer: %s", iter->second->getPeer().getKey().c_str());
-                    iter = relayServer->kcpPeerMap.erase(iter);
-                    continue;
+        relayServer->mutexForKcpPeerMap.lock();
+        auto iter = relayServer->kcpPeerMap.begin();
+        auto end = relayServer->kcpPeerMap.end();
+        while(iter != end) {
+            auto kcpPeer = iter->second;
+            switch(kcpPeer->type) {
+                case ijoon::PeerType::RENDEZVOUS_SERVER:
+                {
+                    if(kcpPeer->status != ijoon::PeerStatus::REGISTERED) {
+                        // send registration packet
+                        if(connFlag) {
+                            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(relayServer->socket, relayServer->serverPeer->getIP(), std::to_string(relayServer->serverPeer->getPort()), udp_output));
+                            kcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
+                            relayServer->kcpPeerMap[kcpPeer->getPeer().getKey()] = kcpPeer;
+                        }
+                        else {
+                            connFlag = true;
+                        }
+                        
+                        ijn_print(DP_INFO, "Connecting to rendezvous server");
+                        kcpPeer->send(ijoon::REGISTRATION_RELAY_SERVER_REQUEST);
+                    }
+                    else if(kcpPeer->lastPing + timeoutSec < currentTime) {
+                        // disconnected
+                        kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                        ijn_print(DP_INFO, "Disconnected from rendezvous server");
+                    }
+                    else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                        kcpPeer->send(ijoon::PING_REQUEST);
+                    }
                 }
-                else if(kcpPeer->lastPing + pingIntervalSec < current) {
-                    ijoon::send(iter->second, 0, ijoon::PING_REQUEST, nullptr, 0);
+                    break;
+                default:
+                {
+                    if(kcpPeer->lastPing + timeoutSec < currentTime) {
+                        ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
+                        kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                        iter = relayServer->kcpPeerMap.erase(iter);
+                        continue;
+                    }
+                    else if(kcpPeer->status == ijoon::PeerStatus::UNREGISTERED) {
+                        iter = relayServer->kcpPeerMap.erase(iter);
+                        continue;
+                    }
+                    else if(kcpPeer->type != ijoon::PeerType::NONE &&
+                            kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                        kcpPeer->send(ijoon::PING_REQUEST);
+                    }
                 }
-                
-                ++iter;
+                    break;
             }
-            relayServer->mutexForKcpPeerMap.unlock();
+            
+            ++iter;
         }
+        relayServer->mutexForKcpPeerMap.unlock();
+         
+        // remove connectionInfo containing unregistered peer in connectionInfoMap
+        relayServer->mutexForMap.lock();
+        for(auto iter = relayServer->map.begin() ; iter != relayServer->map.end() ; ) {
+            auto spUnregistered = iter->second->sourceKcpPeer->status == ijoon::PeerStatus::UNREGISTERED;
+            auto tpUnregistered = iter->second->targetKcpPeer->status == ijoon::PeerStatus::UNREGISTERED;
+            if(spUnregistered || tpUnregistered) {
+                ijn_print(DP_INFO, "removed connectionInfo, connectionID=%d", iter->first);
+                if(!spUnregistered) {
+                    ijn_print(DP_INFO, "invalid packet sent to sp");
+                    auto sp = iter->second->sourceKcpPeer;
+                    sp->connectionID = iter->first;
+                    sp->send(ijoon::RENDEZVOUS_MSG::RELAY_SESSION_INVALID);
+                }
+                if(!tpUnregistered) {
+                    ijn_print(DP_INFO, "invalid packet sent to tp");
+                    auto tp = iter->second->targetKcpPeer;
+                    tp->connectionID = iter->first;
+                    tp->send(ijoon::RENDEZVOUS_MSG::RELAY_SESSION_INVALID);
+                }
+                iter = relayServer->map.erase(iter);
+            }
+            else {
+                iter++;
+            }
+        }
+        relayServer->mutexForMap.unlock();
         
-        {
-            auto iter = relayServer->map.begin();
-            auto end = relayServer->map.end();
-            while(iter != end) {
-                if( (iter->second->sourceKcpPeer != nullptr && iter->second->sourceKcpPeer->lastPing + timeout < current) ||
-                   (iter->second->targetKcpPeer != nullptr && iter->second->targetKcpPeer->lastPing + timeout < current) ||
-                   (iter->second->sourceKcpPeer == nullptr && iter->second->targetKcpPeer == nullptr) ) {
-                    int connectionID = iter->first;
-                    iter = relayServer->map.erase(iter);
-                    ijn_print(DP_INFO, "removed connectionInfo, connectionID=%d", connectionID);
-                }
-                else {
-                    ++iter;
+        // remove connectionless kcpPeer in kcpPeerMap
+        relayServer->mutexForKcpPeerMap.lock();
+        for(auto iter = relayServer->kcpPeerMap.begin() ; iter != relayServer->kcpPeerMap.end() ; ) {
+
+            if(iter->second->type == ijoon::PeerType::RENDEZVOUS_SERVER) {
+                iter++;
+                continue;
+            }
+
+            bool isConnectionInfoExist = false;
+            relayServer->mutexForMap.lock();
+            for(auto iterMap = relayServer->map.begin() ; iterMap != relayServer->map.end() ; ++iterMap) {
+                auto key = iter->first;
+                auto spKey = iterMap->second->sourceKcpPeer->getPeer().getKey();
+                auto tpKey = iterMap->second->targetKcpPeer->getPeer().getKey();
+                if(key == spKey || key == tpKey) {
+                    isConnectionInfoExist = true;
+                    break;
                 }
             }
+            relayServer->mutexForMap.unlock();
+
+            if(!isConnectionInfoExist) {
+                iter->second->status = ijoon::PeerStatus::UNREGISTERED;
+                // relayConnectionDisconnected() callback
+                iter->second->send(ijoon::RENDEZVOUS_MSG::RELAY_SERVER_DISCONNECTED);
+            }
+            
+            iter++;
         }
+        relayServer->mutexForKcpPeerMap.unlock();
+        
+        thread->sleep(loopIntervalMs);
     }
     
     return THREAD_EXIT;
@@ -152,77 +220,24 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
     char *body = &packet[cursor];
     
     kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
-    if(messageHeader.messageType == ijoon::RAWBYTE_RELAY || messageHeader.messageType == ijoon::PROTOBUF_RELAY) {
+    if(messageHeader.packetType < ijoon::RENDEZVOUS_MSG::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST) {
         bool isSP = false;
         if(!validationPeer(relayServer->map, relayServer->sessionCheckMap, messageHeader.connectionID, peer, isSP)) {
             ijn_print(DP_ERROR, "Invalid peer's relay packet");
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::RELAY_SESSION_INVALID, nullptr, 0);
+            kcpPeer->send(ijoon::RELAY_SESSION_INVALID);
             return;
         }
         
         auto relayPeerInfo = relayServer->map[messageHeader.connectionID];
-        messageHeader.messageType = messageHeader.messageType == ijoon::RAWBYTE_RELAY ? ijoon::RAWBYTE : ijoon::PROTOBUF;
-        if(!ijoon::sendRelayPacket(isSP ? relayPeerInfo->targetKcpPeer : relayPeerInfo->sourceKcpPeer,
-                    messageHeader.connectionID,
-                    messageHeader.messageType,
-                    messageHeader.packetType,
-                                   body, messageHeader.dataSize)) {
+        auto targetkcpPeer = isSP ? relayPeerInfo->targetKcpPeer : relayPeerInfo->sourceKcpPeer;
+        if(!targetkcpPeer->send(messageHeader, body, messageHeader.dataSize)) {
             ijn_print(DP_ERROR, "Invalid peer's relay packet (exceed waitsnd)");
             
             relayServer->map.erase(messageHeader.connectionID);
             ijn_print(DP_INFO, "removed connectionInfo, connectionID=%d", messageHeader.connectionID);
-            
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::RELAY_SESSION_INVALID, nullptr, 0);
+            kcpPeer->send(ijoon::RELAY_SESSION_INVALID);
         }
         return;
-    }
-    
-    auto registry = Registry<int, google::protobuf::Message *>().Get();
-    switch (messageHeader.messageType) {
-        case ijoon::PROTOBUF:
-        {
-            ijn_print(DP_INFO, "User message received, PROTOBUF");
-            google::protobuf::Message *message = registry->Create(messageHeader.packetType);
-            if(message == nullptr) {
-                ijn_print(DP_INFO, "Unknown protobuf packet_type(%d) reveiced", messageHeader.packetType);
-                return;
-            }
-            message->ParseFromArray(body, messageHeader.dataSize);
-            auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
-            if(callbackWrapper != nullptr) {
-                auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(relayServer->socket, 0));
-                rendezvousSession->setPublicKcpPeer(kcpPeer);
-                callbackWrapper->callback(rendezvousSession, message);
-            }
-            else {
-                ijn_print(DP_ERROR, "No callback wrapper");
-            }
-            
-            return;
-        }
-        case ijoon::RAWBYTE:
-        {
-            if(messageHeader.packetType >= ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST) {
-                break;
-            }
-            
-            ijn_print(DP_INFO, "User message received, RAWBYTE");
-            
-            auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
-            if(callbackWrapper != nullptr) {
-                auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(relayServer->socket, 0));
-                rendezvousSession->setPublicKcpPeer(kcpPeer);
-                callbackWrapper->callback(rendezvousSession, body, messageHeader.dataSize);
-            }
-            else {
-                printf("unregistered raw message received. body=%s", body);
-            }
-            
-            return;
-        }
-        default:
-            ijn_print(DP_ERROR, "Unknown message type received, type=%d", messageHeader.messageType);
-            return;
     }
     
     if(messageHeader.messageType != ijoon::MESSAGE_TYPE::RAWBYTE) {
@@ -235,10 +250,11 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received RELAY_SERVICE_REQUEST");
             
-            auto vec = ijoon::paramParser(body, 2);
+            auto vec = ijoon::paramParser(body, 3);
             if(vec == nullptr) break;
+            auto connectionIDStr = vec->at(0);
+            auto connectionID = static_cast<uint>(atoi(connectionIDStr.c_str()));
             
-            int connectionID = messageHeader.connectionID;
             if(relayServer->map.count(connectionID) != 0) {
                 ijn_print(DP_ERROR, "[RELAY_SERVICE_REQUEST] already registered");
                 return;
@@ -250,13 +266,25 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
             
             relayServer->sessionCheckMap[connectionID] = 0;
             
-            ijoon::send(kcpPeer, connectionID, ijoon::RELAY_SESSION_READY, nullptr, 0);
+            kcpPeer->send(ijoon::RELAY_SESSION_READY, (char *)connectionIDStr.c_str(), connectionIDStr.length());
             
             return;
         }
-        case ijoon::REGISTRATION_RELAY_SERVER_SUCCESS: // from RanS
+        case ijoon::REGISTRATION_RELAY_SERVER_RESPONSE: // from RanS
         {
-            ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_SUCCESS");
+            ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_RESPONSE");
+            auto vec = ijoon::paramParser(body, 1);
+            auto errStr = vec->at(0);
+            bool isSuccess = (errStr == "1") ? true : false;
+            
+            if(isSuccess) {
+                ijn_print(DP_INFO, "REGISTRATION_RELAY_SERVER_RESPONSE success");
+                kcpPeer->status = ijoon::PeerStatus::REGISTERED;
+            }
+            else {
+                ijn_print(DP_INFO, "REGISTRATION_RELAY_SERVER_RESPONSE result : %s", errStr.c_str());
+            }
+            
             relayServer->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
             return;
         }
@@ -264,52 +292,52 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         {
             ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_REQUEST from %s", peer.getKey().c_str());
             
-            auto vec = ijoon::paramParser(body, 1);
+            auto vec = ijoon::paramParser(body, 2);
             if(vec == nullptr) break;
+            auto connectionIDStr = vec->at(0);
+            auto connectionID = static_cast<uint>(atoi(connectionIDStr.c_str()));
+            auto isSP = atoi(vec->at(1).c_str()) ? true : false;
             
-            std::string peerIP = peer.getIP();
-            std::string peerPort = std::to_string(peer.getPort());
-            
-            if(relayServer->map.count(messageHeader.connectionID) == 0) {
+            //TODO: mutex 사용
+            if(relayServer->map.count(connectionID) == 0) {
                 ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
                 return;
             }
             
-            if(relayServer->sessionCheckMap.count(messageHeader.connectionID) == 0) {
+            if(relayServer->sessionCheckMap.count(connectionID) == 0) {
                 ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
                 return;
             }
             
-            bool isSP = atoi(vec->at(0).c_str()) ? true : false;
+            kcpPeer->type = ijoon::PeerType::RENDEZVOUS_CLIENT;
+            kcpPeer->status = ijoon::PeerStatus::REGISTERED;
             if(isSP) {
-                relayServer->map[messageHeader.connectionID]->sourceKcpPeer = kcpPeer;
-                relayServer->sessionCheckMap[messageHeader.connectionID]++;
+                relayServer->map[connectionID]->sourceKcpPeer = kcpPeer;
             }
             else {
-                relayServer->map[messageHeader.connectionID]->targetKcpPeer = kcpPeer;
-                relayServer->sessionCheckMap[messageHeader.connectionID]++;
+                relayServer->map[connectionID]->targetKcpPeer = kcpPeer;
             }
             
-            if(relayServer->sessionCheckMap[messageHeader.connectionID] >= 2) {
+            relayServer->sessionCheckMap[connectionID]++;
+            
+            if(relayServer->sessionCheckMap[connectionID] >= 2) {
                 // successfully registerred
-                relayServer->sessionCheckMap.erase(messageHeader.connectionID);
+                relayServer->sessionCheckMap.erase(connectionID);
                 
                 auto serverKcpPeer = relayServer->getKcpPeer(relayServer->serverPeer);
                 
-                ijoon::send(serverKcpPeer, messageHeader.connectionID, ijoon::RELAY_SESSION_CREATED, nullptr, 0);
+                serverKcpPeer->send(ijoon::RELAY_SESSION_CREATED, (char *)connectionIDStr.c_str(), connectionIDStr.length());
             }
             
             return;
         }
         case ijoon::PING_REQUEST:
         {
-            ijn_print(DP_DEBUG, "received PING_REQUEST, from %s", peer.getKey().c_str());
-            ijoon::send(kcpPeer, 0, ijoon::PING_RESPONSE, nullptr, 0);
+            kcpPeer->send(ijoon::PING_RESPONSE);
             return;
         }
         case ijoon::PING_RESPONSE:
         {
-            ijn_print(DP_DEBUG, "received PING_RESPONSE, from %s", peer.getKey().c_str());
             return;
         }
         default:

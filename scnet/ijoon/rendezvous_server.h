@@ -38,7 +38,7 @@ namespace ijoon {
         std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);
         
     public:
-        std::function<void(std::string, std::string, std::string, std::string, std::string)> registerRendezvousClient;
+        std::function<void(std::string, std::string, std::string, std::string, std::string, std::string, std::string)> registerRendezvousClient;
         std::function<void(std::string, std::string)> removeRendezvousClient;
         std::function<std::shared_ptr<ijoon::Peer>(std::string, std::string)> getRendezvousClient;
         

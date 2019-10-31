@@ -7,20 +7,35 @@ namespace ijoon {
     class BaseSession {
     public:
         virtual ~BaseSession() {}
-        virtual bool send(int packetType, char *message, unsigned int length) {return false;}
+        virtual bool send(ijoon::MessageHeader& messageHeader, char *message = nullptr, unsigned int length = 0) {return false;} // for relay packet
+        virtual bool send(int packetType, char *message = nullptr, unsigned int length = 0) {return false;}
         virtual bool send(google::protobuf::Message *message) {return false;}
         virtual bool send(std::shared_ptr<google::protobuf::Message> message) {return false;}
         
         virtual bool recvHeader(MessageHeader &messageHeader) {return false;}
         virtual google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader) {return nullptr;}
         virtual char *recvRawBody(MessageHeader &messageHeader) {return nullptr;};
-
     };
     
-    class KcpPeer {
+    enum class PeerType {
+        NONE = 0,
+        RENDEZVOUS_SERVER = 1,
+        RENDEZVOUS_CLIENT = 2,
+        RELAY_SERVER = 3,
+    };
+
+    enum class PeerStatus {
+        NONE = 0,
+        REGISTERED = 1,
+        COMPATIBLE = 2,
+        NOT_COMPATIBLE = 3,
+        UNREGISTERED = 4,
+    };
+    
+    class KcpPeer: public BaseSession {
     public:
         KcpPeer(std::shared_ptr<ijoon::UDPSocket> socket, std::string ip, std::string port,
-                int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)): socket(socket) {
+                int (*output)(const char *buf, int len, ikcpcb *kcp, void *user)): type(PeerType::NONE), status(PeerStatus::NONE), socket(socket) {
             // setup peer object
             peer.setIP(ip);
             peer.setPort(port);
@@ -39,6 +54,11 @@ namespace ijoon {
         ~KcpPeer() {
             ikcp_release(kcp);
         }
+        bool send(ijoon::MessageHeader& messageHeader, char *message = nullptr, unsigned int length = 0) override;
+        bool send(int packetType, char *message = nullptr, unsigned int length = 0) override;
+        bool send(google::protobuf::Message *message) override;
+        bool send(std::shared_ptr<google::protobuf::Message> message) override;
+        int getSendBufSize();
         
         std::shared_ptr<ijoon::UDPSocket> getClientSocket()  {return this->socket;}
         ijoon::Peer getPeer() { return peer; }
@@ -48,57 +68,16 @@ namespace ijoon {
         ijoon::Mutex mutex;
         IUINT32 next;
         time_t lastPing;
+        PeerType type;
+        PeerStatus status;
+        uint connectionID;
         
     private:
         std::shared_ptr<ijoon::UDPSocket> socket;
         ijoon::Peer peer;
         ikcpcb *kcp;
     };
-    
-    class RendezvousSession: public BaseSession {
-    public:
-        RendezvousSession(std::shared_ptr<ijoon::UDPSocket> socket, uint connectionID): socket(socket), connectionID(connectionID) {
-            
-        }
-        ~RendezvousSession() {}
-        
-    public:
-        void setPrivateKcpPeer(std::string ip, std::string port,
-                               int (*output)(const char *buf, int len, ikcpcb *kcp, void *user));
-        void setPublicKcpPeer(std::string ip, std::string port,
-                              int (*output)(const char *buf, int len, ikcpcb *kcp, void *user));
-        void setRelayKcpPeer(std::string ip, std::string port,
-                             int (*output)(const char *buf, int len, ikcpcb *kcp, void *user));
-        void setPrivateKcpPeer(std::shared_ptr<ijoon::KcpPeer> kcpPeer);
-        void setPublicKcpPeer(std::shared_ptr<ijoon::KcpPeer> kcpPeer);
-        void setRelayKcpPeer(std::shared_ptr<ijoon::KcpPeer> kcpPeer);
-        std::shared_ptr<KcpPeer> getPrivateKcpPeer();
-        std::shared_ptr<KcpPeer> getPublicKcpPeer();
-        std::shared_ptr<KcpPeer> getRelayKcpPeer();
-        void clearPrivateKcpPeer();
-        void clearPublicKcpPeer();
-        void clearRelayKcpPeer();
-        
-        bool isPublic();
-        bool isConnected();
-        
-        std::shared_ptr<ijoon::UDPSocket> getClientSocket()  {return this->socket;}
-        uint getConnectionID() {return connectionID;}
-        void setConnectionID(int connectionID) { this->connectionID = connectionID; }
-        
-        bool send(int packetType, char *message, unsigned int length) override;
-        bool send(std::shared_ptr<google::protobuf::Message> message) override;
-        int getSendBufSize();
-        
-    private:
-        std::shared_ptr<ijoon::UDPSocket> socket;
-        uint connectionID;
-        
-        std::shared_ptr<ijoon::KcpPeer> privateKcpPeer;
-        std::shared_ptr<ijoon::KcpPeer> publicKcpPeer;
-        std::shared_ptr<ijoon::KcpPeer> relayKcpPeer;
-    };
-    
+
     class Session: public BaseSession {
     public:
         Session() : cs(std::shared_ptr<ijoon::TCPSocket>(new ijoon::TCPSocket())) {}

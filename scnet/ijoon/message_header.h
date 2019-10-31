@@ -28,8 +28,6 @@ namespace ijoon {
     enum MESSAGE_TYPE {
         PROTOBUF = 0,
         RAWBYTE,
-        RAWBYTE_RELAY,
-        PROTOBUF_RELAY,
     };
     
     std::shared_ptr<std::vector<std::string>> paramParser(char *param, int paramSize);

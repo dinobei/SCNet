@@ -19,16 +19,12 @@ ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
 ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param);
 
 int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
-//    ijn_print(DP_DEBUG, "udp_output len : %d.", len);
-//    ijn_print(DP_DEBUG, "udp_output buf : %s.", buf);
-    
     ijoon::KcpPeer *kcpPeer = (ijoon::KcpPeer *)user;
     ijoon::Peer peer = kcpPeer->getPeer();
     kcpPeer->getClientSocket()->sendTo(&peer, const_cast<char *>(buf), len);
     return 0;
 }
 
-#ifdef __IJN_WINDOWS__
 // reference: https://stackoverflow.com/a/3120382
 std::string GetPrimaryIp()
 {
@@ -55,42 +51,13 @@ std::string GetPrimaryIp()
 	const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, sizeof(buffer));
 	assert(p);
 
-	closesocket(sock);
-	return std::string(buffer);
-}
-#endif
-
-// reference: https://stackoverflow.com/a/265978
-std::string getIPAddress(const char *ifname) {
 #ifdef __IJN_WINDOWS__
-	std::string ipAddress = GetPrimaryIp();
+    closesocket(sock);
 #else
-	assert(ifname != nullptr);
-
-	std::string ipAddress = "";
-	struct ifaddrs * ifAddrStruct = NULL;
-	struct ifaddrs * ifa = NULL;
-
-    getifaddrs(&ifAddrStruct);
-    
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
-        if (!ifa->ifa_addr) {
-            continue;
-        }
-        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
-            // is a valid IP4 Address
-             if(strcmp(ifa->ifa_name, ifname)==0) {
-                 void * tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-                 char addressBuffer[INET_ADDRSTRLEN];
-                 inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-                 ipAddress = addressBuffer;
-                 break;
-             }
-        }
-    }
-    if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
+    close(sock);
 #endif
-    return ipAddress;
+    
+	return std::string(buffer);
 }
 
 int getPort(ijoon::RendezvousClient *client) {
@@ -105,23 +72,6 @@ int getPort(ijoon::RendezvousClient *client) {
     }
     
     return localPort;
-    
-}
-
-std::shared_ptr<ijoon::RendezvousSession> getRendezvousSessionSafety(ijoon::RendezvousClient *client, ijoon::MessageHeader messageHeader) {
-    if(client->rendezvousSessionMap.count(messageHeader.connectionID) == 0) {
-        auto rendezvousSession = std::shared_ptr<ijoon::RendezvousSession>(new ijoon::RendezvousSession(client->socket, messageHeader.connectionID));
-        if(messageHeader.connectionID != 0) {
-            client->rendezvousSessionMap[messageHeader.connectionID] = rendezvousSession;
-        }
-        else {
-            auto serverPeer = ijoon::Peer(client->serverIP, client->serverPort);
-            rendezvousSession->setPublicKcpPeer(client->getKcpPeer(serverPeer));
-        }
-        return rendezvousSession;
-    }
-    
-    return client->rendezvousSessionMap[messageHeader.connectionID];
 }
 
 void ijoon::RendezvousClient::start() {
@@ -146,150 +96,152 @@ void ijoon::RendezvousClient::stop() {
     recvThread->join();
     
     kcpPeerMap.clear();
-    rendezvousSessionMap.clear();
+}
+
+void ijoon::RendezvousClient::connect(std::string ip, std::string port) {
+    if(ip == serverIP && port == serverPort) {
+        throw std::string("Can't connect to rendezvous server.");
+    }
+    
+    auto serverKcpPeer = getKcpPeer(ijoon::Peer(serverIP, serverPort));
+    if(serverKcpPeer->status != ijoon::PeerStatus::REGISTERED) {
+        throw std::string("You must be connected to the rendezvous server to connect to client.");
+    }
+    
+    ijoon::Peer peer(ip, port);
+    auto key = peer.getKey();
+    if(kcpPeerMap.count(key) != 0) {
+        auto kcpPeer = kcpPeerMap.at(key);
+    }
+    
+    const char seperator = ' ';
+    std::string targetAddress;
+    targetAddress = ip;
+    targetAddress += seperator;
+    targetAddress += port;
+    serverKcpPeer->send(ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
 }
 
 std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(ijoon::Peer peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
-    if(this->kcpPeerMap.count(peer.getKey()) == 0) {
+    try {
+        kcpPeer = this->kcpPeerMap.at(peer.getKey());
+    } catch (std::exception e) {
         kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer.getIP(), std::to_string(peer.getPort()), udp_output));
         this->kcpPeerMap[peer.getKey()] = kcpPeer;
-    }
-    else {
-        kcpPeer = this->kcpPeerMap.at(peer.getKey());
     }
     
     return kcpPeer;
 }
 
+std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(int connectionID) {
+    if(connFilterMap.count(connectionID) == 0) {
+        return nullptr;
+    }
+    
+    auto iter = --connFilterMap.upper_bound(connectionID);
+    if(iter != connFilterMap.end()) {
+        auto kcpPeer = getKcpPeer(iter->second);
+        kcpPeer->connectionID = connectionID;
+        return kcpPeer;
+    }
+    
+    return nullptr;
+}
+
 ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     auto thread = static_cast<ijoon::Thread *>(arg);
     auto client = static_cast<ijoon::RendezvousClient *>(thread->getParam());
-
-    std::string localIP = getIPAddress(client->ifname.c_str());
-    int localPort = getPort(client);
-    printf("localAddress: %s:%d\n", localIP.c_str(), localPort);
-
-    std::string data = localIP + seperator + std::to_string(localPort) + seperator + client->serial;
     
-    const int timeoutSec = 60;
-    const int pingIntervalSec = 20;
+    const int timeoutSec = 15;//60;
+    const int pingIntervalSec = 5;//20;
     const int loopIntervalMs = 5 * 1000;
     bool connFlag = false;
     
-    auto serverPeer = ijoon::Peer(client->serverIP, client->serverPort);
     while(!thread->isInterrupted()) {
         time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-
+        
         client->mutexForKcpPeerMap.lock();
         auto iter = client->kcpPeerMap.begin();
         auto end = client->kcpPeerMap.end();
         while(iter != end) {
             auto kcpPeer = iter->second;
-            if(kcpPeer->lastPing + timeoutSec < currentTime) {
-                if(kcpPeer->getPeer().getIP() == serverPeer.getIP() &&
-                   kcpPeer->getPeer().getPort() == serverPeer.getPort()) {
-                    ++iter;
-                    continue;
+            
+            switch (kcpPeer->type) {
+                case ijoon::PeerType::RENDEZVOUS_SERVER:
+                {
+                    if(kcpPeer->status != ijoon::PeerStatus::REGISTERED) {
+                        // send registration packet
+                        if(connFlag) {
+                            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(client->socket, client->serverIP, client->serverPort, udp_output));
+                            kcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
+                            client->kcpPeerMap[kcpPeer->getPeer().getKey()] = kcpPeer;
+                        }
+                        else {
+                            connFlag = true;
+                        }
+                        
+                        std::string localIP = GetPrimaryIp();
+                        int localPort = getPort(client);
+                        std::string serial = client->serial;
+                        std::string mac = client->mac;
+                        std::string ver = client->version;
+                        ijn_print(DP_INFO, "localAddress: %s:%d, serial: %s, mac: %s, version: %s", localIP.c_str(), localPort, serial.c_str(), mac.c_str(), ver.c_str());
+                        std::string data = localIP + seperator + std::to_string(localPort) + seperator + client->serial + seperator + mac + seperator + ver;
+                        
+                        client->callback.onServerConnectingCallback();
+                        kcpPeer->send(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
+                                      (char *)data.c_str(),
+                                      data.length());
+                        
+                    }
+                    else if(kcpPeer->lastPing + timeoutSec < currentTime) {
+                        // disconnected
+                        kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                        client->callback.onServerDisconnectedCallback();
+                    }
+                    else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                        kcpPeer->send(ijoon::PING_REQUEST);
+                    }
                 }
-                ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
-                iter = client->kcpPeerMap.erase(iter);
-                continue;
+                    break;
+                default:
+                {
+                    if(kcpPeer->status == ijoon::PeerStatus::UNREGISTERED ||
+                       kcpPeer->lastPing + timeoutSec < currentTime) {
+                        ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
+                        kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                        auto removedPeerKey = iter->first;
+                        iter = client->kcpPeerMap.erase(iter);
+                        
+                        // cascading update
+                        for(auto iter = client->connFilterMap.begin() ; iter != client->connFilterMap.end() ; ) {
+                            if(iter->second.getKey() == removedPeerKey) {
+                                auto delConnectionID = iter->first;
+                                auto delKcpPeer = client->getKcpPeer(iter->second);
+                                delKcpPeer->connectionID = delConnectionID;
+                                delKcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                                iter = client->connFilterMap.erase(iter);
+                                client->callback.onDisconnectedCallback(delKcpPeer);
+                                continue;
+                            }
+                            
+                            ++iter;
+                        }
+                        
+                        continue;
+                    }
+                    else if(kcpPeer->type != ijoon::PeerType::NONE &&
+                            kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                        kcpPeer->send(ijoon::PING_REQUEST);
+                    }
+                }
+                    break;
             }
-            else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
-                ijoon::send(iter->second, 0, ijoon::PING_REQUEST, nullptr, 0);
-            }
-
+            
             ++iter;
         }
         client->mutexForKcpPeerMap.unlock();
-        
-        // send ping and check to relay server, connected peer
-        client->mutexForRendezvousSessionMap.lock();
-        auto iterSessionMap = client->rendezvousSessionMap.begin();
-        auto endSessionMap = client->rendezvousSessionMap.end();
-        while(iterSessionMap != endSessionMap) {
-            if(iterSessionMap->second == nullptr) continue;
-            auto rendezvousSession = iterSessionMap->second;
-            
-            if(rendezvousSession->getRelayKcpPeer() != nullptr) {
-                auto relayKcpPeer = rendezvousSession->getRelayKcpPeer();
-                if(relayKcpPeer->lastPing + timeoutSec < currentTime) {
-                    ijn_print(DP_ERROR, "relay peer removed, %lu", relayKcpPeer->lastPing);
-                    rendezvousSession->clearRelayKcpPeer();
-                }
-            }
-            
-            if(rendezvousSession->getPublicKcpPeer() != nullptr) {
-                auto publicKcpPeer = rendezvousSession->getPublicKcpPeer();
-                if(publicKcpPeer->lastPing + timeoutSec < currentTime) {
-                    ijn_print(DP_ERROR, "public peer removed, %lu", publicKcpPeer->lastPing);
-                    rendezvousSession->clearPublicKcpPeer();
-                }
-            }
-            
-            if(rendezvousSession->getPrivateKcpPeer() != nullptr) {
-                auto privateKcpPeer = rendezvousSession->getPrivateKcpPeer();
-                if(privateKcpPeer->lastPing + timeoutSec < currentTime) {
-                    ijn_print(DP_ERROR, "private peer removed, %lu", privateKcpPeer->lastPing);
-                    rendezvousSession->clearPrivateKcpPeer();
-                }
-            }
-            
-            if(!rendezvousSession->isConnected()) {
-                iterSessionMap = client->rendezvousSessionMap.erase(iterSessionMap);
-                
-                // callback to user (disconnected)
-                if(client->onDisconnected != nullptr) {
-                    client->onDisconnected(rendezvousSession);
-                }
-                ijn_print(DP_INFO, "Disconnected, connectionID=%d", rendezvousSession->getConnectionID());
-            }
-            else {
-                ++iterSessionMap;
-            }
-        }
-        client->mutexForRendezvousSessionMap.unlock();
-        
-        if(!client->isConected) {
-            // send registration packet
-            if(connFlag) {
-                client->mutexForKcpPeerMap.lock();
-                client->kcpPeerMap.erase(serverPeer.getKey());
-                client->mutexForKcpPeerMap.unlock();
-                client->socket = std::shared_ptr<ijoon::UDPSocket>(new ijoon::UDPSocket(0));
-                
-                client->onServerConnectFailedCallback();
-            }
-            else {
-                connFlag = true;
-            }
-            
-            client->onServerConnectingCallback();
-            ijoon::send(client->getKcpPeer(serverPeer),
-                        0,
-                        ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
-                        (char *)data.c_str(),
-                        data.length());
-        }
-        else if(client->getKcpPeer(serverPeer)->lastPing + timeoutSec < currentTime) {
-            // disconnected
-            client->mutexForKcpPeerMap.lock();
-            client->kcpPeerMap.erase(serverPeer.getKey());
-            client->mutexForKcpPeerMap.unlock();
-            
-            connFlag = false;
-            client->isConected = false;
-            client->socket = std::shared_ptr<ijoon::UDPSocket>(new ijoon::UDPSocket(0));
-            client->onServerDisconnectedCallback();
-        }
-        else {
-            ijoon::send(client->getKcpPeer(serverPeer),
-                        0,
-                        ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
-                        (char *)data.c_str(),
-                        data.length());
-        }
         
         thread->sleep(loopIntervalMs);
     }
@@ -310,24 +262,30 @@ void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::Kc
         return;
     }
     
+    kcpPeer->connectionID = messageHeader.connectionID;
+    
     char *body = &packet[cursor];
     
-    kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
     auto registry = Registry<int, google::protobuf::Message *>::Get();
     switch(messageHeader.messageType) {
         case ijoon::PROTOBUF:
         {
+            if(kcpPeer->type == ijoon::PeerType::NONE) {
+                ijn_print(DP_ERROR, "Unregistered peer (%s)", peer.getKey().c_str());
+                return;
+            }
+            kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+            
             google::protobuf::Message *message = registry->Create(messageHeader.packetType);
             if(message == nullptr) {
                 ijn_print(DP_INFO, "Unknown protobuf packet_type(%d) reveiced", messageHeader.packetType);
                 return;
             }
             
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
             message->ParseFromArray(body, messageHeader.dataSize);
             auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
-                callbackWrapper->callback(rendezvousSession, message);
+                callbackWrapper->callback(kcpPeer, message);
             }
             else {
                 ijn_print(DP_ERROR, "No callback wrapper");
@@ -337,340 +295,31 @@ void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::Kc
         }
         case ijoon::RAWBYTE:
         {
-            if(messageHeader.packetType >= ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST) {
-                break;
+            if(messageHeader.packetType < ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST) {
+                if(kcpPeer->type == ijoon::PeerType::NONE) {
+                    ijn_print(DP_ERROR, "Unregistered peer (%s), %d", peer.getKey().c_str(), messageHeader.packetType);
+                    return;
+                }
+                
+                kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
             }
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
+            else {
+                kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+            }
+
             auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
             if(callbackWrapper != nullptr) {
-                callbackWrapper->callback(rendezvousSession, body, messageHeader.dataSize);
+                callbackWrapper->callback(kcpPeer, body, messageHeader.dataSize);
             }
             else {
                 printf("unregistered raw message received. body=%s", body);
             }
-            
+
             return;
         }
         default:
-            break;
-    }
-    
-    if(messageHeader.messageType != ijoon::MESSAGE_TYPE::RAWBYTE) {
-        ijn_print(DP_ERROR, "Unknown message_type(%d) received", messageHeader.messageType);
-        return;
-    }
-    
-    switch (messageHeader.packetType) {
-        case ijoon::REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS:
-        {
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            
-            if(!client->isConected) {
-                client->isConected = true;
-                client->onServerConnectedCallback(vec->at(0), vec->at(1));
-            }
-            
-            ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
-            
+            ijn_print(DP_ERROR, "Unknown message_type(%d) received", messageHeader.messageType);
             return;
-        }
-        case ijoon::CONNECTION_TARGET_INVALID:
-        {
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            
-            ijn_print(DP_DEBUG, "received CONNECTION_TARGET_INVALID, TP=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
-            if(client->onConnectionTargetInvalid != nullptr) {
-                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-                client->onConnectionTargetInvalid(rendezvousSession);
-            }
-            return;
-        }
-        case ijoon::CONNECTION_ID_CREATED:
-        {
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            
-            if(client->onConnectionIDCreated != nullptr) {
-                client->onConnectionIDCreated(messageHeader.connectionID, vec->at(0), vec->at(1));
-            }
-            
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::CONNECTION_ID_RECEIVED, nullptr, 0);
-        }
-        case ijoon::DIRECT_CONNECTION_AVAILABLE: // SP only
-        {
-            ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_AVAILABLE");
-            
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            
-            if(client->onConnecting != nullptr) {
-                auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-                if(!rendezvousSession->isConnected()) {
-                    client->onConnecting(rendezvousSession);
-                }
-            }
-            
-            auto targetPeer = ijoon::Peer(vec->at(0), vec->at(1));
-            auto targetKcpPeer = client->getKcpPeer(targetPeer);
-
-            ijoon::send(targetKcpPeer, messageHeader.connectionID, ijoon::DIRECT_CONNECTION_REQUEST, nullptr, 0);
-            return;
-        }
-        case ijoon::DIRECT_CONNECTION_REQUEST: // TP only
-        {
-            ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_REQUEST");
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            bool isConnected = rendezvousSession->isConnected();
-            
-            rendezvousSession->setPublicKcpPeer(kcpPeer);
-            printf("directly connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
-            
-            if(!isConnected) {
-                if(client->onConnected != nullptr) {
-                    client->onConnected(rendezvousSession);
-                }
-            }
-            
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::DIRECT_CONNECTION_RESPONSE, nullptr, 0);
-            return;
-        }
-        case ijoon::DIRECT_CONNECTION_RESPONSE: // SP only
-        {
-            ijn_print(DP_DEBUG, "received DIRECT_CONNECTION_RESPONSE");
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            bool isConnected = rendezvousSession->isConnected();
-            rendezvousSession->setPublicKcpPeer(kcpPeer);
-            printf("directly connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
-            
-            if(!isConnected) {
-                if(client->onConnected != nullptr) {
-                    client->onConnected(rendezvousSession);
-                }
-            }
-            return;
-        }
-        case ijoon::REVERSE_CONNECTION_READY:
-        {
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            if(!rendezvousSession->isConnected()) {
-                if(client->onConnecting != nullptr) {
-                    client->onConnecting(rendezvousSession);
-                }
-            }
-            
-            return;
-        }
-        case ijoon::REVERSE_CONNECTION: // TP only
-        {
-            ijn_print(DP_DEBUG, "received REVERSE_CONNECTION");
-            
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            
-            auto sourcePeer = ijoon::Peer(vec->at(0), vec->at(1));
-            auto sourceKcpPeer = client->getKcpPeer(sourcePeer);
-            
-            ijoon::send(sourceKcpPeer, messageHeader.connectionID, ijoon::REVERSE_CONNECTION_REQUEST, nullptr, 0);
-            return;
-        }
-        case ijoon::REVERSE_CONNECTION_REQUEST: // SP only
-        {
-            ijn_print(DP_DEBUG, "received REVERSE_CONNECTION_REQUEST");
-            
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::REVERSE_CONNECTION_RESPONSE, nullptr, 0);
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            bool isConnected = rendezvousSession->isConnected();
-            rendezvousSession->setPublicKcpPeer(kcpPeer);
-            printf("reversely connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
-            
-            if(!isConnected) {
-                if(client->onConnected != nullptr) {
-                    client->onConnected(rendezvousSession);
-                }
-            }
-            
-            return;
-        }
-        case ijoon::REVERSE_CONNECTION_RESPONSE: // TP only
-        {
-            ijn_print(DP_DEBUG, "received REVERSE_CONNECTION_RESPONSE");
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            bool isConnected = rendezvousSession->isConnected();
-            rendezvousSession->setPublicKcpPeer(kcpPeer);
-            printf("reversely connected from %s:%d\n", peer.getIP().c_str(), peer.getPort());
-            
-            if(!isConnected) {
-                if(client->onConnected != nullptr) {
-                    client->onConnected(rendezvousSession);
-                }
-            }
-            
-            return;
-        }
-            
-        case ijoon::UDP_HOLE_PUNCHING_AVAILABLE:
-        {
-            ijn_print(DP_DEBUG, "received UDP_HOLE_PUNCHING_AVAILABLE");
-            
-            auto vec = ijoon::paramParser(body, 4);
-            if(vec == nullptr) break;
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            if(!rendezvousSession->isConnected()) {
-                if(client->onConnecting != nullptr) {
-                    client->onConnecting(rendezvousSession);
-                }
-            }
-            
-            std::string data;
-            
-            auto publicPeer = ijoon::Peer(vec->at(0), vec->at(1));
-            auto publicKcpPeer = client->getKcpPeer(publicPeer);
-            
-            data = "1";
-            ijoon::send(publicKcpPeer, messageHeader.connectionID, ijoon::UDP_HOLE_PUNCHING_REQUEST, (char *)data.c_str(), data.length());
-            
-            auto privatePeer = ijoon::Peer(vec->at(2), vec->at(3));
-            auto privateKcpPeer = client->getKcpPeer(privatePeer);
-            
-            data = "0";
-            ijoon::send(privateKcpPeer, messageHeader.connectionID, ijoon::UDP_HOLE_PUNCHING_REQUEST, (char *)data.c_str(), data.length());
-            
-            return;
-        }
-        case ijoon::UDP_HOLE_PUNCHING_REQUEST:
-        {
-            ijn_print(DP_DEBUG, "received UDP_HOLE_PUNCHING_REQUEST");
-            
-            auto vec = ijoon::paramParser(body, 1);
-            if(vec == nullptr) break;
-            
-            std::string data = vec->at(0);
-            ijoon::send(kcpPeer, messageHeader.connectionID, ijoon::UDP_HOLE_PUNCHING_RESPONSE, (char *)data.c_str(), data.length());
-            return;
-        }
-        case ijoon::UDP_HOLE_PUNCHING_RESPONSE:
-        {
-            ijn_print(DP_DEBUG, "received UDP_HOLE_PUNCHING_RESPONSE");
-            
-            // Connected by hole punching or local
-            
-            auto vec = ijoon::paramParser(body, 1);
-            if(vec == nullptr) break;
-            
-            const bool isPublic = atoi(vec->at(0).c_str()) ? true : false;
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            bool isConnected = rendezvousSession->isConnected();
-            if(isPublic) {
-                // public connection (hole punching)
-                rendezvousSession->setPublicKcpPeer(kcpPeer);
-                printf("udp hole punching success from %s:%d (connectionID=%d)\n", peer.getIP().c_str(), peer.getPort(), messageHeader.connectionID);
-            }
-            else {
-                // private connection (equal net)
-                rendezvousSession->setPrivateKcpPeer(kcpPeer);
-                printf("connected under equal nat from %s:%d (connectionID=%d)\n", peer.getIP().c_str(), peer.getPort(), messageHeader.connectionID);
-            }
-            
-            if(!isConnected) {
-                if(client->onConnected != nullptr) {
-                    client->onConnected(rendezvousSession);
-                }
-            }
-            
-            return;
-        }
-        case ijoon::RELAY_SERVER_INFORMATION:
-        {
-            ijn_print(DP_DEBUG, "received RELAY_SERVER_INFORMATION, connectionID=%d", messageHeader.connectionID);
-            
-            auto vec = ijoon::paramParser(body, 3);
-            if(vec == nullptr) break;
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            if(client->onConnecting != nullptr) {
-                client->onConnecting(rendezvousSession);
-            }
-            
-            ijn_print(DP_INFO, "[RELAY_SERVER_INFORMATION] RelayServerAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
-            
-            auto relayPeer = ijoon::Peer(vec->at(0), vec->at(1));
-            auto relayKcpPeer = client->getKcpPeer(relayPeer);
-
-            ijoon::send(relayKcpPeer, messageHeader.connectionID, ijoon::REGISTRATION_RELAY_PEER_REQUEST, (char *)vec->at(2).c_str(), vec->at(2).length());
-            
-            return;
-        }
-        case ijoon::CONNECTION_RELAY_SERVICE_SUCCESS:
-        {
-            ijn_print(DP_DEBUG, "received CONNECTION_RELAY_SERVICE_SUCCESS");
-            
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            
-            
-            auto relayPeer = ijoon::Peer(vec->at(0), vec->at(1));
-            auto relayKcpPeer = client->getKcpPeer(relayPeer);
-            
-            auto rendezvousSession = getRendezvousSessionSafety(client, messageHeader);
-            rendezvousSession->setRelayKcpPeer(relayKcpPeer);
-            printf("connected by a relay from %s:%s\n", vec->at(0).c_str(), vec->at(1).c_str());
-            
-            if(client->onConnected != nullptr) {
-                client->onConnected(rendezvousSession);
-            }
-            return;
-        }
-        case ijoon::CONNECTION_RELAY_SERVICE_FAILED:
-        {
-            ijn_print(DP_DEBUG, "received CONNECTION_RELAY_SERVICE_FAILED");
-            return;
-        }
-        case ijoon::RELAY_SESSION_INVALID:
-        {
-            ijn_print(DP_DEBUG, "received RELAY_SESSION_INVALID, %d", messageHeader.connectionID);
-            // relay disconnect
-            if(client->rendezvousSessionMap.count(messageHeader.connectionID) == 0) {
-                return;
-            }
-
-            auto rendezvousSession = client->rendezvousSessionMap.at(messageHeader.connectionID);
-            auto lastPing = rendezvousSession->getRelayKcpPeer()->lastPing;
-            rendezvousSession->clearRelayKcpPeer();
-            ijn_print(DP_ERROR, "relay peer removed, %lu (connectionID=%d)", lastPing, messageHeader.connectionID);
-            
-            if(!rendezvousSession->isConnected()) {
-                client->rendezvousSessionMap.erase(messageHeader.connectionID);
-                
-                // callback to user (disconnected)
-                ijn_print(DP_INFO, "Disconnected, connectionID=%d", messageHeader.connectionID);
-            }
-            return;
-        }
-        case ijoon::PING_REQUEST:
-        {
-            ijn_print(DP_DEBUG, "received PING_REQUEST, from %s", peer.getKey().c_str());
-            ijoon::send(kcpPeer, 0, ijoon::PING_RESPONSE, nullptr, 0);
-            return;
-        }
-        case ijoon::PING_RESPONSE:
-        {
-            ijn_print(DP_DEBUG, "received PING_RESPONSE, from %s", peer.getKey().c_str());
-            return;
-        }
-        default:
-        {
-            ijn_print(DP_ERROR, "Undefined message received");
-            break;
-        }
     }
 }
 
@@ -741,25 +390,50 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param) {
     return THREAD_EXIT;
 }
 
-void ijoon::RendezvousClient::onServerConnectingCallback() {
+void ijoon::RendezvousClientLifeCycleCallback::onServerConnectingCallback() {
     if(onServerConnecting != nullptr) {
         onServerConnecting();
     }
 }
 
-void ijoon::RendezvousClient::onServerConnectFailedCallback() {
+void ijoon::RendezvousClientLifeCycleCallback::onServerConnectFailedCallback() {
     if(onServerConnectFailed != nullptr) {
         onServerConnectFailed();
     }
 }
-void ijoon::RendezvousClient::onServerConnectedCallback(std::string extIP, std::string extPort) {
+
+void ijoon::RendezvousClientLifeCycleCallback::onServerConnectedCallback(std::string extIP, std::string extPort) {
     if(onServerConnected != nullptr) {
         onServerConnected(extIP, extPort);
     }
 }
 
-void ijoon::RendezvousClient::onServerDisconnectedCallback() {
+void ijoon::RendezvousClientLifeCycleCallback::onServerDisconnectedCallback() {
     if(onServerDisconnected != nullptr) {
         onServerDisconnected();
+    }
+}
+
+void ijoon::RendezvousClientLifeCycleCallback::onConnectingCallback(int connectionID) {
+    if(onConnecting != nullptr) {
+        onConnecting(connectionID);
+    }
+}
+
+void ijoon::RendezvousClientLifeCycleCallback::onConnectedCallback(std::shared_ptr<ijoon::KcpPeer> rendezvousClient) {
+    if(onConnected != nullptr) {
+        onConnected(rendezvousClient);
+    }
+}
+
+void ijoon::RendezvousClientLifeCycleCallback::onConnectFailedCallback(std::string ip, std::string port) {
+    if(onConnectFailed != nullptr) {
+        onConnectFailed(ip, port);
+    }
+}
+
+void ijoon::RendezvousClientLifeCycleCallback::onDisconnectedCallback(std::shared_ptr<ijoon::KcpPeer> rendezvousClient) {
+    if(onDisconnected != nullptr) {
+        onDisconnected(rendezvousClient);
     }
 }
