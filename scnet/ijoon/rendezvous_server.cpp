@@ -156,12 +156,13 @@ ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg)
                 switch(kcpPeer->type) {
                     case ijoon::PeerType::RELAY_SERVER:
                     {
-                        server->removeRelayServer(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
+                        server->callback.removeRelayServerCallback(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
                     }
                         break;
                     case ijoon::PeerType::RENDEZVOUS_CLIENT:
                     {
-                        server->removeRendezvousClient(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
+                        
+                        server->callback.removeRendezvousClientCallback(kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()));
                     }
                         break;
                     default:
@@ -241,14 +242,13 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
                 if(vec == nullptr) break;
                 
                 // Callback to user (serial, public address, private address, MAC, version)
-                if(server->registerRendezvousClient != nullptr) {
-                    std::string localIP = vec->at(0);
-                    std::string localPort = vec->at(1);
-                    std::string serial = vec->at(2);
-                    std::string mac = vec->at(3);
-                    std::string version = vec->at(4);
-                    server->registerRendezvousClient(serial, peer.getIP(), std::to_string(peer.getPort()), localIP, localPort, mac, version);
-                    
+                
+                std::string localIP = vec->at(0);
+                std::string localPort = vec->at(1);
+                std::string serial = vec->at(2);
+                std::string mac = vec->at(3);
+                std::string version = vec->at(4);
+                if(server->callback.registerRendezvousClientCallback(serial, peer.getIP(), std::to_string(peer.getPort()), localIP, localPort, mac, version)) {
                     ijn_print(DP_INFO, "Registered client info: private=%s:%s, public=%s, serial=%s, mac=%s, version=%s",
                               localIP.c_str(), localPort.c_str(), peer.getKey().c_str(),
                               serial.c_str(), mac.c_str(), version.c_str());
@@ -287,11 +287,10 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             else if(messageHeader.packetType == ijoon::REGISTRATION_RELAY_SERVER_REQUEST) {
                 ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_REQUEST");
                 
-                if(server->registerRelayServer != nullptr) {
-                    kcpPeer->type = ijoon::PeerType::RELAY_SERVER;
-                    kcpPeer->status = ijoon::PeerStatus::REGISTERED;
-                    
-                    server->registerRelayServer("unknown", kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()), "0.1");
+                kcpPeer->type = ijoon::PeerType::RELAY_SERVER;
+                kcpPeer->status = ijoon::PeerStatus::REGISTERED;
+                
+                if(server->callback.registerRelayServerCallback("unknown", kcpPeer->getPeer().getIP(), std::to_string(kcpPeer->getPeer().getPort()), "0.1")) {
                     std::string data;
                     data = "1";
                     kcpPeer->send(ijoon::REGISTRATION_RELAY_SERVER_RESPONSE,
@@ -438,8 +437,8 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             std::string targetIP = vec->at(0);
             std::string targetPort = vec->at(1);
             
-            auto sourcePrivatePeer = server->getRendezvousClient(peer.getIP(), std::to_string(peer.getPort()));
-            auto targetPrivatePeer = server->getRendezvousClient(targetIP, targetPort);
+            auto sourcePrivatePeer = server->callback.getRendezvousClientPeerCallback(peer.getIP(), std::to_string(peer.getPort()));
+            auto targetPrivatePeer = server->callback.getRendezvousClientPeerCallback(targetIP, targetPort);
             auto targetPublicPeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(targetIP, targetPort));
             if(peer.getKey() == targetPublicPeer->getKey() ||
                sourcePrivatePeer == nullptr ||
@@ -479,7 +478,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
             auto connectionIDStr = vec->at(0);
             auto connectionID = static_cast<uint>(atoi(connectionIDStr.c_str()));
             
-            auto relayServerPeer = server->getRelayServerPeer();
+            auto relayServerPeer = server->callback.getRelayServerPeerCallback();
             if(relayServerPeer == nullptr) {
                 ijn_print(DP_INFO, "[CONNECTION_ID_RECEIVED] no relay server");
                 std::string data;
@@ -596,4 +595,60 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param) {
     }
     
     return THREAD_EXIT;
+}
+
+bool ijoon::RendezvousServerLocalCallback::registerRendezvousClientCallback(std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort, std::string mac, std::string version){
+    if(registerRendezvousClient != nullptr) {
+        return registerRendezvousClient(serial, publicIP, publicPort, privateIP, privatePort, mac, version);
+    }
+    
+    return false;
+}
+
+bool ijoon::RendezvousServerLocalCallback::removeRendezvousClientCallback(std::string ip, std::string port){
+    if(removeRendezvousClient != nullptr) {
+        return removeRendezvousClient(ip, port);
+    }
+    
+    return false;
+}
+
+std::shared_ptr<ijoon::Peer> ijoon::RendezvousServerLocalCallback::getRendezvousClientPeerCallback(std::string ip, std::string port){
+    if(getRendezvousClientPeer != nullptr) {
+        return getRendezvousClientPeer(ip, port);
+    }
+    
+    return nullptr;
+}
+
+bool ijoon::RendezvousServerLocalCallback::registerRelayServerCallback(std::string name, std::string ip, std::string port, std::string version){
+    if(registerRelayServer != nullptr) {
+        return registerRelayServer(name, ip, port, version);
+    }
+    
+    return false;
+}
+
+bool ijoon::RendezvousServerLocalCallback::removeRelayServerCallback(std::string ip, std::string port){
+    if(removeRelayServer != nullptr) {
+        return removeRelayServer(ip, port);
+    }
+    
+    return false;
+}
+
+bool ijoon::RendezvousServerLocalCallback::isExistRelayServerCallback(std::string ip, std::string port){
+    if(isExistRelayServer != nullptr) {
+        return isExistRelayServer(ip, port);
+    }
+    
+    return false;
+}
+
+std::shared_ptr<ijoon::Peer> ijoon::RendezvousServerLocalCallback::getRelayServerPeerCallback() {
+    if(getRelayServerPeer != nullptr) {
+        return getRelayServerPeer();
+    }
+    
+    return nullptr;
 }

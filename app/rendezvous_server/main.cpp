@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     
     ijoon::RendezvousServer server(atoi(argv[1]));
     server.start();
-    server.registerRendezvousClient = [](std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort, std::string mac, std::string version) {
+    server.callback.registerRendezvousClient = [](std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort, std::string mac, std::string version) -> bool {
         ijn_print(DP_INFO, "called registerRendezvousClient()");
         RendezvousClientInfo info;
         info.serial = serial;
@@ -55,19 +55,22 @@ int main(int argc, char** argv) {
         info.mac = mac;
         info.version = version;
         rendezvousClientMap[publicIP + ":" + publicPort] = info;
+        return true;
     };
     
-    server.removeRendezvousClient = [](std::string ip, std::string port) {
+    server.callback.removeRendezvousClient = [](std::string ip, std::string port)->bool {
         try {
             rendezvousClientMap.erase(ip+":"+port);
             ijn_print(DP_INFO, "renCMap.size() : %d", rendezvousClientMap.size());
         }
         catch(std::exception e) {
-            
+            return false;
         }
+        
+        return true;
     };
     
-    server.getRendezvousClient = [](std::string ip, std::string port)->std::shared_ptr<ijoon::Peer> {
+    server.callback.getRendezvousClientPeer = [](std::string ip, std::string port)->std::shared_ptr<ijoon::Peer> {
         try {
             auto renC = rendezvousClientMap.at(ip+":"+port);
             return std::shared_ptr<ijoon::Peer>(new ijoon::Peer(renC.privateIP, renC.privatePort));
@@ -79,26 +82,29 @@ int main(int argc, char** argv) {
 		return nullptr;
     };
     
-    server.registerRelayServer = [](std::string name, std::string ip, std::string port, std::string version) {
+    server.callback.registerRelayServer = [](std::string name, std::string ip, std::string port, std::string version) -> bool {
         RelayServerInfo info;
         info.name = name;
         info.ip = ip;
         info.port = port;
         info.version = version;
         relayServerMap[ip+":"+port] = info;
+        return true;
     };
     
-    server.removeRelayServer = [](std::string ip, std::string port) {
+    server.callback.removeRelayServer = [](std::string ip, std::string port)->bool {
         try {
             relayServerMap.erase(ip+":"+port);
             ijn_print(DP_INFO, "relayServerMap.size() : %d", relayServerMap.size());
         }
         catch(std::exception e) {
-            
+            return false;
         }
+        
+        return true;
     };
     
-    server.isExistRelayServer = [](std::string ip, std::string port)->bool {
+    server.callback.isExistRelayServer = [](std::string ip, std::string port)->bool {
         try {
             auto relS = relayServerMap.at(ip+":"+port);
             int cnt = relayServerMap.count(ip+":"+port);
@@ -113,7 +119,7 @@ int main(int argc, char** argv) {
         return false;
     };
     
-    server.getRelayServerPeer = []()->std::shared_ptr<ijoon::Peer> {
+    server.callback.getRelayServerPeer = []()->std::shared_ptr<ijoon::Peer> {
         try {
             auto begin = relayServerMap.begin();
             if(begin != relayServerMap.end()) {
