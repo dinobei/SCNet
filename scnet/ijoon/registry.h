@@ -4,6 +4,15 @@
 #include <functional>
 #include <string>
 #include <google/protobuf/message.h>
+#define NOMINMAX
+#ifdef max
+#undef  max
+#endif
+#ifdef min
+#undef min
+#endif
+
+
 
 
 class AbstractCallbackWrapper {
@@ -174,7 +183,7 @@ public:
     }
 };
 
-
+Registry<int, google::protobuf::Message *> *GetRegistry();
 
 // Reference: https://stackoverflow.com/a/17624752
 // This is some crazy magic that helps produce __BASE__247
@@ -187,44 +196,44 @@ public:
 
 #define SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     packetTypeInt, \
                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     messageClassName().GetTypeName(), \
                     packetTypeInt); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     ijoon::MESSAGE_TYPE::PROTOBUF, \
                     packetTypeInt, \
                     new CallbackWrapper<ijoon::Session, messageClassName>(callbackFunc))
 
 #define SCNET_RAW_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     ijoon::MESSAGE_TYPE::RAWBYTE, \
                     packetTypeInt, \
                     new RawCallbackWrapper<ijoon::Session>(callbackFunc))
 
 #define SCNET_RAW_UDP_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
                     static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     ijoon::MESSAGE_TYPE::RAWBYTE, \
                     packetTypeInt, \
                     new RawCallbackWrapper<ijoon::RendezvousSession>(callbackFunc))
 
 #define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     packetTypeInt, \
                     Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     messageClassName().GetTypeName(), \
                     packetTypeInt); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
-                    Registry<int, google::protobuf::Message *>().Get(), \
+                    GetRegistry(), \
                     ijoon::MESSAGE_TYPE::PROTOBUF, \
                     packetTypeInt, \
                     new CallbackWrapper<ijoon::RendezvousSession, messageClassName>(callbackFunc))
