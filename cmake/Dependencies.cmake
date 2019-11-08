@@ -87,6 +87,7 @@ message("scnet_library_dependencies: ${scnet_library_dependencies}")
 message("scnet_include_directories: ${scnet_include_directories}")
 
 if(WIN32)
+	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
     list(APPEND scnet_library_dependencies ws2_32)
 else()
     list(APPEND scnet_library_dependencies pthread)
