@@ -8,10 +8,10 @@
 
 extern char seperator;
 
-ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg);
-ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API rens_rendezvousCheckThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API rens_recvThreadFunc(void *arg);
 
-int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
+int rens_udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 //    ijn_print(DP_DEBUG, "udp_output len : %d.", len);
 //    ijn_print(DP_DEBUG, "udp_output buf : %s.", buf);
     
@@ -27,16 +27,16 @@ int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 void ijoon::RendezvousServer::start() {
     ijn_print(DP_INFO, "Rendezvous server start...");
 
-    recvThread = new ijoon::Thread(recvThreadFunc, "recv thread");
+    recvThread = new ijoon::Thread(rens_recvThreadFunc, "recv thread");
     recvThread->start(this);
-    checkThread = new ijoon::Thread(rendezvousCheckThreadFunc, "rendezvous check thread");
+    checkThread = new ijoon::Thread(rens_rendezvousCheckThreadFunc, "rendezvous check thread");
     checkThread->start(this);
 }
 
 std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousServer::getKcpPeer(std::shared_ptr<ijoon::Peer> peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
     if(this->kcpPeerMap.count(peer->getKey()) == 0) {
-        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer->getIP(), std::to_string(peer->getPort()), udp_output));
+        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer->getIP(), std::to_string(peer->getPort()), rens_udp_output));
         this->kcpPeerMap[peer->getKey()] = kcpPeer;
     }
     else {
@@ -108,7 +108,7 @@ bool connection(ijoon::RendezvousServer *server, ijoon::MessageHeader messageHea
     return true;
 }
 
-ijoon::THREAD_RET THREAD_API rendezvousCheckThreadFunc(void *arg)
+ijoon::THREAD_RET THREAD_API rens_rendezvousCheckThreadFunc(void *arg)
 {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
@@ -394,7 +394,7 @@ void onCallback(ijoon::RendezvousServer *server, std::shared_ptr<ijoon::KcpPeer>
     }
 }
 
-ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param) {
+ijoon::THREAD_RET THREAD_API rens_recvThreadFunc(void *param) {
     auto thread = static_cast<ijoon::Thread *>(param);
     ijoon::RendezvousServer *server = (ijoon::RendezvousServer *)thread->getParam();
     

@@ -8,11 +8,11 @@
 
 extern char seperator;
 
-ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg);
-ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
-ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API rels_registerThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API rels_recvThreadFunc(void *arg);
+ijoon::THREAD_RET THREAD_API rels_rawRecvThreadFunc(void *arg);
 
-int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
+int rels_udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 //    ijn_print(DP_DEBUG, "udp_output len : %d.", len);
 //    ijn_print(DP_DEBUG, "udp_output buf : %s.", buf);
     
@@ -25,18 +25,18 @@ int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
 void ijoon::RelayServer::start() {
     ijn_print(DP_INFO, "Relay server start...");
 
-    recvThread = new ijoon::Thread(recvThreadFunc, "recv thread");
+    recvThread = new ijoon::Thread(rels_recvThreadFunc, "recv thread");
     recvThread->start(this);
-    rawRecvThread = new ijoon::Thread(rawRecvThreadFunc, "raw recv thread");
+    rawRecvThread = new ijoon::Thread(rels_rawRecvThreadFunc, "raw recv thread");
     rawRecvThread->start(this);
-    registerThread = new ijoon::Thread(registerThreadFunc, "relay register thread");
+    registerThread = new ijoon::Thread(rels_registerThreadFunc, "relay register thread");
     registerThread->start(this);
 }
 
 std::shared_ptr<ijoon::KcpPeer> ijoon::RelayServer::getKcpPeer(std::shared_ptr<ijoon::Peer> peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
     if(this->kcpPeerMap.count(peer->getKey()) == 0) {
-        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer->getIP(), std::to_string(peer->getPort()), udp_output));
+        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer->getIP(), std::to_string(peer->getPort()), rels_udp_output));
         this->kcpPeerMap[peer->getKey()] = kcpPeer;
     }
     else {
@@ -46,7 +46,7 @@ std::shared_ptr<ijoon::KcpPeer> ijoon::RelayServer::getKcpPeer(std::shared_ptr<i
     return kcpPeer;
 }
 
-ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
+ijoon::THREAD_RET THREAD_API rels_registerThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
@@ -320,7 +320,7 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
     }
 }
 
-ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg) {
+ijoon::THREAD_RET THREAD_API rels_rawRecvThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
@@ -350,7 +350,7 @@ ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg) {
     return THREAD_EXIT;
 }
 
-ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg) {
+ijoon::THREAD_RET THREAD_API rels_recvThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
