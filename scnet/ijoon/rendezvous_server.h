@@ -3,6 +3,9 @@
 #include <map>
 #include <ijoon/coreutils.h>
 #include "session.h"
+#include "registry.h"
+#include "rendezvous_message.h"
+#include "rendezvous_server_callback.h"
 
 namespace ijoon {
     class ConnectionInfo {
@@ -38,11 +41,39 @@ namespace ijoon {
 
     class RendezvousServer {
     public:
-        RendezvousServer(int port): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))), connectionIDCursor(1) {}
-        ~RendezvousServer() {}
-
+        static void init(int port) // enable moving in
+        {
+            getInstanceImpl(port);
+        }
+        
+        static RendezvousServer& getInstance() {
+            return getInstanceImpl();
+        }
+        
         void start();
-                
+        
+        RendezvousServer(RendezvousServer const&) = delete;
+        void operator=(RendezvousServer const&) = delete;
+        
+    private:
+        static RendezvousServer& getInstanceImpl(int port = -1) {
+            static RendezvousServer instance{ port };
+            return instance;
+        }
+        
+        RendezvousServer(int port):
+            serverPort(port),
+            socket(std::shared_ptr<UDPSocket>(new UDPSocket(port))),
+            connectionIDCursor(1)
+        {
+            if(port < 0 || port > 65535) {
+                throw std::runtime_error{"RendezvousServer did not initialized properly"};
+            }
+            
+        }
+        
+        ~RendezvousServer() {}
+        
     public:
         int serverPort;
         std::shared_ptr<UDPSocket> socket;

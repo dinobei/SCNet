@@ -42,7 +42,8 @@ int main(int argc, char** argv) {
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example::PacketType::cameraListRequest, CameraListRequest, onCameraListRequest);
     SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(example::PacketType::cameraListResponse, CameraListResponse, nullptr);
     
-    ijoon::RendezvousServer server(atoi(argv[1]));
+    ijoon::RendezvousServer::init(atoi(argv[1]));
+    ijoon::RendezvousServer& server = ijoon::RendezvousServer::getInstance();
     server.start();
     server.callback.registerRendezvousClient = [](std::string serial, std::string publicIP, std::string publicPort, std::string privateIP, std::string privatePort, std::string mac, std::string version) -> bool {
         ijn_print(DP_INFO, "called registerRendezvousClient()");

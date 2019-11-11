@@ -1,5 +1,4 @@
 #pragma once
-#include "rendezvous_server.h"
 #include "session.h"
 
 namespace ijoon {
