@@ -3,8 +3,8 @@
 
 extern char seperator;
 
-void onRegistrationRendezvousClientResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onRegistrationRendezvousClientResponse() called");
+void renc::onRegistrationRendezvousClientResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     auto vec = ijoon::paramParser((char *)buffer, 3);
     if(vec == nullptr) return;
 
@@ -25,8 +25,8 @@ void onRegistrationRendezvousClientResponse(std::shared_ptr<ijoon::KcpPeer> kcpP
     }
 }
 
-void onConnectionIdCreated(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onConnectionIdCreated() called");
+void renc::onConnectionIdCreated(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 3);
     if(vec == nullptr) return;
@@ -38,8 +38,8 @@ void onConnectionIdCreated(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer
     kcpPeer->send(ijoon::CONNECTION_ID_RECEIVED, (char *)connectionIDStr.c_str(), connectionIDStr.length());
 }
 
-void onRelayServerInformation(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-    ijn_print(DP_DEBUG, "onRelayServerInformation() called");
+void renc::onRelayServerInformation(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 4);
     if(vec == nullptr) return;
@@ -67,8 +67,8 @@ void onRelayServerInformation(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buf
                        data.length());
 }
 
-void onConnectionRelayServiceResult(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onConnectionRelayServiceResult() called");
+void renc::onConnectionRelayServiceResult(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 4);
     if(vec == nullptr) return;
@@ -98,8 +98,8 @@ void onConnectionRelayServiceResult(std::shared_ptr<ijoon::KcpPeer> kcpPeer, voi
     }
 }
 
-void onRelaySessionInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-    ijn_print(DP_DEBUG, "onRelaySessionInvalid() called, (ConnectionID: %d)", kcpPeer->connectionID);
+void renc::onRelaySessionInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     client.mutexForConnFilterMap.lock();
     client.connFilterMap.erase(kcpPeer->connectionID);
@@ -115,8 +115,8 @@ void onRelaySessionInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer
     client.mutexForConnFilterMap.unlock();
 }
 
-void onRelayServerDisconnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-    ijn_print(DP_DEBUG, "onRelayServerDisconnected() called --- %s", kcpPeer->getPeer().getKey().c_str());
+void renc::onRelayServerDisconnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     ijn_print(DP_DEBUG, "@@@@@@@@ ready");
 //    client.mutexForKcpPeerMap.lock();
@@ -136,8 +136,8 @@ void onRelayServerDisconnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
     ijn_print(DP_DEBUG, "@@@@@@@@ 4");
 }
 
-void onDirectConnectionAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onDirectConnectionAvailable() called");
+void renc::onDirectConnectionAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
                 
     auto vec = ijoon::paramParser((char *)buffer, 3);
     if(vec == nullptr) return;
@@ -167,8 +167,8 @@ void onDirectConnectionAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *
                         data.length());
 }
 
-void onDirectConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onDirectConnectionRequest() called");
+void renc::onDirectConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 1);
     if(vec == nullptr) return;
@@ -201,8 +201,8 @@ void onDirectConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
                   data.length());
 }
 
-void onDirectConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onDirectConnectionResponse() called");
+void renc::onDirectConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 1);
     if(vec == nullptr) return;
@@ -228,8 +228,8 @@ void onDirectConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *b
     }
 }
 
-void onReverseConnectionReady(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onReverseConnectionReady() called");
+void renc::onReverseConnectionReady(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 1);
     if(vec == nullptr) return;
@@ -237,8 +237,8 @@ void onReverseConnectionReady(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buf
     auto connectionID = static_cast<uint>(atoi(connectionIDStr.c_str()));
 }
 
-void onReverseConnection(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onReverseConnection() called");
+void renc::onReverseConnection(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 3);
     if(vec == nullptr) return;
@@ -260,8 +260,8 @@ void onReverseConnection(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, 
 
 
 
-void onReverseConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onReverseConnectionRequest() called");
+void renc::onReverseConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 1);
     if(vec == nullptr) return;
@@ -294,8 +294,8 @@ void onReverseConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *b
 
 }
 
-void onReverseConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onReverseConnectionResponse() called");
+void renc::onReverseConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 1);
     if(vec == nullptr) return;
@@ -321,8 +321,8 @@ void onReverseConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *
     }
 }
 
-void onUdpHolePunchingAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onUdpHolePunchingAvailable called");
+void renc::onUdpHolePunchingAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 5);
     if(vec == nullptr) return;
@@ -367,8 +367,8 @@ void onUdpHolePunchingAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *b
 
 
 
-void onUdpHolePunchingRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onUdpHolePunchingRequest() called");
+void renc::onUdpHolePunchingRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
 
     std::string bodyStr = (char *)buffer;
     auto vec = ijoon::paramParser((char *)buffer, 2);
@@ -382,8 +382,8 @@ void onUdpHolePunchingRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buf
                   bodyStr.length());
 }
 
-void onUdpHolePunchingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onUdpHolePunchingResponse() called");
+void renc::onUdpHolePunchingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
 
     // Connected by hole punching or local
 
@@ -422,8 +422,8 @@ void onUdpHolePunchingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
     //TODO: onConnectionUpdate() 추가
 }
 
-void onConnectionTargetInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_DEBUG, "onConnectionTargetInvalid() called");
+void renc::onConnectionTargetInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     auto vec = ijoon::paramParser((char *)buffer, 2);
     if(vec == nullptr) return;
@@ -434,12 +434,12 @@ void onConnectionTargetInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
     client.callback.onConnectFailedCallback(targetIP, targetPort);
 }
 
-void onPingRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_INFO, "onPingRequest() from %s", kcpPeer->getPeer().getKey().c_str());
+void renc::onPingRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_INFO, "from %s", kcpPeer->getPeer().getKey().c_str());
     
     kcpPeer->send(ijoon::PING_RESPONSE);
 }
 
-void onPingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
-//    ijn_print(DP_INFO, "onPingResponse() from %s", kcpPeer->getPeer().getKey().c_str());
+void renc::onPingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
+//    ijn_print(DP_INFO, "from %s", kcpPeer->getPeer().getKey().c_str());
 }

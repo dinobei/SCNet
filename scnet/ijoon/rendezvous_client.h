@@ -1,7 +1,6 @@
 #pragma once
 #include <ijoon/coreutils.h>
 #include <functional>
-#include "session.h"
 #include "registry.h"
 #include "rendezvous_message.h"
 #include "rendezvous_client_callback.h"
@@ -72,25 +71,25 @@ namespace ijoon {
                 throw std::runtime_error{"RendezvousClient did not initialized properly"};
             }
             
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_RESPONSE, onRegistrationRendezvousClientResponse);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_RELAY_SERVICE_RESULT, onConnectionRelayServiceResult);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_REQUEST, onDirectConnectionRequest);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_RESPONSE, onDirectConnectionResponse);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_REQUEST, onReverseConnectionRequest);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_RESPONSE, onReverseConnectionResponse);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_REQUEST, onUdpHolePunchingRequest);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_RESPONSE, onUdpHolePunchingResponse);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_TARGET_INVALID, onConnectionTargetInvalid);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_ID_CREATED, onConnectionIdCreated);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_AVAILABLE, onDirectConnectionAvailable);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_READY, onReverseConnectionReady);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION, onReverseConnection);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_AVAILABLE, onUdpHolePunchingAvailable);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVER_INFORMATION, onRelayServerInformation);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SESSION_INVALID, onRelaySessionInvalid);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVER_DISCONNECTED, onRelayServerDisconnected);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_REQUEST, onPingRequest);
-            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_RESPONSE, onPingResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_RESPONSE, renc::onRegistrationRendezvousClientResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_RELAY_SERVICE_RESULT, renc::onConnectionRelayServiceResult);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_REQUEST, renc::onDirectConnectionRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_RESPONSE, renc::onDirectConnectionResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_REQUEST, renc::onReverseConnectionRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_RESPONSE, renc::onReverseConnectionResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_REQUEST, renc::onUdpHolePunchingRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_RESPONSE, renc::onUdpHolePunchingResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_TARGET_INVALID, renc::onConnectionTargetInvalid);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_ID_CREATED, renc::onConnectionIdCreated);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::DIRECT_CONNECTION_AVAILABLE, renc::onDirectConnectionAvailable);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION_READY, renc::onReverseConnectionReady);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REVERSE_CONNECTION, renc::onReverseConnection);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UDP_HOLE_PUNCHING_AVAILABLE, renc::onUdpHolePunchingAvailable);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVER_INFORMATION, renc::onRelayServerInformation);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SESSION_INVALID, renc::onRelaySessionInvalid);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVER_DISCONNECTED, renc::onRelayServerDisconnected);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_REQUEST, renc::onPingRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_RESPONSE, renc::onPingResponse);
             
             auto serverKcpPeer = getKcpPeer(ijoon::Peer(serverIP, serverPort));
             serverKcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "session.h"
 
+namespace renc {
 void onRegistrationRendezvousClientResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length);
 
 void onConnectionIdCreated(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length);
@@ -28,4 +29,4 @@ void onConnectionTargetInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
 
 void onPingRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length);
 void onPingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length);
-
+}

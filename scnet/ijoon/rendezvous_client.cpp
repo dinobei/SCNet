@@ -312,7 +312,7 @@ void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::Kc
                 callbackWrapper->callback(kcpPeer, body, messageHeader.dataSize);
             }
             else {
-                printf("unregistered raw message received. body=%s", body);
+                ijn_print(DP_ERROR, "Not registered raw message received. mtype=%d, body=%s", messageHeader.messageType, body);
             }
 
             return;
