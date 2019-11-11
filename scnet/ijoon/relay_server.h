@@ -15,17 +15,41 @@ namespace ijoon {
     
     class RelayServer {
     public:
-        RelayServer(int port, std::string renIP, std::string renPort): serverPort(port), socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))), lastRegistrationTime(0) {
-            serverPeer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer(renIP, renPort));
+        static void init(int port, std::string renIP, std::string renPort) // enable moving in
+        {
+            getInstanceImpl(port, &renIP, &renPort);
+        }
+        
+        static RelayServer& getInstance() {
+            return getInstanceImpl();
+        }
+        
+        void start();
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer &peer);
+        
+        RelayServer(RelayServer const&) = delete;
+        void operator=(RelayServer const&) = delete;
+        
+    private:
+        static RelayServer& getInstanceImpl(int port = -1,
+                                            std::string* const renIP = nullptr,
+                                            std::string* const renPort = nullptr) {
+            static RelayServer instance{ port, renIP, renPort };
+            return instance;
+        }
+        
+        RelayServer(int port, std::string* rensIP, std::string* rensPort):
+            serverPort(port),
+            socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))),
+            rensIP{ rensIP ? move(*rensIP) : std::string{} },
+            rensPort{ rensPort ? move(*rensPort) : std::string{} },
+            lastRegistrationTime(0) {
+            serverPeer = ijoon::Peer(this->rensIP, this->rensPort);
             
             auto serverKcpPeer = getKcpPeer(serverPeer);
             serverKcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
         }
         ~RelayServer() {}
-        
-        void start();
-        
-        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);
         
     public:
         int serverPort;
@@ -42,7 +66,9 @@ namespace ijoon {
         ijoon::Thread *recvThread;
         ijoon::Thread *registerThread;
         
-        std::shared_ptr<ijoon::Peer> serverPeer;
+        ijoon::Peer serverPeer;
+        std::string rensIP;
+        std::string rensPort;
 
         long lastRegistrationTime;
     };

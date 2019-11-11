@@ -30,14 +30,14 @@ void ijoon::RelayServer::start() {
     registerThread->start(this);
 }
 
-std::shared_ptr<ijoon::KcpPeer> ijoon::RelayServer::getKcpPeer(std::shared_ptr<ijoon::Peer> peer) {
+std::shared_ptr<ijoon::KcpPeer> ijoon::RelayServer::getKcpPeer(ijoon::Peer &peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
     
     try {
-        kcpPeer = this->kcpPeerMap.at(peer->getKey());
+        kcpPeer = this->kcpPeerMap.at(peer.getKey());
     } catch (std::exception e) {
-        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer->getIP(), std::to_string(peer->getPort()), udp_output));
-        this->kcpPeerMap[peer->getKey()] = kcpPeer;
+        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(this->socket, peer.getIP(), std::to_string(peer.getPort()), udp_output));
+        this->kcpPeerMap[peer.getKey()] = kcpPeer;
     }
     
     return kcpPeer;
@@ -66,7 +66,7 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
                     if(kcpPeer->status != ijoon::PeerStatus::REGISTERED) {
                         // send registration packet
                         if(connFlag) {
-                            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(relayServer->socket, relayServer->serverPeer->getIP(), std::to_string(relayServer->serverPeer->getPort()), udp_output));
+                            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(relayServer->socket, relayServer->rensIP, relayServer->rensPort, udp_output));
                             kcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
                             relayServer->kcpPeerMap[kcpPeer->getPeer().getKey()] = kcpPeer;
                         }
@@ -352,14 +352,14 @@ ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg) {
     ijoon::Thread *thread = (ijoon::Thread *)arg;
     ijoon::RelayServer *relayServer = (ijoon::RelayServer *)thread->getParam();
     
-    auto peer = std::shared_ptr<ijoon::Peer>(new ijoon::Peer());
+    auto peer = ijoon::Peer();
     
     char *rawBuffer = new char[MAX_PACKET_SIZE];
     
     relayServer->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, 1000);
     
     while(!thread->isInterrupted()) {
-        int rcvSize = relayServer->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);
+        int rcvSize = relayServer->socket->recvFrom(&peer, rawBuffer, MAX_PACKET_SIZE);
         if(rcvSize > 0) {
             relayServer->mutexForKcpPeerMap.lock();
             auto kcpPeer = relayServer->getKcpPeer(peer);

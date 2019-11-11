@@ -8,7 +8,8 @@ int main(int argc, char** argv) {
         exit(-1);
     }
     
-    ijoon::RelayServer server(atoi(argv[1]), argv[2], argv[3]);
+    ijoon::RelayServer::init(atoi(argv[1]), argv[2], argv[3]);
+    ijoon::RelayServer& server = ijoon::RelayServer::getInstance();
     server.socket->option(ijoon::SOCK_REUSE, 1);
     server.start();
     getchar();
