@@ -239,111 +239,17 @@ void onCallback(ijoon::RelayServer *relayServer, std::shared_ptr<ijoon::KcpPeer>
         }
         return;
     }
-    
-    if(messageHeader.messageType != ijoon::MESSAGE_TYPE::RAWBYTE) {
-        ijn_print(DP_ERROR, "Rendezvous server only accept raw packet for rendezvous");
-        return;
-    }
-    
-    switch (messageHeader.packetType) {
-        case ijoon::RELAY_SERVICE_REQUEST: // from RanS
-        {
-            ijn_print(DP_DEBUG, "received RELAY_SERVICE_REQUEST");
-            
-            auto vec = ijoon::paramParser(body, 3);
-            if(vec == nullptr) break;
-            auto connectionIDStr = vec->at(0);
-            auto connectionID = static_cast<uint>(atoi(connectionIDStr.c_str()));
-            
-            if(relayServer->map.count(connectionID) != 0) {
-                ijn_print(DP_ERROR, "[RELAY_SERVICE_REQUEST] already registered");
-                return;
-            }
-            
-            auto relayPeerInfo = std::shared_ptr<ijoon::RelayPeerInfo>(new ijoon::RelayPeerInfo());
+    else {
+        auto registry = Registry<int, google::protobuf::Message *>().Get();
 
-            relayServer->map[connectionID] = relayPeerInfo;
-            
-            relayServer->sessionCheckMap[connectionID] = 0;
-            
-            kcpPeer->send(ijoon::RELAY_SESSION_READY, (char *)connectionIDStr.c_str(), connectionIDStr.length());
-            
-            return;
+        kcpPeer->lastPing = ijoon::ComputableTime::getCurrentTimeSec();
+        
+        auto callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
+        if(callbackWrapper != nullptr) {
+            callbackWrapper->callback(kcpPeer, body, messageHeader.dataSize);
         }
-        case ijoon::REGISTRATION_RELAY_SERVER_RESPONSE: // from RanS
-        {
-            ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_SERVER_RESPONSE");
-            auto vec = ijoon::paramParser(body, 1);
-            auto errStr = vec->at(0);
-            bool isSuccess = (errStr == "1") ? true : false;
-            
-            if(isSuccess) {
-                ijn_print(DP_INFO, "REGISTRATION_RELAY_SERVER_RESPONSE success");
-                kcpPeer->status = ijoon::PeerStatus::REGISTERED;
-            }
-            else {
-                ijn_print(DP_INFO, "REGISTRATION_RELAY_SERVER_RESPONSE result : %s", errStr.c_str());
-            }
-            
-            relayServer->lastRegistrationTime = ijoon::ComputableTime::getCurrentTimeSec();
-            return;
-        }
-        case ijoon::REGISTRATION_RELAY_PEER_REQUEST: // from SP, TP
-        {
-            ijn_print(DP_DEBUG, "received REGISTRATION_RELAY_PEER_REQUEST from %s", peer.getKey().c_str());
-            
-            auto vec = ijoon::paramParser(body, 2);
-            if(vec == nullptr) break;
-            auto connectionIDStr = vec->at(0);
-            auto connectionID = static_cast<uint>(atoi(connectionIDStr.c_str()));
-            auto isSP = atoi(vec->at(1).c_str()) ? true : false;
-            
-            //TODO: mutex 사용
-            if(relayServer->map.count(connectionID) == 0) {
-                ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
-                return;
-            }
-            
-            if(relayServer->sessionCheckMap.count(connectionID) == 0) {
-                ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
-                return;
-            }
-            
-            kcpPeer->type = ijoon::PeerType::RENDEZVOUS_CLIENT;
-            kcpPeer->status = ijoon::PeerStatus::REGISTERED;
-            if(isSP) {
-                relayServer->map[connectionID]->sourceKcpPeer = kcpPeer;
-            }
-            else {
-                relayServer->map[connectionID]->targetKcpPeer = kcpPeer;
-            }
-            
-            relayServer->sessionCheckMap[connectionID]++;
-            
-            if(relayServer->sessionCheckMap[connectionID] >= 2) {
-                // successfully registerred
-                relayServer->sessionCheckMap.erase(connectionID);
-                
-                auto serverKcpPeer = relayServer->getKcpPeer(relayServer->serverPeer);
-                
-                serverKcpPeer->send(ijoon::RELAY_SESSION_CREATED, (char *)connectionIDStr.c_str(), connectionIDStr.length());
-            }
-            
-            return;
-        }
-        case ijoon::PING_REQUEST:
-        {
-            kcpPeer->send(ijoon::PING_RESPONSE);
-            return;
-        }
-        case ijoon::PING_RESPONSE:
-        {
-            return;
-        }
-        default:
-        {
-            ijn_print(DP_ERROR, "Undefined message received");
-            break;
+        else {
+            printf("Not registered raw message received. mtype=%d, body=%s", messageHeader.messageType, body);
         }
     }
 }

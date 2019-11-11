@@ -2,6 +2,9 @@
 #include <map>
 #include <ijoon/coreutils.h>
 #include "session.h"
+#include "registry.h"
+#include "rendezvous_message.h"
+#include "relay_server_callback.h"
 
 namespace ijoon {
     class RelayPeerInfo {
@@ -42,8 +45,15 @@ namespace ijoon {
             serverPort(port),
             socket(std::shared_ptr<UDPSocket>(new UDPSocket(serverPort))),
             rensIP{ rensIP ? move(*rensIP) : std::string{} },
-            rensPort{ rensPort ? move(*rensPort) : std::string{} },
-            lastRegistrationTime(0) {
+            rensPort{ rensPort ? move(*rensPort) : std::string{} } {
+                
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SERVICE_REQUEST, rels::onRelayServiceRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RELAY_SERVER_RESPONSE, rels::onRegistrationRelayServerResponse);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RELAY_PEER_REQUEST, rels::onRegistrationRelayPeerRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_REQUEST, rels::onPingRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_RESPONSE, rels::onPingResponse);
+                
+                
             serverPeer = ijoon::Peer(this->rensIP, this->rensPort);
             
             auto serverKcpPeer = getKcpPeer(serverPeer);
@@ -69,7 +79,5 @@ namespace ijoon {
         ijoon::Peer serverPeer;
         std::string rensIP;
         std::string rensPort;
-
-        long lastRegistrationTime;
     };
 }
