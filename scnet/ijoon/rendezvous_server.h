@@ -2,7 +2,6 @@
 #include <functional>
 #include <map>
 #include <ijoon/coreutils.h>
-#include "session.h"
 #include "registry.h"
 #include "rendezvous_message.h"
 #include "rendezvous_server_callback.h"
@@ -70,6 +69,15 @@ namespace ijoon {
                 throw std::runtime_error{"RendezvousServer did not initialized properly"};
             }
             
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST, rens::onRegistrationRendezvousClientRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::REGISTRATION_RELAY_SERVER_REQUEST, rens::onRegistrationRelayServerRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SESSION_READY, rens::onRelaySessionReady);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::RELAY_SESSION_CREATED, rens::onRelaySessionCreated);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_REQUEST, rens::onConnectionRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::CONNECTION_ID_RECEIVED, rens::onConnectionIdReceived);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::PING_REQUEST, rens::onPingRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UNREGISTRATION_RENDEZVOUS_CLIENT_REQUEST, rens::onUnregistrationRendezvousClientRequest);
+            SCNET_RAW_UDP_MESSAGE_REGISTRATION(ijoon::UNREGISTRATION_RELAY_SERVER_REQUEST, rens::onUnregistrationRelayServerRequest);
         }
         
         ~RendezvousServer() {}
