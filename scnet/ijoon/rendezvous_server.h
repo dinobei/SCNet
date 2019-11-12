@@ -82,21 +82,35 @@ namespace ijoon {
         
         ~RendezvousServer() {}
         
-    public:
-        int serverPort;
-        std::shared_ptr<UDPSocket> socket;
+    private:
+        std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
+        ijoon::Mutex mutexForConnectionInfoMap;
         std::map<std::string, std::shared_ptr<KcpPeer>> kcpPeerMap; // public address, kcp peer
         ijoon::Mutex mutexForKcpPeerMap;
         
-        int connectionIDCursor;
-        std::map<int, std::shared_ptr<ConnectionInfo>> connectionInfoMap;
-        ijoon::Mutex mutexForConnectionInfoMap;
+    public:
+        int serverPort;
+        std::shared_ptr<UDPSocket> socket;
         
-        ijoon::Thread *checkThread;        
+        ijoon::Thread *checkThread;
         ijoon::Thread *recvThread;
         ijoon::Thread *rawRecvThread;
         
+        int connectionIDCursor;
+        
+        // Access ConnectionInfoMap
+        std::map<int, std::shared_ptr<ConnectionInfo>> getConnectionInfoMap();
+        std::shared_ptr<ConnectionInfo> getConnectionInfo(int connectionID);
+        void setConnectionInfo(int connectionID, std::shared_ptr<ConnectionInfo> connectionInfo);
+        void removeConnectionInfo(int connectionID);
+        
+        // Access KcpPeerMap
+        std::map<std::string, std::shared_ptr<KcpPeer>> getKcpPeerMap();
         std::shared_ptr<ijoon::KcpPeer> getKcpPeer(std::shared_ptr<ijoon::Peer> peer);
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeerWithLock(std::shared_ptr<ijoon::Peer> peer);
+        void removeKcpPeer(std::string key);
+        void checkKcpPeerMap(const int timeout, const int checkIntervalMs);
+        void receivedDataDistToKcpPeer(char *buffer, IUINT32 current);
         
     public:
         RendezvousServerLocalCallback callback;

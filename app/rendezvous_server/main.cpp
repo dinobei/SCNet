@@ -133,6 +133,42 @@ int main(int argc, char** argv) {
         return nullptr;
     };
     
+    
+    while(true) {
+        getchar();
+        
+        ijn_print(DP_INFO, "----------KcpPeerMap---------");
+        auto kcpPeerMap = server.getKcpPeerMap();
+        for(auto iter : kcpPeerMap) {
+            std::string type;
+            switch (iter.second->type) {
+                case ijoon::PeerType::RENDEZVOUS_CLIENT:
+                    type="Rendezvous Client";
+                    break;
+                case ijoon::PeerType::RENDEZVOUS_SERVER:
+                    type="Rendezvous Server";
+                    break;
+                case ijoon::PeerType::RELAY_SERVER:
+                    type="Relay Server";
+                    break;
+                default:
+                    type="None";
+            }
+            ijn_print(DP_INFO, "%s [%s]", iter.first.c_str(),
+                      type.c_str());
+        }
+        
+        ijn_print(DP_INFO, "------ConnectionInfoMap------");
+        auto connectionInfoMap = server.getConnectionInfoMap();
+        for(auto iter : connectionInfoMap) {
+            ijn_print(DP_INFO, "[%d] Public:%s, Private:%s",
+                      iter.first,
+                      iter.second->publicSP->getKey().c_str(),
+                      iter.second->privateSP->getKey().c_str());
+        }
+        ijn_print(DP_INFO, "-----------------------------");
+    }
+    
     getchar();
     
     return 0;

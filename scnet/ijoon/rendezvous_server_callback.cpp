@@ -4,9 +4,11 @@
 extern char seperator;
 
 bool connection(ijoon::RendezvousServer &server, uint connectionID) {
-    server.mutexForConnectionInfoMap.lock();
-    auto connectionInfo = server.connectionInfoMap[connectionID];
-    server.mutexForConnectionInfoMap.unlock();
+    auto connectionInfo = server.getConnectionInfo(connectionID);
+    if(connectionInfo == nullptr) {
+        ijn_print(DP_ERROR, "connection info can not found");
+        return false;
+    }
     
     // SP/TP nat check
     bool isSPPublic = false;
@@ -87,9 +89,7 @@ bool connection(ijoon::RendezvousServer &server, uint connectionID) {
                             data.length());
     }
     
-    server.mutexForConnectionInfoMap.lock();
-    server.connectionInfoMap.erase(connectionID);
-    server.mutexForConnectionInfoMap.unlock();
+    server.removeConnectionInfo(connectionID);
     return true;
 }
 
@@ -182,15 +182,11 @@ void rens::onRelaySessionReady(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
     ijoon::RendezvousServer& server = ijoon::RendezvousServer::getInstance();
     ijoon::Peer peer = kcpPeer->getPeer();
     
-    server.mutexForConnectionInfoMap.lock();
-    if(server.connectionInfoMap.count(connectionID) == 0) {
+    auto connectionInfo = server.getConnectionInfo(connectionID);
+    if(connectionInfo == nullptr) {
         ijn_print(DP_ERROR, "[RELAY_SESSION_READY] invalid request from relay server");
-        server.mutexForConnectionInfoMap.unlock();
         return;
     }
-    
-    auto connectionInfo = server.connectionInfoMap[connectionID];
-    server.mutexForConnectionInfoMap.unlock();
     
     auto sourceKcpPeer = server.getKcpPeer(connectionInfo->publicSP);
     auto targetKcpPeer = server.getKcpPeer(connectionInfo->publicTP);
@@ -218,14 +214,11 @@ void rens::onRelaySessionCreated(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *
     ijoon::RendezvousServer& server = ijoon::RendezvousServer::getInstance();
     ijoon::Peer peer = kcpPeer->getPeer();
     
-    server.mutexForConnectionInfoMap.lock();
-    if(server.connectionInfoMap.count(connectionID) == 0) {
+    auto connectionInfo = server.getConnectionInfo(connectionID);
+    if(connectionInfo == nullptr) {
         ijn_print(DP_ERROR, "[RELAY_SESSION_CREATED] relay connection info not exist, %d", connectionID);
-        server.mutexForConnectionInfoMap.unlock();
         return;
     }
-    auto connectionInfo = server.connectionInfoMap[connectionID];
-    server.mutexForConnectionInfoMap.unlock();
     
     auto sourceKcpPeer = server.getKcpPeer(connectionInfo->publicSP);
     auto targetKcpPeer = server.getKcpPeer(connectionInfo->publicTP);
@@ -279,9 +272,7 @@ void rens::onConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *bu
     connectionInfo->privateSP = sourcePrivatePeer;
     connectionInfo->publicTP = targetPublicPeer;
     connectionInfo->privateTP = targetPrivatePeer;
-    server.mutexForConnectionInfoMap.lock();
-    server.connectionInfoMap[connectionID] = connectionInfo;
-    server.mutexForConnectionInfoMap.unlock();
+    server.setConnectionInfo(connectionID, connectionInfo);
     
     std::string data = std::to_string(connectionID) + seperator + bodyStr;
     kcpPeer->send(ijoon::CONNECTION_ID_CREATED,
@@ -318,14 +309,12 @@ void rens::onConnectionIdReceived(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void 
         return;
     }
     
-    server.mutexForConnectionInfoMap.lock();
-    if(server.connectionInfoMap.count(connectionID) == 0) {
+    auto connectionInfo = server.getConnectionInfo(connectionID);
+    
+    if(connectionInfo == nullptr) {
         ijn_print(DP_ERROR, "[CONNECTION_ID_RECEIVED] relay connection info not exist, %d", connectionID);
-        server.mutexForConnectionInfoMap.unlock();
         return;
     }
-    auto connectionInfo = server.connectionInfoMap[connectionID];
-    server.mutexForConnectionInfoMap.unlock();
     
     auto relayKcpPeer = server.getKcpPeer(relayServerPeer);
 
@@ -353,9 +342,7 @@ void rens::onUnregistrationRendezvousClientRequest(std::shared_ptr<ijoon::KcpPee
     ijoon::RendezvousServer& server = ijoon::RendezvousServer::getInstance();
     ijoon::Peer peer = kcpPeer->getPeer();
     
-    server.mutexForKcpPeerMap.lock();
-    server.kcpPeerMap.erase(peer.getKey());
-    server.mutexForKcpPeerMap.unlock();
+    server.removeKcpPeer(peer.getKey());
     
     kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
 }
@@ -366,9 +353,7 @@ void rens::onUnregistrationRelayServerRequest(std::shared_ptr<ijoon::KcpPeer> kc
     ijoon::RendezvousServer& server = ijoon::RendezvousServer::getInstance();
     ijoon::Peer peer = kcpPeer->getPeer();
     
-    server.mutexForKcpPeerMap.lock();
-    server.kcpPeerMap.erase(peer.getKey());
-    server.mutexForKcpPeerMap.unlock();
+    server.removeKcpPeer(peer.getKey());
     
     kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
 }
