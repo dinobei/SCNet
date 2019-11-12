@@ -11,16 +11,14 @@ void rels::onRelayServiceRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *
     
     ijoon::RelayServer& relayServer = ijoon::RelayServer::getInstance();
     
-    if(relayServer.map.count(connectionID) != 0) {
+    if(relayServer.getRelayPeerInfo(connectionID) != nullptr) {
         ijn_print(DP_ERROR, "[RELAY_SERVICE_REQUEST] already registered");
         return;
     }
     
     auto relayPeerInfo = std::shared_ptr<ijoon::RelayPeerInfo>(new ijoon::RelayPeerInfo());
-
-    relayServer.map[connectionID] = relayPeerInfo;
-    
-    relayServer.sessionCheckMap[connectionID] = 0;
+    relayServer.setRelayPeerInfo(connectionID, relayPeerInfo);
+    relayServer.setCheckSession(connectionID, 0);
     
     kcpPeer->send(ijoon::RELAY_SESSION_READY, (char *)connectionIDStr.c_str(), connectionIDStr.length());
 }
@@ -48,31 +46,32 @@ void rels::onRegistrationRelayPeerRequest(std::shared_ptr<ijoon::KcpPeer> kcpPee
     
     ijoon::RelayServer& relayServer = ijoon::RelayServer::getInstance();
     
-    //TODO: mutex 사용
-    if(relayServer.map.count(connectionID) == 0) {
-        ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
+    if(!relayServer.isExistCheckSession(connectionID)) {
+        ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
         return;
     }
     
-    if(relayServer.sessionCheckMap.count(connectionID) == 0) {
-        ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] already checked peer");
+    auto relayPeerInfo = relayServer.getRelayPeerInfo(connectionID);
+    if(relayPeerInfo == nullptr) {
+        ijn_print(DP_ERROR, "[REGISTRATION_RELAY_PEER_REQUEST] invalid connection id");
         return;
     }
     
     kcpPeer->type = ijoon::PeerType::RENDEZVOUS_CLIENT;
     kcpPeer->status = ijoon::PeerStatus::REGISTERED;
     if(isSP) {
-        relayServer.map[connectionID]->sourceKcpPeer = kcpPeer;
+        relayPeerInfo->sourceKcpPeer = kcpPeer;
     }
     else {
-        relayServer.map[connectionID]->targetKcpPeer = kcpPeer;
+        relayPeerInfo->targetKcpPeer = kcpPeer;
     }
     
-    relayServer.sessionCheckMap[connectionID]++;
+    int count = relayServer.getCheckSession(connectionID) + 1;
+    relayServer.setCheckSession(connectionID, count);
     
-    if(relayServer.sessionCheckMap[connectionID] >= 2) {
+    if(count >= 2) {
         // successfully registerred
-        relayServer.sessionCheckMap.erase(connectionID);
+        relayServer.removeCheckSession(connectionID);
         
         auto serverKcpPeer = relayServer.getKcpPeer(relayServer.serverPeer);
         

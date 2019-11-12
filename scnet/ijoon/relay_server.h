@@ -28,7 +28,6 @@ namespace ijoon {
         }
         
         void start();
-        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer &peer);
         
         RelayServer(RelayServer const&) = delete;
         void operator=(RelayServer const&) = delete;
@@ -65,13 +64,6 @@ namespace ijoon {
         int serverPort;
         std::shared_ptr<UDPSocket> socket;
         
-        std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
-        std::map<int, std::shared_ptr<RelayPeerInfo>> map;
-        std::map<int, int> sessionCheckMap;
-        
-        ijoon::Mutex mutexForKcpPeerMap;
-        ijoon::Mutex mutexForMap;
-        
         ijoon::Thread *rawRecvThread;
         ijoon::Thread *recvThread;
         ijoon::Thread *registerThread;
@@ -79,5 +71,39 @@ namespace ijoon {
         ijoon::Peer serverPeer;
         std::string rensIP;
         std::string rensPort;
+        
+    private:
+        std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
+        std::map<int, std::shared_ptr<RelayPeerInfo>> map;
+        std::map<int, int> sessionCheckMap;
+        
+        ijoon::Mutex mutexForKcpPeerMap;
+        ijoon::Mutex mutexForMap;
+        ijoon::Mutex mutexForSessionCheckMap;
+        
+    public:
+        // Access kcpPeerMap
+        std::map<std::string, std::shared_ptr<KcpPeer>> getKcpPeerMap();
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer &peer);
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeerWithLock(ijoon::Peer &peer);
+        void checkKcpPeerMap(bool &connFlag, const int timeoutSec, const int pingIntervalSec, const int loopIntervalMs);
+        void removeConnectionlessKcpPeer();
+        void receivedDataDistToKcpPeer(char *buffer, IUINT32 current);
+        
+        // Access relayPeerInfoMap
+        std::map<int, std::shared_ptr<RelayPeerInfo>> getRelayPeerInfoMap();
+        void removeUnregisteredRelayPeerInfo();
+        std::shared_ptr<RelayPeerInfo> getRelayPeerInfo(int connectionID);
+        void setRelayPeerInfo(int connectionID, std::shared_ptr<RelayPeerInfo> relayPeerInfo);
+        void removeRelayPeerInfo(int connectionID);
+        
+        // Access sessionCheckMap
+        std::map<int, int> getSessionCheckMap();
+        bool isExistCheckSession(int connectionID);
+        void setCheckSession(int connectionID, int count);
+        int getCheckSession(int connectionID);
+        void removeCheckSession(int connectionID);
+        
+        
     };
 }
