@@ -147,35 +147,58 @@ int main(int argc, char** argv) {
         }
         else if(vec[0].compare("HELP") == 0) {
             printf("command type 1: CONN (send CONNECTION_REQUEST)\n");
-            printf("CONN [TARGET_PEER_IP] [TARGET_PEER_PORT]\n");
+            printf("conn [TARGET_PEER_IP] [TARGET_PEER_PORT]\n");
             printf("example) CONN 127.0.0.1 11111\n");
             
             printf("command type 2: SEND (Packet send using uniqueID)\n");
-            printf("SEND [CONNECTION_ID] [PACKET_TYPE] [YOUR_MESSAGE]\n");
+            printf("send [CONNECTION_ID] [PACKET_TYPE] [YOUR_MESSAGE]\n");
             printf("example) SEND 1 0 helloworld\n");
             
             printf("command type 3: SENDPB1 (Protobuf Packet1 send using uniqueID)\n");
-            printf("SENDPB1 [CONNECTION_ID] [INTEGER_VALUE]\n");
+            printf("sendpb1 [CONNECTION_ID] [INTEGER_VALUE]\n");
             printf("example) SENDPB1 1 123123\n");
             
             printf("command type 4: SENDPB2 (Protobuf Packet2 send using uniqueID)\n");
-            printf("SENDPB2 [CONNECTION_ID] [STRING_VALUE]\n");
+            printf("sendpb2 [CONNECTION_ID] [STRING_VALUE]\n");
             printf("example) SENDPB2 1 helloworld\n");
             
-            printf("command type 5: get_camera_list (Protobuf CameraListRequest send to RendezvousServer)\n");
+            printf("command type 5: GET_CAMERA_LIST (Protobuf CameraListRequest send to RendezvousServer)\n");
             printf("get_camera_list\n");
             printf("example) get_camera_list\n");
+            
+            printf("command type 6: STATUS (Local map status check)\n");
+            printf("status\n");
+            printf("example) status\n");
         }
         else if(vec[0].compare("STATUS") == 0) {
-            printf("\n");
-            for(auto iter = client.kcpPeerMap.begin() ; iter != client.kcpPeerMap.end() ; ++iter) {
-                ijn_print(DP_ERROR, "%s", iter->first.c_str());
+            ijn_print(DP_INFO, "---------------KcpPeerMap-------------");
+            auto kcpPeerMap = client.getKcpPeerMap();
+            for(auto iter : kcpPeerMap) {
+                std::string type;
+                switch (iter.second->type) {
+                    case ijoon::PeerType::RENDEZVOUS_CLIENT:
+                        type="Rendezvous Client";
+                        break;
+                    case ijoon::PeerType::RENDEZVOUS_SERVER:
+                        type="Rendezvous Server";
+                        break;
+                    case ijoon::PeerType::RELAY_SERVER:
+                        type="Relay Server";
+                        break;
+                    default:
+                        type="None";
+                }
+                ijn_print(DP_INFO, "%s [%s]", iter.first.c_str(),
+                          type.c_str());
             }
-            ijn_print(DP_ERROR, "------------");
-            for(auto iter = client.connFilterMap.begin() ; iter != client.connFilterMap.end() ; ++iter) {
-                ijn_print(DP_ERROR, "%d, %s", iter->first, iter->second.getKey().c_str());
+            
+            ijn_print(DP_INFO, "----------ConnectionFilterMap---------");
+            auto connectionFilterMap = client.getConnectionFilterMap();
+            for(auto iter : connectionFilterMap) {
+                ijn_print(DP_INFO, "[%d] %s", iter.first,
+                          iter.second.getKey().c_str());
             }
-            printf("\n");
+            ijn_print(DP_INFO, "--------------------------------------");
         }
         else if(vec[0].compare("q") == 0 || vec[0].compare("Q") == 0) {
             break;

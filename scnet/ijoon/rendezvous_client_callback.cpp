@@ -87,7 +87,7 @@ void renc::onConnectionRelayServiceResult(std::shared_ptr<ijoon::KcpPeer> kcpPee
         relayKcpPeer->status = ijoon::PeerStatus::REGISTERED;
         relayKcpPeer->connectionID = connectionID;
 
-        client.connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, relayPeer));
+        client.addConnectionFilter(connectionID, relayPeer);
 
         printf("connected by a relay from %s:%s, connectionID: %u\n", relayServerIP.c_str(), relayServerPort.c_str(), connectionID);
 
@@ -101,39 +101,13 @@ void renc::onConnectionRelayServiceResult(std::shared_ptr<ijoon::KcpPeer> kcpPee
 void renc::onRelaySessionInvalid(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
     ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
-    client.mutexForConnFilterMap.lock();
-    client.connFilterMap.erase(kcpPeer->connectionID);
-//    for(auto iter = client.connFilterMap.begin() ; iter != client.connFilterMap.end() ; iter++) {
-//        if(iter->first == kcpPeer->connectionID) {
-//            if(iter->second.getKey() == kcpPeer->getPeer().getKey()) {
-//                ijn_print(DP_ERROR, "invalid session delete");
-//                client.connFilterMap.erase(iter);
-//                break;
-//            }
-//        }
-//    }
-    client.mutexForConnFilterMap.unlock();
+    
+    client.removeConnectionFilter(kcpPeer->connectionID, kcpPeer->getPeer().getKey());
 }
 
 void renc::onRelayServerDisconnected(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
     ijn_print(DP_DEBUG, "from %s", kcpPeer->getPeer().getKey().c_str());
-    ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
-    ijn_print(DP_DEBUG, "@@@@@@@@ ready");
-//    client.mutexForKcpPeerMap.lock();
-    ijn_print(DP_DEBUG, "@@@@@@@@ 1");
     kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
-//    for(auto iter = client.kcpPeerMap.begin() ; iter != client.kcpPeerMap.end() ; iter++) {
-//        ijn_print(DP_DEBUG, "@@@@@@@@ 2");
-//        ijn_print(DP_INFO, "%s --- %s", iter->first.c_str(), kcpPeer->getPeer().getKey().c_str());
-//        if(iter->first == kcpPeer->getPeer().getKey()) {
-//            ijn_print(DP_ERROR, "relay server disconnedted");
-//            client.kcpPeerMap.erase(iter);
-//            break;
-//        }
-//    }
-    ijn_print(DP_DEBUG, "@@@@@@@@ 3");
-//    client.mutexForKcpPeerMap.unlock();
-    ijn_print(DP_DEBUG, "@@@@@@@@ 4");
 }
 
 void renc::onDirectConnectionAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, void *buffer, unsigned int length) {
@@ -149,7 +123,7 @@ void renc::onDirectConnectionAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, 
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
     
@@ -182,11 +156,11 @@ void renc::onDirectConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, vo
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
 
-    client.connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, kcpPeer->getPeer()));
+    client.addConnectionFilter(connectionID, kcpPeer->getPeer());
 
     if(!isConnected) {
         client.callback.onConnectingCallback(connectionID);
@@ -216,11 +190,11 @@ void renc::onDirectConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, v
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
 
-    client.connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, kcpPeer->getPeer()));
+    client.addConnectionFilter(connectionID, kcpPeer->getPeer());
     printf("directly connected from %s\n", kcpPeer->getPeer().getKey().c_str());
 
     if(!isConnected) {
@@ -281,11 +255,11 @@ void renc::onReverseConnectionRequest(std::shared_ptr<ijoon::KcpPeer> kcpPeer, v
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
 
-    client.connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, kcpPeer->getPeer()));
+    client.addConnectionFilter(connectionID, kcpPeer->getPeer());
     printf("reversely connected from %s\n", kcpPeer->getPeer().getKey().c_str());
 
     if(!isConnected) {
@@ -309,11 +283,11 @@ void renc::onReverseConnectionResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, 
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
 
-    client.connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, kcpPeer->getPeer()));
+    client.addConnectionFilter(connectionID, kcpPeer->getPeer());
     printf("reversely connected from %s\n", kcpPeer->getPeer().getKey().c_str());
 
     if(!isConnected) {
@@ -336,7 +310,7 @@ void renc::onUdpHolePunchingAvailable(std::shared_ptr<ijoon::KcpPeer> kcpPeer, v
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
     
@@ -399,13 +373,11 @@ void renc::onUdpHolePunchingResponse(std::shared_ptr<ijoon::KcpPeer> kcpPeer, vo
     ijoon::RendezvousClient& client = ijoon::RendezvousClient::getInstance();
     
     bool isConnected = false;
-    if(client.connFilterMap.count(connectionID) > 0) {
+    if(client.getCountConnectionFilter(connectionID) > 0) {
         isConnected = true;
     }
 
-    client.mutexForConnFilterMap.lock();
-    client.connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, kcpPeer->getPeer()));
-    client.mutexForConnFilterMap.unlock();
+    client.addConnectionFilter(connectionID, kcpPeer->getPeer());
     
     if(isPublic) {
         // public connection (hole punching)

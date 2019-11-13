@@ -96,16 +96,32 @@ namespace ijoon {
         }
         ~RendezvousClient() {}
         
+    private:
+        std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
+        std::multimap<int, ijoon::Peer> connFilterMap;
+        ijoon::Mutex mutexForKcpPeerMap;
+        ijoon::Mutex mutexForConnFilterMap;
+        
+    public:
+        // Access kcpPeerMap
+        std::map<std::string, std::shared_ptr<KcpPeer>> getKcpPeerMap();
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer peer);
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(int connectionID);
+        std::shared_ptr<ijoon::KcpPeer> getKcpPeerWithLock(ijoon::Peer peer);
+        void checkKcpPeerMap(bool &connFlag, const int timeoutSec, const int pingIntervalSec, const int loopIntervalMs);
+        void receivedDataDistToKcpPeer(char *buffer, IUINT32 current);
+        
+        // Access connectionFilter
+        std::multimap<int, ijoon::Peer> getConnectionFilterMap();
+        void addConnectionFilter(int connectionID, ijoon::Peer peer);
+        void removeConnectionFilter(int connectionID, std::string key);
+        int getCountConnectionFilter(int connectionID);
+        
     public:
         std::shared_ptr<UDPSocket> socket;
         ijoon::Thread *registerThread;
         ijoon::Thread *recvThread;
         ijoon::Thread *rawRecvThread;
-        
-        std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> kcpPeerMap;
-        std::multimap<int, ijoon::Peer> connFilterMap;
-        ijoon::Mutex mutexForKcpPeerMap;
-        ijoon::Mutex mutexForConnFilterMap;
         
         std::string serverIP;
         std::string serverPort;
@@ -116,7 +132,6 @@ namespace ijoon {
         
         ijoon::RendezvousClientLifeCycleCallback callback;
 
-        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(ijoon::Peer peer);
-        std::shared_ptr<ijoon::KcpPeer> getKcpPeer(int connectionID);
+        
     };
 }

@@ -122,6 +122,28 @@ void ijoon::RendezvousClient::connect(std::string ip, std::string port) {
     serverKcpPeer->send(ijoon::CONNECTION_REQUEST, (char *)targetAddress.c_str(), targetAddress.length());
 }
 
+std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> ijoon::RendezvousClient::getKcpPeerMap() {
+    std::map<std::string, std::shared_ptr<ijoon::KcpPeer>> cpyMap;
+    
+    mutexForKcpPeerMap.lock();
+    if(0 < kcpPeerMap.size()) {
+        cpyMap.insert(kcpPeerMap.begin(), kcpPeerMap.end());
+    }
+    mutexForKcpPeerMap.unlock();
+    return cpyMap;
+}
+
+std::multimap<int, ijoon::Peer> ijoon::RendezvousClient::getConnectionFilterMap() {
+    std::multimap<int, ijoon::Peer> cpyMap;
+    
+    mutexForConnFilterMap.lock();
+    if(0 < connFilterMap.size()) {
+        cpyMap.insert(connFilterMap.begin(), connFilterMap.end());
+    }
+    mutexForConnFilterMap.unlock();
+    return cpyMap;
+}
+
 std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(ijoon::Peer peer) {
     std::shared_ptr<ijoon::KcpPeer> kcpPeer;
     try {
@@ -149,6 +171,43 @@ std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeer(int connecti
     return nullptr;
 }
 
+std::shared_ptr<ijoon::KcpPeer> ijoon::RendezvousClient::getKcpPeerWithLock(ijoon::Peer peer) {
+    std::shared_ptr<ijoon::KcpPeer> kcpPeer;
+    
+    mutexForKcpPeerMap.lock();
+    kcpPeer = getKcpPeer(peer);
+    mutexForKcpPeerMap.unlock();
+    
+    return kcpPeer;
+}
+
+void ijoon::RendezvousClient::addConnectionFilter(int connectionID, ijoon::Peer peer) {
+    mutexForConnFilterMap.lock();
+    connFilterMap.insert(std::pair<int, ijoon::Peer>(connectionID, peer));
+    mutexForConnFilterMap.unlock();
+}
+
+void ijoon::RendezvousClient::removeConnectionFilter(int connectionID, std::string key) {
+    mutexForConnFilterMap.lock();
+    for(auto iter = connFilterMap.begin() ; iter != connFilterMap.end() ; iter++) {
+        if(iter->first == connectionID) {
+            if(iter->second.getKey() == key) {
+                ijn_print(DP_ERROR, "invalid session delete");
+                connFilterMap.erase(iter);
+                break;
+            }
+        }
+    }
+    mutexForConnFilterMap.unlock();
+}
+
+int ijoon::RendezvousClient::getCountConnectionFilter(int connectionID) {
+    mutexForConnFilterMap.lock();
+    int count = connFilterMap.count(connectionID);
+    mutexForConnFilterMap.unlock();
+    return count;
+}
+
 ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     auto thread = static_cast<ijoon::Thread *>(arg);
     auto client = static_cast<ijoon::RendezvousClient *>(thread->getParam());
@@ -159,95 +218,96 @@ ijoon::THREAD_RET THREAD_API registerThreadFunc(void *arg) {
     bool connFlag = false;
     
     while(!thread->isInterrupted()) {
-        time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-        
-        client->mutexForKcpPeerMap.lock();
-        auto iter = client->kcpPeerMap.begin();
-        auto end = client->kcpPeerMap.end();
-        while(iter != end) {
-            auto kcpPeer = iter->second;
-            
-            switch (kcpPeer->type) {
-                case ijoon::PeerType::RENDEZVOUS_SERVER:
-                {
-                    if(kcpPeer->status != ijoon::PeerStatus::REGISTERED) {
-                        // send registration packet
-                        if(connFlag) {
-                            kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(client->socket, client->serverIP, client->serverPort, udp_output));
-                            kcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
-                            client->kcpPeerMap[kcpPeer->getPeer().getKey()] = kcpPeer;
-                        }
-                        else {
-                            connFlag = true;
-                        }
-                        
-                        std::string localIP = GetPrimaryIp();
-                        int localPort = getPort(client);
-                        std::string serial = client->serial;
-                        std::string mac = client->mac;
-                        std::string ver = client->version;
-                        ijn_print(DP_INFO, "localAddress: %s:%d, serial: %s, mac: %s, version: %s", localIP.c_str(), localPort, serial.c_str(), mac.c_str(), ver.c_str());
-                        std::string data = localIP + seperator + std::to_string(localPort) + seperator + client->serial + seperator + mac + seperator + ver;
-                        
-                        client->callback.onServerConnectingCallback();
-                        kcpPeer->send(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
-                                      (char *)data.c_str(),
-                                      data.length());
-                        
-                    }
-                    else if(kcpPeer->lastPing + timeoutSec < currentTime) {
-                        // disconnected
-                        kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
-                        client->callback.onServerDisconnectedCallback();
-                    }
-                    else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
-                        kcpPeer->send(ijoon::PING_REQUEST);
-                    }
-                }
-                    break;
-                default:
-                {
-                    if(kcpPeer->status == ijoon::PeerStatus::UNREGISTERED ||
-                       kcpPeer->lastPing + timeoutSec < currentTime) {
-                        ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
-                        kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
-                        auto removedPeerKey = iter->first;
-                        iter = client->kcpPeerMap.erase(iter);
-                        
-                        // cascading update
-                        for(auto iter = client->connFilterMap.begin() ; iter != client->connFilterMap.end() ; ) {
-                            if(iter->second.getKey() == removedPeerKey) {
-                                auto delConnectionID = iter->first;
-                                auto delKcpPeer = client->getKcpPeer(iter->second);
-                                delKcpPeer->connectionID = delConnectionID;
-                                delKcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
-                                iter = client->connFilterMap.erase(iter);
-                                client->callback.onDisconnectedCallback(delKcpPeer);
-                                continue;
-                            }
-                            
-                            ++iter;
-                        }
-                        
-                        continue;
-                    }
-                    else if(kcpPeer->type != ijoon::PeerType::NONE &&
-                            kcpPeer->lastPing + pingIntervalSec < currentTime) {
-                        kcpPeer->send(ijoon::PING_REQUEST);
-                    }
-                }
-                    break;
-            }
-            
-            ++iter;
-        }
-        client->mutexForKcpPeerMap.unlock();
+        client->checkKcpPeerMap(connFlag, timeoutSec, pingIntervalSec, loopIntervalMs);
         
         thread->sleep(loopIntervalMs);
     }
     
     ijn_print(DP_DEBUG, "registerThread finished");
     return THREAD_EXIT;
+}
+
+void ijoon::RendezvousClient::checkKcpPeerMap(bool &connFlag, const int timeoutSec, const int pingIntervalSec, const int loopIntervalMs) {
+    time_t currentTime = ijoon::ComputableTime::getCurrentTimeSec();
+    
+    mutexForKcpPeerMap.lock();
+    auto iter = kcpPeerMap.begin();
+    auto end = kcpPeerMap.end();
+    while(iter != end) {
+        auto kcpPeer = iter->second;
+        
+        switch (kcpPeer->type) {
+            case ijoon::PeerType::RENDEZVOUS_SERVER:
+            {
+                if(kcpPeer->status != ijoon::PeerStatus::REGISTERED) {
+                    // send registration packet
+                    if(connFlag) {
+                        kcpPeer = std::shared_ptr<ijoon::KcpPeer>(new ijoon::KcpPeer(socket, serverIP, serverPort, udp_output));
+                        kcpPeer->type = ijoon::PeerType::RENDEZVOUS_SERVER;
+                        kcpPeerMap[kcpPeer->getPeer().getKey()] = kcpPeer;
+                    }
+                    else {
+                        connFlag = true;
+                    }
+                    
+                    std::string localIP = GetPrimaryIp();
+                    int localPort = getPort(this);
+                    ijn_print(DP_INFO, "localAddress: %s:%d, serial: %s, mac: %s, version: %s", localIP.c_str(), localPort, serial.c_str(), mac.c_str(), version.c_str());
+                    std::string data = localIP + seperator + std::to_string(localPort) + seperator + serial + seperator + mac + seperator + version;
+                    
+                    callback.onServerConnectingCallback();
+                    kcpPeer->send(ijoon::REGISTRATION_RENDEZVOUS_CLIENT_REQUEST,
+                                  (char *)data.c_str(),
+                                  data.length());
+                    
+                }
+                else if(kcpPeer->lastPing + timeoutSec < currentTime) {
+                    // disconnected
+                    kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                    callback.onServerDisconnectedCallback();
+                }
+                else if(kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                    kcpPeer->send(ijoon::PING_REQUEST);
+                }
+            }
+                break;
+            default:
+            {
+                if(kcpPeer->status == ijoon::PeerStatus::UNREGISTERED ||
+                   kcpPeer->lastPing + timeoutSec < currentTime) {
+                    ijn_print(DP_INFO, "removed kcpPeer: %s", kcpPeer->getPeer().getKey().c_str());
+                    kcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                    auto removedPeerKey = iter->first;
+                    iter = kcpPeerMap.erase(iter);
+                    
+                    // cascading update
+                    for(auto iter = connFilterMap.begin() ; iter != connFilterMap.end() ; ) {
+                        if(iter->second.getKey() == removedPeerKey) {
+                            auto delConnectionID = iter->first;
+                            auto delKcpPeer = getKcpPeer(iter->second);
+                            delKcpPeer->connectionID = delConnectionID;
+                            delKcpPeer->status = ijoon::PeerStatus::UNREGISTERED;
+                            iter = connFilterMap.erase(iter);
+                            callback.onDisconnectedCallback(delKcpPeer);
+                            continue;
+                        }
+                        
+                        ++iter;
+                    }
+                    
+                    continue;
+                }
+                else if(kcpPeer->type != ijoon::PeerType::NONE &&
+                        kcpPeer->lastPing + pingIntervalSec < currentTime) {
+                    kcpPeer->send(ijoon::PING_REQUEST);
+                }
+            }
+                break;
+        }
+        
+        ++iter;
+    }
+    mutexForKcpPeerMap.unlock();
 }
 
 void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::KcpPeer>& kcpPeer, char *packet, int recvSize) {
@@ -336,9 +396,7 @@ ijoon::THREAD_RET THREAD_API rawRecvThreadFunc(void *arg) {
     while(!thread->isInterrupted()) {
         int rcvSize = rendezvousClient->socket->recvFrom(&peer, rawBuffer, MAX_PACKET_SIZE);
         if(rcvSize > 0) {
-            rendezvousClient->mutexForKcpPeerMap.lock();
-            auto kcpPeer = rendezvousClient->getKcpPeer(peer);
-            rendezvousClient->mutexForKcpPeerMap.unlock();
+            auto kcpPeer = rendezvousClient->getKcpPeerWithLock(peer);
             
             kcpPeer->mutex.lock();
             ikcpcb *kcp = kcpPeer->getKcp();
@@ -361,33 +419,36 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *param) {
     char *buffer = new char[MAX_PACKET_SIZE];
     
     while(!thread->isInterrupted()) {
-        client->mutexForKcpPeerMap.lock();
-
         IUINT32 current = iclock();
-        auto iter = client->kcpPeerMap.begin();
-        for(; iter != client->kcpPeerMap.end() ; ++iter) {
-            auto kcpPeer = iter->second;
-            kcpPeer->mutex.lock();
-            ikcpcb *kcp = kcpPeer->getKcp();
-            int rcvSize = ikcp_recv(kcp, buffer, MAX_PACKET_SIZE);
-            ikcp_update(kcp, current);
-            kcpPeer->mutex.unlock();
-            
-            if(rcvSize > 0) {
-                // callback to upper users
-                buffer[rcvSize] = '\0';
-                onCallback(client, kcpPeer, buffer, rcvSize);
-            }
-        }
-
-        client->mutexForKcpPeerMap.unlock();
-        
+        client->receivedDataDistToKcpPeer(buffer, current);
         ijn_msleep(10);
     }
     
     ijn_print(DP_DEBUG, "recvThread finished");
     delete[] buffer;
     return THREAD_EXIT;
+}
+
+void ijoon::RendezvousClient::receivedDataDistToKcpPeer(char *buffer, IUINT32 current) {
+    mutexForKcpPeerMap.lock();
+
+    auto iter = kcpPeerMap.begin();
+    for(; iter != kcpPeerMap.end() ; ++iter) {
+        auto kcpPeer = iter->second;
+        kcpPeer->mutex.lock();
+        ikcpcb *kcp = kcpPeer->getKcp();
+        int rcvSize = ikcp_recv(kcp, buffer, MAX_PACKET_SIZE);
+        ikcp_update(kcp, current);
+        kcpPeer->mutex.unlock();
+        
+        if(rcvSize > 0) {
+            // callback to upper users
+            buffer[rcvSize] = '\0';
+            onCallback(this, kcpPeer, buffer, rcvSize);
+        }
+    }
+
+    mutexForKcpPeerMap.unlock();
 }
 
 void ijoon::RendezvousClientLifeCycleCallback::onServerConnectingCallback() {
