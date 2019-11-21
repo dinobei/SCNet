@@ -25,10 +25,11 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         while(!thread->isInterrupted()) {
             auto client = servSocket.accept();
             
-            auto sess = std::shared_ptr<ijoon::Session>(new ijoon::Session(client));
+            if(server->onClientConnected == nullptr) {
+                throw std::exception();
+            }
+            auto sess = server->onClientConnected(client);
             server->addClient(client, sess);
-            if(server->onClientConnected != nullptr)
-                server->onClientConnected(sess);
         }
     }
     else {
@@ -61,10 +62,11 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     {
                         auto client = servSocket.accept();
                         
-                        auto sess = std::shared_ptr<ijoon::Session>(new ijoon::Session(client));
+                        if(server->onClientConnected == nullptr) {
+                            throw std::exception();
+                        }
+                        auto sess = server->onClientConnected(client);
                         server->addClient(client, sess);
-                        if(server->onClientConnected != nullptr)
-                            server->onClientConnected(sess);
                         
                         int clientSocketId = client->getSocketIdentifier();
                         FD_SET(clientSocketId, &reads);
