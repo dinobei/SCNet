@@ -286,3 +286,7 @@ std::shared_ptr<ijoon::Session> ijoon::ClientManager::session(int socketId) {
     assert(this->clientMap.count(socketId) != 0);
     return this->clientMap[socketId];
 }
+
+std::map<int, std::shared_ptr<ijoon::Session>> &ijoon::ClientManager::getClientMap() {
+    return clientMap;
+}
