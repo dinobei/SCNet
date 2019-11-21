@@ -250,19 +250,16 @@ bool ijoon::ClientManager::stop() {
 }
 
 bool ijoon::ClientManager::addClient(std::shared_ptr<TCPSocket> clientSocket, std::shared_ptr<Session> sess) {
-    int retryCnt = 10;
-    do {
-        if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
-            clientMap[clientSocket->getSocketIdentifier()] = sess;
-            
-            if(isMultiThreadBased()) {
-                ijoon::Thread *thread = new ijoon::Thread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()));
-                thread->start(this);
-            }
-            
-            return true;
+    if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
+        clientMap[clientSocket->getSocketIdentifier()] = sess;
+        
+        if(isMultiThreadBased()) {
+            ijoon::Thread *thread = new ijoon::Thread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()));
+            thread->start(this);
         }
-    } while(--retryCnt);
+        
+        return true;
+    }
 
     return false;
 }
