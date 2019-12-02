@@ -84,7 +84,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
 
         if(fd_num == 0)
         {
-            ijn_print(DP_INFO, "Response timeout");
+            // Response timeout
             continue;
         }
 
