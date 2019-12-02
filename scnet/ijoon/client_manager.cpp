@@ -19,7 +19,6 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
     
     // change to user input
     ijoon::TCPSocket servSocket(server->getServerPort());
-    servSocket.option(ijoon::SOCK_REUSE, 1);
 
     if(server->isMultiThreadBased()) {
         while(!thread->isInterrupted()) {
