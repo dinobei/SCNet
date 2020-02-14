@@ -372,8 +372,6 @@ void onCallback(ijoon::RendezvousClient *client, const std::shared_ptr<ijoon::Kc
                 client->onServerConnectedCallback(vec->at(0), vec->at(1));
             }
             
-            ijn_print(DP_DEBUG, "received REGISTRATION_RENDEZVOUS_CLIENT_SUCCESS, MyPublicAddress=%s:%s", vec->at(0).c_str(), vec->at(1).c_str());
-            
             return;
         }
         case ijoon::CONNECTION_TARGET_INVALID:
