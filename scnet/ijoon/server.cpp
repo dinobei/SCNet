@@ -84,7 +84,9 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
 
         if(fd_num == 0)
         {
-            // Response timeout
+            if(server->onTimeout != nullptr) {
+                server->onTimeout(server->getSession());
+            }
             continue;
         }
 

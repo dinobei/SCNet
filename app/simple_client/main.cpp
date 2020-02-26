@@ -22,6 +22,7 @@ void attachFailed(std::shared_ptr<ijoon::Session> sess);
 void attached(std::shared_ptr<ijoon::Session> sess);
 void detached(std::shared_ptr<ijoon::Session> sess);
 void detach(std::shared_ptr<ijoon::Session> sess);
+void timeout(std::shared_ptr<ijoon::Session> sess);
 
 int main(int argv, char** argc)
 {
@@ -41,6 +42,7 @@ int main(int argv, char** argc)
     server.onAttached = attached;
     server.onDetached = detached;
     server.onDetach = detach;
+    server.onTimeout = timeout;
     server.attach();
 
     int cnt = 300;
@@ -170,4 +172,9 @@ void detached(std::shared_ptr<ijoon::Session> sess) {
 
 void detach(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] detach", sess->getClientSocket()->getSocketIdentifier());
+}
+
+void timeout(std::shared_ptr<ijoon::Session> sess) {
+    ijn_print(DP_INFO, "[%d] timeout", sess->getClientSocket()->getSocketIdentifier());
+    sess->send(0, nullptr, 0);
 }

@@ -47,6 +47,7 @@ namespace ijoon {
         std::function<void(std::shared_ptr<Session>)> onAttached;
         std::function<void(std::shared_ptr<Session>)> onDetached;
         std::function<void(std::shared_ptr<Session>)> onDetach;
+        std::function<void(std::shared_ptr<Session>)> onTimeout;
         
     public:
         Thread *mainThread;
