@@ -28,7 +28,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
             if(server->onClientConnected == nullptr) {
                 throw std::exception();
             }
-            auto sess = server->onClientConnected(client);
+            auto sess = server->getClientSession(client);
             server->addClient(client, sess);
         }
     }
@@ -56,8 +56,8 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                 
                 auto clientMap = server->getClientMap();
                 for(auto iter : clientMap) {
-                    if(iter.second->getPing() + timeoutSec < currentTime && server->onClientServiceTimeout != nullptr) {
-                        server->onClientServiceTimeout(iter.second);
+                    if(iter.second->getPing() + timeoutSec < currentTime && server->onClientTimeout != nullptr) {
+                        server->onClientTimeout(iter.second);
                     }
                 }
             }
@@ -75,7 +75,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                         if(server->onClientConnected == nullptr) {
                             throw std::exception();
                         }
-                        auto sess = server->onClientConnected(client);
+                        auto sess = server->getClientSession(client);
                         sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
                         server->addClient(client, sess);
                         
@@ -84,16 +84,16 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                         if(fd_max < clientSocketId)
                             fd_max = clientSocketId;
                         
-                        if(server->onClientServiceStarted != nullptr)
-                            server->onClientServiceStarted(sess);
+                        if(server->onClientConnected != nullptr)
+                            server->onClientConnected(sess);
                     }
                     else
                     {
                         auto sess = server->session(i);
                         ijoon::MessageHeader messageHeader;
                         if(!sess->recvHeader(messageHeader)) {
-                            if(server->onClientServiceDisconnected != nullptr)
-                                server->onClientServiceDisconnected(sess);
+                            if(server->onClientDisconnected != nullptr)
+                                server->onClientDisconnected(sess);
                             server->removeClient(i);
                             continue;
                         }
@@ -154,27 +154,23 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     int socketId = atoi(thread->getName().c_str());
     auto sess = server->session(socketId);
     
-    if(server->onClientServiceStarted != nullptr)
-        server->onClientServiceStarted(sess);
+    if(server->onClientConnected != nullptr)
+        server->onClientConnected(sess);
     
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     while(1) {
         int fd_num = sess->getClientSocket()->event(server->getRecvTimeoutMs());
         if(fd_num < 0) {
-            if(server->onClientServiceDisconnected != nullptr)
-                server->onClientServiceDisconnected(sess);
             break;
         }
         if(fd_num == 0) {
-            if(server->onClientServiceTimeout != nullptr)
-                server->onClientServiceTimeout(sess);
+            if(server->onClientTimeout != nullptr)
+                server->onClientTimeout(sess);
             continue;
         }
         
         ijoon::MessageHeader messageHeader;
         if(sess->recvHeader(messageHeader)) {
-            if(server->onClientServiceDisconnected != nullptr)
-                server->onClientServiceDisconnected(sess);
             break;
         }
         
@@ -212,8 +208,8 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     
     server->removeClient(socketId);
     
-    if(server->onClientServiceStopped != nullptr)
-        server->onClientServiceStopped(sess);
+    if(server->onClientDisconnected != nullptr)
+        server->onClientDisconnected(sess);
     
 #ifdef _WIN32
     return 0;
@@ -286,8 +282,8 @@ bool ijoon::ClientManager::removeClient(std::shared_ptr<ijoon::Session> session)
     
     FD_CLR(socketId, &reads);
     
-    if(onClientServiceDisconnected != nullptr) {
-        onClientServiceDisconnected(session);
+    if(onClientDisconnected != nullptr) {
+        onClientDisconnected(session);
     }
     
     this->clientMap.erase(socketId);

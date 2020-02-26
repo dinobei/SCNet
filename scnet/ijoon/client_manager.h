@@ -35,11 +35,10 @@ namespace ijoon {
         std::function<void()> onServerStopped;
         
         // Client lifecycle
-        std::function<std::shared_ptr<ijoon::Session>(std::shared_ptr<ijoon::TCPSocket>)> onClientConnected;
-        std::function<void(std::shared_ptr<Session>)> onClientServiceStarted;
-        std::function<void(std::shared_ptr<Session>)> onClientServiceTimeout;
-        std::function<void(std::shared_ptr<Session>)> onClientServiceDisconnected;
-        std::function<void(std::shared_ptr<Session>)> onClientServiceStopped;
+        std::function<std::shared_ptr<ijoon::Session>(std::shared_ptr<ijoon::TCPSocket>)> getClientSession;
+        std::function<void(std::shared_ptr<Session>)> onClientConnected;
+        std::function<void(std::shared_ptr<Session>)> onClientTimeout;
+        std::function<void(std::shared_ptr<Session>)> onClientDisconnected;
 
     private:
         std::map<int, std::shared_ptr<Session>> clientMap;
