@@ -12,7 +12,7 @@ using namespace example;
 void onServerStarted();
 void onServerStopped();
 
-void onClientConnected(std::shared_ptr<ijoon::Session> session);
+std::shared_ptr<ijoon::Session> onClientConnected(std::shared_ptr<ijoon::TCPSocket> socket);
 void onClientServiceStarted(std::shared_ptr<ijoon::Session> session);
 void onClientServiceStopped(std::shared_ptr<ijoon::Session> session);
 void onClientServiceTimeout(std::shared_ptr<ijoon::Session> session);
@@ -65,10 +65,12 @@ void onServerStopped() {
     ijn_print(DP_INFO, "[onServerStopped()]");
 }
 
-void onClientConnected(std::shared_ptr<ijoon::Session> session) {
-    session->getClientSocket()->option(ijoon::SOCK_RCVTIMEO_MS, 500);
-    session->getClientSocket()->option(ijoon::SOCK_SNDTIMEO_MS, 500);
-    ijn_print(DP_INFO, "[onClientConnected(ijoon::BaseSession *)] %d", session->getClientSocket()->getSocketIdentifier());
+std::shared_ptr<ijoon::Session> onClientConnected(std::shared_ptr<ijoon::TCPSocket> socket) {
+    socket->option(ijoon::SOCK_RCVTIMEO_MS, 500);
+    socket->option(ijoon::SOCK_SNDTIMEO_MS, 500);
+    ijn_print(DP_INFO, "[onClientConnected(ijoon::BaseSession *)] %d", socket->getSocketIdentifier());
+    
+    return std::shared_ptr<ijoon::Session>(new ijoon::Session(socket));
 }
 
 void onClientServiceStarted(std::shared_ptr<ijoon::Session> session) {
