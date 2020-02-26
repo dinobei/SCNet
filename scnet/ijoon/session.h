@@ -15,6 +15,11 @@ namespace ijoon {
         virtual google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader) {return nullptr;}
         virtual char *recvRawBody(MessageHeader &messageHeader) {return nullptr;};
 
+        time_t getPing() { return ping; }
+        void setPing(time_t ping) { this->ping = ping; }
+        
+    private:
+        time_t ping;
     };
     
     class KcpPeer {

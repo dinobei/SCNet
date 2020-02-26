@@ -21,6 +21,7 @@ namespace ijoon {
         std::map<int, std::shared_ptr<Session>> &getClientMap();
         
         bool addClient(std::shared_ptr<TCPSocket> clientSocket, std::shared_ptr<Session> sess);
+        bool removeClient(std::shared_ptr<ijoon::Session> session);
         bool removeClient(std::shared_ptr<TCPSocket> clientSocket);
         bool removeClient(int socketId);
         
