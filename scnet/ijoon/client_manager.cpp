@@ -90,6 +90,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     else
                     {
                         auto sess = server->session(i);
+                        if(sess == nullptr) continue;
                         ijoon::MessageHeader messageHeader;
                         if(!sess->recvHeader(messageHeader)) {
                             if(server->onClientDisconnected != nullptr)
@@ -153,6 +154,13 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
     ijoon::ClientManager *server = (ijoon::ClientManager *)thread->getParam();
     int socketId = atoi(thread->getName().c_str());
     auto sess = server->session(socketId);
+    if(sess == nullptr) {
+        #ifdef _WIN32
+            return 0;
+        #else
+            return nullptr;
+        #endif
+    }
     
     if(server->onClientConnected != nullptr)
         server->onClientConnected(sess);
@@ -309,7 +317,7 @@ int ijoon::ClientManager::clientSize() {
 }
 
 std::shared_ptr<ijoon::Session> ijoon::ClientManager::session(int socketId) {
-    assert(this->clientMap.count(socketId) != 0);
+    if(this->clientMap.count(socketId) == 0) return nullptr;
     return this->clientMap[socketId];
 }
 
