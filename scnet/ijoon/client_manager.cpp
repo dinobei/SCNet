@@ -72,7 +72,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     {
                         auto client = servSocket.accept();
                         
-                        if(server->onClientConnected == nullptr) {
+                        if(server->getClientSession == nullptr) {
                             throw std::exception();
                         }
                         auto sess = server->getClientSession(client);
