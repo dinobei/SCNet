@@ -148,8 +148,9 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
 
     while(!thread->isInterrupted())
     {
-        ijoon::MessageWrapper *messageWrapper = server->getEventQueue()->get(50*1000);
-        if(messageWrapper == NULL)
+        ijoon::MessageWrapper *messageWrapper;
+        auto result = server->getEventQueue()->get(50*1000, messageWrapper);
+        if(!result)
         {
             continue; // timeout
         }
