@@ -403,7 +403,8 @@ ijoon::THREAD_RET THREAD_API rens_recvThreadFunc(void *param) {
     char *rawBuffer = new char[MAX_PACKET_SIZE];
     char *buffer = new char[MAX_PACKET_SIZE];
     
-    server->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, 1);
+    int opt = 1;
+    server->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, (void *)&opt);
     
     while(!thread->isInterrupted()) {
         int rcvSize = server->socket->recvFrom(peer.get(), rawBuffer, MAX_PACKET_SIZE);

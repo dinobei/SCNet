@@ -680,7 +680,8 @@ ijoon::THREAD_RET THREAD_API renc_rawRecvThreadFunc(void *arg) {
     
     char *rawBuffer = new char[MAX_PACKET_SIZE];
     
-    rendezvousClient->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, 1000);
+    int ms = 1000;
+    rendezvousClient->socket->option(ijoon::SocketOptionType::SOCK_RCVTIMEO_MS, (void *)&ms);
     
     while(!thread->isInterrupted()) {
         int rcvSize = rendezvousClient->socket->recvFrom(&peer, rawBuffer, MAX_PACKET_SIZE);
