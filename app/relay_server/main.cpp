@@ -9,7 +9,8 @@ int main(int argc, char** argv) {
     }
     
     ijoon::RelayServer server(atoi(argv[1]), argv[2], argv[3]);
-    server.socket->option(ijoon::SOCK_REUSE, 1);
+    int reuse = 1;
+    server.socket->option(ijoon::SOCK_REUSE, (void *)&reuse);
     server.start();
     getchar();
     

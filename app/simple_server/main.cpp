@@ -64,8 +64,9 @@ void onServerStopped() {
 }
 
 std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<ijoon::TCPSocket> socket) {
-    socket->option(ijoon::SOCK_RCVTIMEO_MS, 500);
-    socket->option(ijoon::SOCK_SNDTIMEO_MS, 500);
+    int ms = 500;
+    socket->option(ijoon::SOCK_RCVTIMEO_MS, (void *)&ms);
+    socket->option(ijoon::SOCK_SNDTIMEO_MS, (void *)&ms);
     return std::make_shared<ijoon::Session>(socket);
 }
 
