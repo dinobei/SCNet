@@ -35,12 +35,12 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
         exit(-1);
     }
     
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSize();
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSizeLong();
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
     google::protobuf::io::CodedOutputStream coded_output(&aos);
     coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(message->ByteSize()); // data size
+    coded_output.WriteVarint32(message->ByteSizeLong()); // data size
     coded_output.WriteVarint32(typeInt); // packet type
     coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::PROTOBUF); // message type
     coded_output.WriteVarint32(0); // crypt type
@@ -67,12 +67,12 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
         exit(-1);
     }
     
-    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSize();
+    int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + message->ByteSizeLong();
     char *buf = new char[size];
     google::protobuf::io::ArrayOutputStream aos(buf,size);
     google::protobuf::io::CodedOutputStream coded_output(&aos);
     coded_output.WriteRaw(MAGIC_PACKET, MAGIC_PACKET_LENGTH);
-    coded_output.WriteVarint32(message->ByteSize()); // data size
+    coded_output.WriteVarint32(message->ByteSizeLong()); // data size
     coded_output.WriteVarint32(typeInt); // packet type
     coded_output.WriteVarint32(ijoon::MESSAGE_TYPE::PROTOBUF); // message type
     coded_output.WriteVarint32(0); // crypt type

@@ -10,7 +10,7 @@ namespace ijoon {
     class MessageWrapper {
     public:
         MessageWrapper(google::protobuf::Message *message): messageType(MESSAGE_TYPE::PROTOBUF), message(message) {
-            length = static_cast<google::protobuf::Message *>(message)->ByteSize();
+            length = static_cast<google::protobuf::Message *>(message)->ByteSizeLong();
         }
 
         MessageWrapper(int packetType, char *message, unsigned int length): messageType(MESSAGE_TYPE::RAWBYTE), packetType(packetType), message(message), length(length) {}
