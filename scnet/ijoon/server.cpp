@@ -75,7 +75,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     while(!thread->isInterrupted())
     {
-        int fd_num = server->getSession()->getClientSocket()->event(5000);
+        int fd_num = server->getSession()->getClientSocket()->event(100);
 
         if(fd_num == -1)
         {
@@ -138,7 +138,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
 
     ijn_print(DP_INFO, "recvResponseThread Finished.");
 
-    return NULL;
+    return THREAD_EXIT;
 }
 
 ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
@@ -149,7 +149,7 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
     while(!thread->isInterrupted())
     {
         ijoon::MessageWrapper *messageWrapper;
-        auto result = server->getEventQueue()->get(50*1000, messageWrapper);
+        auto result = server->getEventQueue()->get(100, messageWrapper);
         if(!result)
         {
             continue; // timeout
@@ -165,6 +165,7 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
             {
                 if(!server->getSession()->send((google::protobuf::Message *)messageWrapper->message)) {
                     ijn_print(DP_DEBUG, "send failed");
+                    thread->interrupt();
                     break;
                 }
                 break;
@@ -173,6 +174,7 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
             {
                 if(!server->getSession()->send(messageWrapper->packetType, (char *)messageWrapper->message, messageWrapper->length)) {
                     ijn_print(DP_DEBUG, "send failed");
+                    thread->interrupt();
                     break;
                 }
                 break;
@@ -194,7 +196,7 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
 
     ijn_print(DP_INFO, "sendRequestThread Finished.");
 
-    return NULL;
+    return THREAD_EXIT;
 }
 
 void ijoon::Server::attach() {
