@@ -16,10 +16,12 @@ bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
     
     coded_output.WriteRaw(message, length);
     
+    mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
         delete[] buf;
         return false;
     }
+    mtx.unlock();
     
     delete []buf;
     return true;
@@ -46,10 +48,12 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
     
     message->SerializeToCodedStream(&coded_output);
     
+    mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
         delete[] buf;
         return false;
     }
+    mtx.unlock();
     
     delete []buf;
     return true;
@@ -76,10 +80,12 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     
     message->SerializeToCodedStream(&coded_output);
     
+    mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
         delete[] buf;
         return false;
     }
+    mtx.unlock();
     
     delete []buf;
     return true;
