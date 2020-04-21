@@ -73,6 +73,8 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
     ijoon::Server *server = (ijoon::Server *)thread->getParam();
 
     auto registry = Registry<int, google::protobuf::Message *>().Get();
+    int timeoutCount = 0;
+    const int timeoutMax = 50;
     while(!thread->isInterrupted())
     {
         int fd_num = server->getSession()->getClientSocket()->event(100);
@@ -84,11 +86,14 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
 
         if(fd_num == 0)
         {
-            if(server->onTimeout != nullptr) {
+            if(timeoutMax < timeoutCount++ &&
+               server->onTimeout != nullptr) {
                 server->onTimeout(server->getSession());
             }
             continue;
         }
+        
+        timeoutCount = 0;
 
         ijoon::MessageHeader messageHeader;
         if(!server->getSession()->recvHeader(messageHeader)) {
