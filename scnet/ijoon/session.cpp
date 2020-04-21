@@ -18,6 +18,7 @@ bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
     
     mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
+        mtx.unlock();
         delete[] buf;
         return false;
     }
@@ -50,6 +51,7 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
     
     mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
+        mtx.unlock();
         delete[] buf;
         return false;
     }
@@ -82,6 +84,7 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     
     mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
+        mtx.unlock();
         delete[] buf;
         return false;
     }
