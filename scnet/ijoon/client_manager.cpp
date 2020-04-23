@@ -178,7 +178,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
         }
         
         ijoon::MessageHeader messageHeader;
-        if(sess->recvHeader(messageHeader)) {
+        if(!sess->recvHeader(messageHeader)) {
             break;
         }
         
