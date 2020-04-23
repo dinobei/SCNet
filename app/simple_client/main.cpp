@@ -26,6 +26,7 @@ void timeout(std::shared_ptr<ijoon::Session> sess);
 
 int main(int argv, char** argc)
 {
+    signal(SIGPIPE, SIG_IGN);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType1, Packet1, onPacket1);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType2, Packet2, onPacket2);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType3, Packet3, onPacket3);
