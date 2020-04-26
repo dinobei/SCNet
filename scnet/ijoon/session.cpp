@@ -16,13 +16,13 @@ bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
     
     coded_output.WriteRaw(message, length);
     
-    mtx.lock();
+    snd_mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
-        mtx.unlock();
+        snd_mtx.unlock();
         delete[] buf;
         return false;
     }
-    mtx.unlock();
+    snd_mtx.unlock();
     
     delete []buf;
     return true;
@@ -49,13 +49,13 @@ bool ijoon::Session::send(google::protobuf::Message *message) {
     
     message->SerializeToCodedStream(&coded_output);
     
-    mtx.lock();
+    snd_mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
-        mtx.unlock();
+        snd_mtx.unlock();
         delete[] buf;
         return false;
     }
-    mtx.unlock();
+    snd_mtx.unlock();
     
     delete []buf;
     return true;
@@ -82,13 +82,13 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     
     message->SerializeToCodedStream(&coded_output);
     
-    mtx.lock();
+    snd_mtx.lock();
     if(!this->cs->safeSend(buf, 0, coded_output.ByteCount() , 0)) {
-        mtx.unlock();
+        snd_mtx.unlock();
         delete[] buf;
         return false;
     }
-    mtx.unlock();
+    snd_mtx.unlock();
     
     delete []buf;
     return true;
@@ -97,14 +97,14 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
 bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
     char magicPacket[2] = {0,};
     // read magic packet
-    mtx.lock();
+    rcv_mtx.lock();
     if(!this->cs->safeRecv(magicPacket, 0, MAGIC_PACKET_LENGTH, 0)) {
-        mtx.unlock();
+        rcv_mtx.unlock();
         return false;
     }
 
     if(magicPacket[0] != MAGIC_PACKET[0] || magicPacket[1] != MAGIC_PACKET[1]) {
-        mtx.unlock();
+        rcv_mtx.unlock();
         return false;
     }
 
@@ -116,7 +116,7 @@ bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
     
     while(true) {
         if(!this->cs->safeRecv(headerBuffer, readingHeaderSize++, 1, 0)) {
-            mtx.unlock();
+            rcv_mtx.unlock();
             return false;
         }
         
@@ -128,7 +128,7 @@ bool ijoon::Session::recvHeader(ijoon::MessageHeader &messageHeader) {
             break;
         }
     }
-    mtx.unlock();
+    rcv_mtx.unlock();
     
     ijoon::makeHeader(headerBuffer, messageHeader);
     return true;
@@ -148,13 +148,13 @@ google::protobuf::Message *ijoon::Session::recvProtobufBody(MessageHeader &messa
         char *responseBuffer = new char[responseSize];
         
         // Read the entire buffer including the header
-        mtx.lock();
+        rcv_mtx.lock();
         if(!this->cs->safeRecv(responseBuffer, 0, responseSize, 0)) {
-            mtx.unlock();
+            rcv_mtx.unlock();
             delete []responseBuffer;
             return nullptr;
         }
-        mtx.unlock();
+        rcv_mtx.unlock();
         
         response->ParseFromArray(responseBuffer, messageHeader.dataSize);
         delete []responseBuffer;
@@ -167,13 +167,13 @@ char *ijoon::Session::recvRawBody(MessageHeader &messageHeader) {
     const int responseSize = messageHeader.dataSize;
     char *responseBuffer = new char[responseSize];
     
-    mtx.lock();
+    rcv_mtx.lock();
     if(!this->cs->safeRecv(responseBuffer, 0, responseSize, 0)) {
-        mtx.unlock();
+        rcv_mtx.unlock();
         delete []responseBuffer;
         return nullptr;
     }
-    mtx.unlock();
+    rcv_mtx.unlock();
     
     return responseBuffer;
 }

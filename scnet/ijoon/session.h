@@ -121,7 +121,8 @@ namespace ijoon {
         
     private:
         std::shared_ptr<ijoon::TCPSocket> cs;
-        std::mutex mtx;
+        std::mutex snd_mtx;
+        std::mutex rcv_mtx;
     };
 }
 
