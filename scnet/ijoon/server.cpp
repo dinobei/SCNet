@@ -19,7 +19,9 @@ ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg)
             server->onAttaching(server->getSession());
         }
 
-        bool connected = server->getSession()->getClientSocket()->connect(server->getServerIPAddress().c_str(), portStr, server->getTimeoutMillis());
+        bool connected = server->getSession()->getClientSocket()->connect(server->getServerIPAddress(),
+                                                                          portStr,
+                                                                          server->getTimeoutMillis());
         if(!connected)
         {
             if(errno != EINPROGRESS)
@@ -160,7 +162,7 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
             continue; // timeout
         }
         
-        if(messageWrapper->message == nullptr) {
+        if(messageWrapper->message == nullptr && messageWrapper->message_pb == nullptr) {
             delete messageWrapper;
             continue;
         }
@@ -168,7 +170,7 @@ ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg)
         switch (messageWrapper->messageType) {
             case ijoon::MESSAGE_TYPE::PROTOBUF:
             {
-                if(!server->getSession()->send((google::protobuf::Message *)messageWrapper->message)) {
+                if(!server->getSession()->send((messageWrapper->message_pb))) {
                     ijn_print(DP_DEBUG, "send failed");
                     thread->interrupt();
                     break;
@@ -234,7 +236,7 @@ void ijoon::Server::control(int packetType, char *message, unsigned int length) 
     this->eventQueue->put(messageWrapper);
 }
 
-void ijoon::Server::control(google::protobuf::Message *message) {
+void ijoon::Server::control(std::shared_ptr<google::protobuf::Message> message) {
     MessageWrapper *messageWrapper = new MessageWrapper(message);
     this->eventQueue->put(messageWrapper);
 }

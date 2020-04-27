@@ -9,8 +9,8 @@
 namespace ijoon {
     class MessageWrapper {
     public:
-        MessageWrapper(google::protobuf::Message *message): messageType(MESSAGE_TYPE::PROTOBUF), message(message) {
-            length = static_cast<google::protobuf::Message *>(message)->ByteSizeLong();
+        MessageWrapper(std::shared_ptr<google::protobuf::Message> message): messageType(MESSAGE_TYPE::PROTOBUF), message(nullptr), message_pb(message) {
+            length = message->ByteSizeLong();
         }
 
         MessageWrapper(int packetType, char *message, unsigned int length): messageType(MESSAGE_TYPE::RAWBYTE), packetType(packetType), message(message), length(length) {}
@@ -18,6 +18,7 @@ namespace ijoon {
         ijoon::MESSAGE_TYPE messageType;
         int packetType;
         void *message;
+        std::shared_ptr<google::protobuf::Message> message_pb;
         unsigned int length;
     };
     
@@ -30,7 +31,7 @@ namespace ijoon {
         // Server control method
         void attach();
         void detach();
-        void control(google::protobuf::Message *message);
+        void control(std::shared_ptr<google::protobuf::Message> queue);
         void control(int packetType, char *message, unsigned int length);
         
         // Getter for server
