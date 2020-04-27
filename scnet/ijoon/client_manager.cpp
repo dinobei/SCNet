@@ -29,6 +29,7 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                 throw std::exception();
             }
             auto sess = server->getClientSession(client);
+            sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
             server->addClient(client, sess);
         }
     }
@@ -182,6 +183,8 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             break;
         }
         
+        sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
+        
         switch (messageHeader.messageType) {
             case ijoon::MESSAGE_TYPE::PROTOBUF:
             {
@@ -309,6 +312,7 @@ bool ijoon::ClientManager::removeClient(int socketId) {
     FD_CLR(socketId, &reads);
     
     this->clientMap.erase(socketId);
+    close(socketId);
     return true;
 }
 
