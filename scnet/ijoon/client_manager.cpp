@@ -298,6 +298,7 @@ bool ijoon::ClientManager::removeClient(std::shared_ptr<ijoon::Session> session)
     }
     
     this->clientMap.erase(socketId);
+    close(socketId);
     return true;
 }
 
