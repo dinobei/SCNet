@@ -293,7 +293,7 @@ bool ijoon::ClientManager::removeClient(std::shared_ptr<ijoon::Session> session)
     
     FD_CLR(socketId, &reads);
     
-    if(onClientDisconnected != nullptr) {
+    if(!useMultiThread && onClientDisconnected != nullptr) {
         onClientDisconnected(session);
     }
     
