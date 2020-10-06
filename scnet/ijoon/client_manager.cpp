@@ -231,7 +231,6 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
 }
 
 ijoon::ClientManager::ClientManager(ushort port, int recvTimeoutMs, bool useMultiThread) {
-    initRandomString();
     this->port = port;
     this->recvTimeoutMs = recvTimeoutMs;
     this->thread = nullptr;

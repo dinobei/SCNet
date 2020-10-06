@@ -1,21 +1,5 @@
 #include "utils.h"
-#include <time.h>
 #include <ijoon/coreutils.h>
-
-void initRandomString() {
-    srand(time(0));
-}
-
-std::string generateRandomString(unsigned int length) {
-    std::string strList = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    std::string arbiratyStr;
-    while(length--) {
-        arbiratyStr += strList.c_str()[rand()%strList.size()];
-    }
-    
-    return arbiratyStr;
-}
-
 
 /* get system time */
 void itimeofday(long *sec, long *nsec)
