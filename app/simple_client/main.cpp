@@ -49,28 +49,28 @@ int main(int argv, char** argc)
     int cnt = 300;
     while(cnt--) {
         ijn_msleep(33);
-        Packet1 *packet1 = new Packet1();
+        auto packet1 = std::shared_ptr<Packet1>(new Packet1());
         packet1->set_number(11);
         server.control(packet1);
 
         ijn_msleep(33);
-        Packet2 *packet2 = new Packet2();
+        auto packet2 = std::shared_ptr<Packet2>(new Packet2());
         packet2->set_str("this is sample string");
         server.control(packet2);
 
         ijn_msleep(33);
-        Packet3 *packet3 = new Packet3();
+        auto packet3 = std::shared_ptr<Packet3>(new Packet3());
         packet3->set_boolvalue(true);
         server.control(packet3);
 
         ijn_msleep(33);
-        Packet4 *packet4 = new Packet4();
+        auto packet4 = std::shared_ptr<Packet4>(new Packet4());
         packet4->set_doublevalue(5000.123);
         packet4->set_floatvalue(123.4f);
         server.control(packet4);
         
         ijn_msleep(33);
-        ArrayMessage *arrayMessage = new ArrayMessage();
+        auto arrayMessage = std::shared_ptr<ArrayMessage>(new ArrayMessage());
         arrayMessage->add_strarr("this");
         arrayMessage->add_strarr("is");
         arrayMessage->add_strarr("SCNet");
@@ -78,7 +78,7 @@ int main(int argv, char** argc)
         server.control(arrayMessage);
         
         ijn_msleep(33);
-        ImageRequest *imageRequest = new ImageRequest();
+        auto imageRequest = std::shared_ptr<ImageRequest>(new ImageRequest());
         imageRequest->set_name("hello.jpg");
         server.control(imageRequest);
         
