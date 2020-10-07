@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package scnet;
+option java_package = "com.scnet";
+option java_outer_classname = "SCNetPacket";
+
+message Header {
+  uint32 messageType = 1;
+  uint32 packetType = 2;
+  repeated string callbacks = 3;
+  uint32 authToken = 4;
+}

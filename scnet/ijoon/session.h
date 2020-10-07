@@ -10,7 +10,9 @@ namespace ijoon {
         virtual bool send(int packetType, char *message, unsigned int length) {return false;}
         virtual bool send(google::protobuf::Message *message) {return false;}
         virtual bool send(std::shared_ptr<google::protobuf::Message> message) {return false;}
+        virtual bool send2(google::protobuf::Message *message) {return false;} // for test
         
+        virtual bool recv2(MessageHeader &messageHeader, unsigned char *body) {return false;} // for test
         virtual bool recvHeader(MessageHeader &messageHeader) {return false;}
         virtual google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader) {return nullptr;}
         virtual char *recvRawBody(MessageHeader &messageHeader) {return nullptr;};
@@ -112,7 +114,9 @@ namespace ijoon {
         bool send(int packetType, char *message, unsigned int length) override;
         bool send(google::protobuf::Message *message) override;
         bool send(std::shared_ptr<google::protobuf::Message> message) override;
+        bool send2(google::protobuf::Message *message) override;
         
+        bool recv2(MessageHeader &messageHeader, unsigned char *body) override;
         bool recvHeader(MessageHeader &messageHeader) override;
         google::protobuf::Message *recvProtobufBody(MessageHeader &messageHeader) override;
         char *recvRawBody(MessageHeader &messageHeader) override;

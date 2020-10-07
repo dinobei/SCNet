@@ -40,7 +40,7 @@ int main(int argv, char** argc) {
     SCNET_RAW_MESSAGE_REGISTRATION(0, onRawByteArray);
     SCNET_RAW_MESSAGE_REGISTRATION(1, onRawByteArray2);
 
-    ijoon::ClientManager clientManager(9190, 30 * 1000, false);
+    ijoon::ClientManager clientManager(9190, 30 * 1000, true);
     clientManager.onServerStarted = onServerStarted;
     clientManager.onServerStopped = onServerStopped;
     clientManager.getClientSession = getClientSession;

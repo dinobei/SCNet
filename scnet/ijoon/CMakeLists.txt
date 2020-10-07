@@ -11,7 +11,25 @@ set(${the_library}_include_directories ${${the_library}_include_directories} PAR
 
 include_directories(${${the_library}_include_directories})
 
-add_library(${the_library} ${the_library_type} ${${the_library}_source_files} ${${the_library}_header_files})
+# Compile protobuf message
+set(proto_output_path ${CMAKE_CURRENT_BINARY_DIR})
+set(proto_input_path ${PROJECT_SOURCE_DIR}/scnet/pb)
+file(GLOB proto_files ${proto_input_path}/*.proto)
+
+foreach(proto_file ${proto_files})
+    get_filename_component(proto_file_we ${proto_file} NAME_WE)
+    list(APPEND proto_compiled_files ${proto_output_path}/${proto_file_we}.pb.h)
+    list(APPEND proto_compiled_files ${proto_output_path}/${proto_file_we}.pb.cc)
+endforeach()
+
+add_custom_command(
+    OUTPUT ${proto_compiled_files}
+    COMMAND protoc -I=${proto_input_path} --cpp_out=${proto_output_path} ${proto_files}
+    COMMENT "build .proto files"
+    VERBATIM
+)
+
+add_library(${the_library} ${the_library_type} ${${the_library}_source_files} ${${the_library}_header_files} ${proto_compiled_files})
 target_link_libraries(${the_library} ${${the_library}_library_dependencies})
 
 if(WIN32)
@@ -19,3 +37,5 @@ if(WIN32)
 endif()
 
 target_include_directories(${the_library} PUBLIC ${${the_library}_include_directories})
+target_include_directories(${the_library} PUBLIC ${proto_output_path})
+add_custom_target(compile_protoc_${the_library} DEPENDS ${proto_compiled_files})

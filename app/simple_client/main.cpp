@@ -24,6 +24,8 @@ void detached(std::shared_ptr<ijoon::Session> sess);
 void detach(std::shared_ptr<ijoon::Session> sess);
 void timeout(std::shared_ptr<ijoon::Session> sess);
 
+std::shared_ptr<ijoon::Session> _g_sess = nullptr;
+
 int main(int argv, char** argc)
 {
     signal(SIGPIPE, SIG_IGN);
@@ -48,47 +50,59 @@ int main(int argv, char** argc)
 
     int cnt = 300;
     while(cnt--) {
-        ijn_msleep(33);
+//        ijn_msleep(33);
+        ijn_msleep(1000);
         auto packet1 = std::shared_ptr<Packet1>(new Packet1());
         packet1->set_number(11);
-        server.control(packet1);
+//        server.control(packet1);
+        if(_g_sess != nullptr) _g_sess->send2(packet1.get());
 
-        ijn_msleep(33);
+//        ijn_msleep(33);
+        ijn_msleep(1000);
         auto packet2 = std::shared_ptr<Packet2>(new Packet2());
         packet2->set_str("this is sample string");
-        server.control(packet2);
+//        server.control(packet2);
+        if(_g_sess != nullptr) _g_sess->send2(packet2.get());
 
-        ijn_msleep(33);
+//        ijn_msleep(33);
+        ijn_msleep(1000);
         auto packet3 = std::shared_ptr<Packet3>(new Packet3());
         packet3->set_boolvalue(true);
-        server.control(packet3);
+//        server.control(packet3);
+        if(_g_sess != nullptr) _g_sess->send2(packet3.get());
 
-        ijn_msleep(33);
+//        ijn_msleep(33);
+        ijn_msleep(1000);
         auto packet4 = std::shared_ptr<Packet4>(new Packet4());
         packet4->set_doublevalue(5000.123);
         packet4->set_floatvalue(123.4f);
-        server.control(packet4);
+//        server.control(packet4);
+        if(_g_sess != nullptr) _g_sess->send2(packet4.get());
         
-        ijn_msleep(33);
+//        ijn_msleep(33);
+        ijn_msleep(1000);
         auto arrayMessage = std::shared_ptr<ArrayMessage>(new ArrayMessage());
         arrayMessage->add_strarr("this");
         arrayMessage->add_strarr("is");
         arrayMessage->add_strarr("SCNet");
         arrayMessage->add_strarr("example");
-        server.control(arrayMessage);
+//        server.control(arrayMessage);
+        if(_g_sess != nullptr) _g_sess->send2(arrayMessage.get());
         
-        ijn_msleep(33);
+//        ijn_msleep(33);
+        ijn_msleep(1000);
         auto imageRequest = std::shared_ptr<ImageRequest>(new ImageRequest());
         imageRequest->set_name("hello.jpg");
-        server.control(imageRequest);
+//        server.control(imageRequest);
+        if(_g_sess != nullptr) _g_sess->send2(imageRequest.get());
         
-        ijn_msleep(33);
-        char rawMessage[255] = "hello world";
-        server.control(0, rawMessage, strlen(rawMessage));
-        
-        ijn_msleep(33);
-        sprintf(rawMessage, "next world");
-        server.control(1, rawMessage, strlen(rawMessage));
+//        ijn_msleep(33);
+//        char rawMessage[255] = "hello world";
+//        server.control(0, rawMessage, strlen(rawMessage));
+//
+//        ijn_msleep(33);
+//        sprintf(rawMessage, "next world");
+//        server.control(1, rawMessage, strlen(rawMessage));
     }
 
     ijn_sleep(1);
@@ -165,10 +179,12 @@ void attachFailed(std::shared_ptr<ijoon::Session> sess) {
 
 void attached(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] attached", sess->getClientSocket()->getSocketIdentifier());
+    _g_sess = sess;
 }
 
 void detached(std::shared_ptr<ijoon::Session> sess) {
     ijn_print(DP_INFO, "[%d] detached", sess->getClientSocket()->getSocketIdentifier());
+    _g_sess = nullptr;
 }
 
 void detach(std::shared_ptr<ijoon::Session> sess) {
@@ -176,6 +192,6 @@ void detach(std::shared_ptr<ijoon::Session> sess) {
 }
 
 void timeout(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] timeout", sess->getClientSocket()->getSocketIdentifier());
-    sess->send(0, nullptr, 0);
+//    ijn_print(DP_INFO, "[%d] timeout", sess->getClientSocket()->getSocketIdentifier());
+//    sess->send(0, nullptr, 0);
 }

@@ -91,6 +91,7 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
             if(timeoutMax < timeoutCount++ &&
                server->onTimeout != nullptr) {
                 server->onTimeout(server->getSession());
+                timeoutCount = 0;
             }
             continue;
         }

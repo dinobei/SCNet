@@ -1,6 +1,7 @@
 #include "session.h"
 #include "registry.h"
 #include "rendezvous_message.h"
+#include "header.pb.h"
 
 bool ijoon::Session::send(int packetType, char *message, unsigned int length) {
     int size = MAGIC_PACKET_LENGTH + MAX_PACKET_HEADER_SIZE + length;
@@ -91,6 +92,82 @@ bool ijoon::Session::send(std::shared_ptr<google::protobuf::Message> message) {
     snd_mtx.unlock();
     
     delete []buf;
+    return true;
+}
+
+bool ijoon::Session::send2(google::protobuf::Message *message) {
+    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    int typeInt = registry->GetType(message->GetTypeName());
+    if(typeInt < 0) {
+        ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
+        exit(-1);
+    }
+    scnet::Header header;
+    header.set_messagetype(ijoon::MESSAGE_TYPE::PROTOBUF);
+    header.set_packettype(typeInt);
+    
+    const int packet_size = header.ByteSizeLong() + message->ByteSizeLong();
+    const int total_size = MAGIC_PACKET_LENGTH + 4 + 2 + packet_size;
+    char *buf = new char[total_size];
+    char *ori_buf = buf;
+    memcpy(buf, MAGIC_PACKET, 2);
+    buf += 2;
+    buf[0] = (packet_size >> 24) & 0xFF;
+    buf[1] = (packet_size >> 16) & 0xFF;
+    buf[2] = (packet_size >> 8) & 0xFF;
+    buf[3] = packet_size & 0xFF;
+    buf += 4;
+    buf[0] = (header.ByteSizeLong() >> 8) & 0xFF;
+    buf[1] = header.ByteSizeLong() & 0xFF;
+    buf += 2;
+    header.SerializeToArray(buf, header.ByteSizeLong());
+    buf += header.ByteSizeLong();
+    message->SerializeToArray(buf, message->ByteSizeLong());
+
+    std::cout << "[" << std::chrono::system_clock::now().time_since_epoch().count() << "] ";
+    snd_mtx.lock();
+    if(!this->cs->safeSend((char *)ori_buf, 0, total_size , 0)) {
+        snd_mtx.unlock();
+        delete[] ori_buf;
+        return false;
+    }
+    snd_mtx.unlock();
+    
+    ijn_print(DP_INFO, "total_sz: %d, pkt_sz: %d, hdr_sz: %d, payload_sz: %d", total_size, packet_size, header.ByteSizeLong(), message->ByteSizeLong());
+    
+    delete []ori_buf;
+    return true;
+}
+
+bool ijoon::Session::recv2(MessageHeader &messageHeader, unsigned char *body) {
+    const int head_length = MAGIC_PACKET_LENGTH + 4 + 2;
+    char head_pkt[head_length] = {0,};
+    
+    rcv_mtx.lock();
+    if(!this->cs->safeRecv(head_pkt, 0, head_length, 0)) {
+        rcv_mtx.unlock();
+        return false;
+    }
+    
+    if(head_pkt[0] != MAGIC_PACKET[0] || head_pkt[1] != MAGIC_PACKET[1]) {
+        rcv_mtx.unlock();
+        return false;
+    }
+    
+    const int pkt_size = head_pkt[2] << 24 | head_pkt[3] << 16 | head_pkt[4] << 8 | head_pkt[5];
+    const ushort header_size = head_pkt[6] << 8 | head_pkt[7];
+    
+    
+    char pkt[1000] = {0,};
+    if(pkt_size > 0 && !this->cs->safeRecv(pkt, pkt_size)) {
+        rcv_mtx.unlock();
+        return false;
+    }
+    
+    std::cout << "[" << std::chrono::system_clock::now().time_since_epoch().count() << "] ";
+    printf("total_sz: %d, pkt_sz : %d, hdr_sz : %d, payload_sz: %d\n", head_length + pkt_size, pkt_size, header_size, pkt_size-header_size);
+    
+    rcv_mtx.unlock();
     return true;
 }
 
