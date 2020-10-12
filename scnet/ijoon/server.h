@@ -11,8 +11,9 @@
 namespace ijoon {
     class Server {
     public:
-        Server(std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
-        Server(int identifier, std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(identifier), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
+        Server(std::string ip, int port, int timeoutMillis, std::shared_ptr<Session> sess = nullptr): mainThread(nullptr), recvThread(nullptr), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {
+            this->sess = sess==nullptr? std::shared_ptr<Session>(new Session()) : sess;
+        }
         ~Server() {}
         
         // Server control method
@@ -22,7 +23,6 @@ namespace ijoon {
         // Getter for server
         std::string getServerIPAddress() { return serverIPAddress; }
         int getServerPort() { return serverPort; }
-        int getIdentifier() { return identifier; }
         int getTimeoutMillis() { return timeoutMillis; }
         std::shared_ptr<Session> getSession() { return sess; }
         
@@ -42,7 +42,6 @@ namespace ijoon {
         
     private:
         std::shared_ptr<Session> sess;
-        int identifier;
         
         std::string serverIPAddress;
         int serverPort;
