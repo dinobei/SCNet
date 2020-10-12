@@ -5,7 +5,7 @@ bool ijoon::Session::send(google::protobuf::Message *message, std::function<void
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
-        ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
+        std::cout << "You must regist protobuf-message before send(), [" << message->GetTypeName() << "]" << std::endl;
         exit(-1);
     }
     scnet::Header header;
@@ -33,7 +33,7 @@ bool ijoon::Session::send(google::protobuf::Message *message, std::function<void
     message->SerializeToArray(buf, message->ByteSizeLong());
     
     snd_mtx.lock();
-    if(!this->cs->safeSend((char *)ori_buf, 0, total_size , 0)) {
+    if(!this->cs->safe_send((char *)ori_buf, 0, total_size , 0)) {
         snd_mtx.unlock();
         delete[] ori_buf;
         return false;
@@ -48,7 +48,7 @@ bool ijoon::Session::send(scnet::Header *_header, google::protobuf::Message *mes
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
-        ijn_print(DP_ERROR, "You must regist protobuf-message before send(), [%s]", message->GetTypeName().c_str());
+        std::cout << "You must regist protobuf-message before send(), [" << message->GetTypeName() << "]" << std::endl;
         exit(-1);
     }
     scnet::Header header;
@@ -79,7 +79,7 @@ bool ijoon::Session::send(scnet::Header *_header, google::protobuf::Message *mes
     message->SerializeToArray(buf, message->ByteSizeLong());
     
     snd_mtx.lock();
-    if(!this->cs->safeSend((char *)ori_buf, 0, total_size , 0)) {
+    if(!this->cs->safe_send((char *)ori_buf, 0, total_size , 0)) {
         snd_mtx.unlock();
         delete[] ori_buf;
         return false;
@@ -95,7 +95,7 @@ bool ijoon::Session::recv() {
     char head_pkt[head_length] = {0,};
     
     rcv_mtx.lock();
-    if(!this->cs->safeRecv(head_pkt, 0, head_length, 0)) {
+    if(!this->cs->safe_recv(head_pkt, 0, head_length, 0)) {
         rcv_mtx.unlock();
         return false;
     }
@@ -109,7 +109,7 @@ bool ijoon::Session::recv() {
     const ushort header_size = head_pkt[6] << 8 | head_pkt[7];
     
     char *pkt = new char[pkt_size];
-    if(pkt_size > 0 && !this->cs->safeRecv(pkt, pkt_size)) {
+    if(pkt_size > 0 && !this->cs->safe_recv(pkt, pkt_size)) {
         rcv_mtx.unlock();
         return false;
     }

@@ -2,6 +2,8 @@
 /* std headers */
 #include <functional>
 #include <assert.h>
+#include <thread>
+#include <atomic>
 
 /* custom headers */
 #include "session.h"
@@ -33,8 +35,10 @@ namespace ijoon {
         std::function<void(std::shared_ptr<Session>)> onTimeout;
         
     public:
-        Thread *mainThread;
-        Thread *recvThread;
+        std::thread *mainThread;
+        std::atomic_bool mainThreadCondition;
+        std::thread *recvThread;
+        std::atomic_bool recvThreadCondition;
         
     private:
         std::shared_ptr<Session> sess;

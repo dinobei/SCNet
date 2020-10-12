@@ -4,6 +4,6 @@
 [submodule "third-party/protobuf"]
 	path = third-party/protobuf
 	url = https://github.com/google/protobuf.git
-[submodule "third-party/coreutils"]
-	path = third-party/coreutils
-	url = http://works.ijoon.net/Developer/coreutils
+[submodule "third-party/cppsocket"]
+	path = third-party/cppsocket
+	url = https://github.com/dinobei/cppsocket

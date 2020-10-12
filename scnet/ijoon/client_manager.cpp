@@ -10,26 +10,29 @@
 #include "registry.h"
 
 fd_set reads;
-ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
-    ijoon::Thread *thread = (ijoon::Thread *)param;
-    ijoon::ClientManager *server = (ijoon::ClientManager *)thread->getParam();
-    ijn_print(DP_INFO, "server mode: %s\n", server->isMultiThreadBased()? "multithread based" : "multiplexing based");
-    if(server->onServerStarted != nullptr)
-        server->onServerStarted();
+void ijoon::ClientManager::ServerMainThread() {
+    std::cout << "server mode: " << (this->isMultiThreadBased()? "multithread based" : "multiplexing based") << std::endl;
+    if(this->onServerStarted != nullptr)
+        this->onServerStarted();
     
     // change to user input
-    ijoon::TCPSocket servSocket(server->getServerPort());
+    this->servSocket = new cppsocket::tcp_socket(this->getServerPort());
 
-    if(server->isMultiThreadBased()) {
-        while(!thread->isInterrupted()) {
-            auto client = servSocket.accept();
+    if(this->isMultiThreadBased()) {
+        while(this->condition) {
+            auto client = servSocket->accept();
+            if(client == nullptr) {
+                __msleep(1);
+                continue;
+            }
             
-            if(server->getClientSession == nullptr) {
+            if(this->getClientSession == nullptr) {
                 throw std::exception();
             }
-            auto sess = server->getClientSession(client);
-            sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
-            server->addClient(client, sess);
+            auto sess = this->getClientSession(client);
+            
+            sess->updatePing();
+            this->addClient(client, sess);
         }
     }
     else {
@@ -37,27 +40,27 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
         struct timeval timeout;
         int fd_max, fd_num;
         FD_ZERO(&reads);
-        FD_SET(servSocket.getSocketIdentifier(), &reads);
+        FD_SET(servSocket->get_socket_identifier(), &reads);
         
-        fd_max = servSocket.getSocketIdentifier();
+        fd_max = servSocket->get_socket_identifier();
         auto registry = Registry<int, google::protobuf::Message* >().Get();
-        auto timeoutSec = server->getRecvTimeoutMs()/1000;
-        time_t lastCheckTime = ijoon::ComputableTime::getCurrentTimeSec();
-        while(!thread->isInterrupted()) {
+        auto timeoutMs = std::chrono::milliseconds(this->getRecvTimeoutMs());
+        auto lastCheckTime = std::chrono::system_clock::now();
+        while(this->condition) {
             cpy_reads = reads;
-            timeout.tv_sec = server->getRecvTimeoutMs() / 1000;
-            timeout.tv_usec = (server->getRecvTimeoutMs() % 1000) * 1000;
+            timeout.tv_sec = this->getRecvTimeoutMs() / 1000;
+            timeout.tv_usec = (this->getRecvTimeoutMs() % 1000) * 1000;
             if( (fd_num = select(fd_max + 1, &cpy_reads, 0, 0, &timeout)) == -1)
                 break;
             
-            auto currentTime = ijoon::ComputableTime::getCurrentTimeSec();
-            if(lastCheckTime + timeoutSec <= currentTime) {
+            auto currentTime = std::chrono::system_clock::now();
+            if(lastCheckTime + timeoutMs <= currentTime) {
                 lastCheckTime = currentTime;
                 
-                auto clientMap = server->getClientMap();
+                auto clientMap = this->getClientMap();
                 for(auto iter : clientMap) {
-                    if(iter.second->getPing() + timeoutSec < currentTime && server->onClientTimeout != nullptr) {
-                        server->onClientTimeout(iter.second);
+                    if(iter.second->getPing() + timeoutMs < currentTime && this->onClientTimeout != nullptr) {
+                        this->onClientTimeout(iter.second);
                     }
                 }
             }
@@ -68,78 +71,63 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
             {
                 if(FD_ISSET(i, &cpy_reads))
                 {
-                    if(i == servSocket.getSocketIdentifier())
+                    if(i == servSocket->get_socket_identifier())
                     {
-                        auto client = servSocket.accept();
+                        auto client = servSocket->accept();
                         
-                        if(server->getClientSession == nullptr) {
+                        if(this->getClientSession == nullptr) {
                             throw std::exception();
                         }
-                        auto sess = server->getClientSession(client);
-                        sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
-                        server->addClient(client, sess);
+                        auto sess = this->getClientSession(client);
+                        sess->updatePing();
+                        this->addClient(client, sess);
                         
-                        int clientSocketId = client->getSocketIdentifier();
+                        int clientSocketId = client->get_socket_identifier();
                         FD_SET(clientSocketId, &reads);
                         if(fd_max < clientSocketId)
                             fd_max = clientSocketId;
                         
-                        if(server->onClientConnected != nullptr)
-                            server->onClientConnected(sess);
+                        if(this->onClientConnected != nullptr)
+                            this->onClientConnected(sess);
                     }
                     else
                     {
-                        auto sess = server->session(i);
+                        auto sess = this->session(i);
                         if(sess == nullptr) continue;
                         if(!sess->recv()) {
-                            if(server->onClientDisconnected != nullptr)
-                                server->onClientDisconnected(sess);
-                            server->removeClient(i);
+                            if(this->onClientDisconnected != nullptr)
+                                this->onClientDisconnected(sess);
+                            this->removeClient(i);
                             continue;
                         }
                         
-                        sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
+                        sess->updatePing();
                     }
                 }
             }
         }
     }
     
-    if(server->onServerStopped != nullptr)
-        server->onServerStopped();
-    
-#ifdef _WIN32
-    return 0;
-#else
-    return nullptr;
-#endif
+    if(this->onServerStopped != nullptr)
+        this->onServerStopped();
 }
 
-ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
-    ijoon::Thread *thread = (ijoon::Thread *)param;
-    ijoon::ClientManager *server = (ijoon::ClientManager *)thread->getParam();
-    int socketId = atoi(thread->getName().c_str());
-    auto sess = server->session(socketId);
-    if(sess == nullptr) {
-        #ifdef _WIN32
-            return 0;
-        #else
-            return nullptr;
-        #endif
-    }
+void ijoon::ClientManager::ServerServiceThread(int socketId) {
+    auto sess = this->session(socketId);
+    if(sess == nullptr) return;
     
-    if(server->onClientConnected != nullptr)
-        server->onClientConnected(sess);
+    if(this->onClientConnected != nullptr)
+        this->onClientConnected(sess);
     
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     while(1) {
-        int fd_num = sess->getClientSocket()->event(server->getRecvTimeoutMs());
+        int fd_num = sess->getClientSocket()->event(this->getRecvTimeoutMs());
         if(fd_num < 0) {
             break;
         }
         if(fd_num == 0) {
-            if(server->onClientTimeout != nullptr)
-                server->onClientTimeout(sess);
+            if(this->onClientTimeout != nullptr)
+                this->onClientTimeout(sess);
             continue;
         }
         
@@ -147,22 +135,15 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             break;
         }
         
-        sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
+        sess->updatePing();
         
     }
     
-    ijn_msleep(1000);
-    server->removeClient(socketId);
+    __msleep(1000);
+    this->removeClient(socketId);
     
-    if(server->onClientDisconnected != nullptr)
-        server->onClientDisconnected(sess);
-    
-#ifdef _WIN32
-    return 0;
-#else
-    return nullptr;
-#endif
-    
+    if(this->onClientDisconnected != nullptr)
+        this->onClientDisconnected(sess);
 }
 
 ijoon::ClientManager::ClientManager(ushort port, int recvTimeoutMs, bool useMultiThread) {
@@ -188,27 +169,30 @@ bool ijoon::ClientManager::start() {
         return false;
     }
     
-    this->thread = new ijoon::Thread(ServerMainThread, "Main Thread");
-    thread->start(this);
+    this->condition.store(true);
+    this->thread = new std::thread(std::bind(&ClientManager::ServerMainThread, this));
     return true;
 }
 
 bool ijoon::ClientManager::stop() {
     if(this->thread != nullptr) {
-        this->thread->interrupt();
-        this->thread = nullptr;
+        this->condition.store(false);
+        this->servSocket->close();
+        if(this->thread->joinable()) {
+            this->thread->join();
+            this->thread = nullptr;
+        }
         return true;
     }
     return false;
 }
 
-bool ijoon::ClientManager::addClient(std::shared_ptr<TCPSocket> clientSocket, std::shared_ptr<Session> sess) {
-    if(this->clientMap.count(clientSocket->getSocketIdentifier()) == 0) {
-        clientMap[clientSocket->getSocketIdentifier()] = sess;
+bool ijoon::ClientManager::addClient(std::shared_ptr<cppsocket::tcp_socket> clientSocket, std::shared_ptr<Session> sess) {
+    if(this->clientMap.count(clientSocket->get_socket_identifier()) == 0) {
+        clientMap[clientSocket->get_socket_identifier()] = sess;
         
         if(isMultiThreadBased()) {
-            ijoon::Thread *thread = new ijoon::Thread(ServerServiceThread, std::to_string(clientSocket->getSocketIdentifier()));
-            thread->start(this);
+            std::thread *thread = new std::thread(std::bind(&ClientManager::ServerServiceThread, this, clientSocket->get_socket_identifier())); // TODO: manage ServerServiceThread
         }
         
         return true;
@@ -220,7 +204,7 @@ bool ijoon::ClientManager::addClient(std::shared_ptr<TCPSocket> clientSocket, st
 bool ijoon::ClientManager::removeClient(std::shared_ptr<ijoon::Session> session) {
     if(session == nullptr) return false;
     
-    auto socketId = session->getClientSocket()->getSocketIdentifier();
+    auto socketId = session->getClientSocket()->get_socket_identifier();
     
     if(this->clientMap.count(socketId) == 0)
         return false;
@@ -236,8 +220,8 @@ bool ijoon::ClientManager::removeClient(std::shared_ptr<ijoon::Session> session)
     return true;
 }
 
-bool ijoon::ClientManager::removeClient(std::shared_ptr<TCPSocket> clientSocket) {
-    return removeClient(clientSocket->getSocketIdentifier());
+bool ijoon::ClientManager::removeClient(std::shared_ptr<cppsocket::tcp_socket> clientSocket) {
+    return removeClient(clientSocket->get_socket_identifier());
 }
 
 bool ijoon::ClientManager::removeClient(int socketId) {

@@ -1,4 +1,3 @@
-#include <ijoon/coreutils.h>
 #include "server.h"
 #include "registry.h"
 
@@ -24,7 +23,7 @@ void timeout(std::shared_ptr<ijoon::Session> sess);
 
 std::shared_ptr<ijoon::Session> _g_sess = nullptr;
 
-int main(int argv, char** argc)
+int main(int argv, char **argc)
 {
     signal(SIGPIPE, SIG_IGN);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetType1, Packet1, onPacket1);
@@ -35,7 +34,7 @@ int main(int argv, char** argc)
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(imageRequest, ImageRequest, nullptr);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(imageResponse, ImageResponse, onImageResponse);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(9, scnet::Ping, nullptr);
-    
+
     ijoon::Server server("127.0.0.1", 9190, 1000);
     server.onAttaching = onAttaching;
     server.onAttachFailed = attachFailed;
@@ -49,7 +48,7 @@ int main(int argv, char** argc)
     int cnt = 300;
     while(cnt--) {
         scnet::Header header;
-        ijn_msleep(interval_ms);
+        __msleep(interval_ms);
         auto packet1 = std::shared_ptr<Packet1>(new Packet1());
         packet1->set_number(11);
         if(_g_sess != nullptr) {
@@ -60,7 +59,7 @@ int main(int argv, char** argc)
                            });
         }
 
-        ijn_msleep(interval_ms);
+        __msleep(interval_ms);
         auto packet2 = std::shared_ptr<Packet2>(new Packet2());
         packet2->set_str("this is sample string");
         if(_g_sess != nullptr) _g_sess->send(packet2.get(), [](std::shared_ptr<ijoon::Session> sess, scnet::Header *header, google::protobuf::Message *message){
@@ -68,7 +67,7 @@ int main(int argv, char** argc)
             std::cout << "Packet2 received, str=" << pkt2->str() << std::endl;
         });
 
-        ijn_msleep(interval_ms);
+        __msleep(interval_ms);
         auto packet3 = std::shared_ptr<Packet3>(new Packet3());
         packet3->set_boolvalue(true);
         if(_g_sess != nullptr) _g_sess->send(packet3.get(), [](std::shared_ptr<ijoon::Session> sess, scnet::Header *header, google::protobuf::Message *message){
@@ -76,7 +75,7 @@ int main(int argv, char** argc)
             std::cout << "Packet3 received, boolVal=" << pkt3->boolvalue() << std::endl;
         });
 
-        ijn_msleep(interval_ms);
+        __msleep(interval_ms);
         auto packet4 = std::shared_ptr<Packet4>(new Packet4());
         packet4->set_doublevalue(5000.123);
         packet4->set_floatvalue(123.4f);
@@ -85,7 +84,7 @@ int main(int argv, char** argc)
             std::cout << "Packet4 received, floatVal=" << pkt4->floatvalue() << "doubleVal=" << pkt4->doublevalue() << std::endl;
         });
         
-        ijn_msleep(interval_ms);
+        __msleep(interval_ms);
         auto arrayMessage = std::shared_ptr<ArrayMessage>(new ArrayMessage());
         arrayMessage->add_strarr("this");
         arrayMessage->add_strarr("is");
@@ -100,7 +99,7 @@ int main(int argv, char** argc)
             std::cout << std::endl;
         });
         
-        ijn_msleep(interval_ms);
+        __msleep(interval_ms);
         auto imageRequest = std::shared_ptr<ImageRequest>(new ImageRequest());
         imageRequest->set_name("hello.jpg");
         if(_g_sess != nullptr) _g_sess->send(imageRequest.get(), [](std::shared_ptr<ijoon::Session> sess, scnet::Header *header, google::protobuf::Message *message){
@@ -111,70 +110,83 @@ int main(int argv, char** argc)
         });
     }
 
-    ijn_print(DP_INFO, "Press Enter to detach");
+    std::cout << "Press Enter to detach" << std::endl;
     getchar();
 
     server.detach();
-    ijn_print(DP_INFO, "Press enter to quit");
+    std::cout << "Press enter to quit" << std::endl;
     getchar();
     return 0;
 }
 
-void onPacket1(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet1 *pkt1) {
-    ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
+void onPacket1(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet1 *pkt1)
+{
+    std::cout << "[onPacket1()] number=" << pkt1->number() << std::endl;
 }
 
-void onPacket2(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet2 *pkt2) {
-    ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
+void onPacket2(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet2 *pkt2)
+{
+    std::cout << "[onPacket2()] str=" << pkt2->str() << std::endl;
 }
 
-void onPacket3(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet3 *pkt3) {
-    ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
+void onPacket3(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet3 *pkt3)
+{
+    std::cout << "[onPacket3()] boolvalue=" << (pkt3->boolvalue() ? "true" : "false") << std::endl;
 }
 
-void onPacket4(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet4 *pkt4) {
-    ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
+void onPacket4(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, Packet4 *pkt4)
+{
+    std::cout << "[onPacket4()] floatvalue=" << pkt4->floatvalue() << ", doublevalue=" << pkt4->doublevalue() << std::endl;
 }
 
-void onArrayMessage(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, ArrayMessage *arrayMessage) {
-    ijn_print(DP_INFO, "[onArrayMessage()] received array size: %d, message: ", arrayMessage->strarr_size());
-    for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
-        printf("%s ", arrayMessage->strarr(i).c_str());
+void onArrayMessage(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, ArrayMessage *arrayMessage)
+{
+    std::cout << "[onArrayMessage()] received array size=" << arrayMessage->strarr_size() << ", message: ";
+    for (int i = 0; i < arrayMessage->strarr_size(); i++)
+    {
+        std::cout << arrayMessage->strarr(i) << " ";
     }
-    printf("\n");
+    std::cout << std::endl;
 }
 
-void onImageResponse(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, ImageResponse *imageResponse) {
+void onImageResponse(std::shared_ptr<ijoon::Session> sess, scnet::Header *header, ImageResponse *imageResponse)
+{
     const char *imageBuffer = imageResponse->imagebuffer().c_str();
     ImageHeader imageHeader = imageResponse->header();
-    
-    ijn_print(DP_DEBUG, "[onImageResponse()] imageResponse received, name=%s, width=%d, height=%d, size=%d", imageHeader.name().c_str(), imageHeader.width(), imageHeader.height(), imageHeader.size());
+
+    std::cout << "[onImageResponse()] imageResponse received, name=" << imageHeader.name() << ", width=" << imageHeader.width() << ", height=" << imageHeader.height() << ", size=" << imageHeader.size() << std::endl;
 }
 
-void onAttaching(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] attaching", sess->getClientSocket()->getSocketIdentifier());
+void onAttaching(std::shared_ptr<ijoon::Session> sess)
+{
+    std::cout << "[" << sess->getClientSocket()->get_socket_identifier() << "] attaching" << std::endl;
 }
 
-void attachFailed(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] attachFailed", sess->getClientSocket()->getSocketIdentifier());
+void attachFailed(std::shared_ptr<ijoon::Session> sess)
+{
+    std::cout << "[" << sess->getClientSocket()->get_socket_identifier() << "] attachFailed" << std::endl;
 }
 
-void attached(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] attached", sess->getClientSocket()->getSocketIdentifier());
+void attached(std::shared_ptr<ijoon::Session> sess)
+{
+    std::cout << "[" << sess->getClientSocket()->get_socket_identifier() << "] attached" << std::endl;
     _g_sess = sess;
 }
 
-void detached(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] detached", sess->getClientSocket()->getSocketIdentifier());
+void detached(std::shared_ptr<ijoon::Session> sess)
+{
+    std::cout << "[" << sess->getClientSocket()->get_socket_identifier() << "] detached" << std::endl;
     _g_sess = nullptr;
 }
 
-void detach(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] detach", sess->getClientSocket()->getSocketIdentifier());
+void detach(std::shared_ptr<ijoon::Session> sess)
+{
+    std::cout << "[" << sess->getClientSocket()->get_socket_identifier() << "] detach" << std::endl;
 }
 
-void timeout(std::shared_ptr<ijoon::Session> sess) {
-    ijn_print(DP_INFO, "[%d] timeout", sess->getClientSocket()->getSocketIdentifier());
+void timeout(std::shared_ptr<ijoon::Session> sess)
+{
+    std::cout << "[" << sess->getClientSocket()->get_socket_identifier() << "] timeout" << std::endl;
     auto ping = scnet::Ping();
     sess->send(&ping, nullptr);
 }

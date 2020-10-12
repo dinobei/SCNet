@@ -5,9 +5,10 @@
 #include <google/protobuf/message.h>
 
 #include <cstring>
-#include <ijoon/coreutils.h>
+#include <cppsocket/tcp_socket.h>
 
-namespace ijoon {
-    #define MAGIC_PACKET_LENGTH             2
+namespace ijoon
+{
+#define MAGIC_PACKET_LENGTH 2
     const char MAGIC_PACKET[2] = {'I', 'J'};
-}
+} // namespace ijoon

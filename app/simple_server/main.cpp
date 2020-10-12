@@ -12,7 +12,7 @@ using namespace example;
 void onServerStarted();
 void onServerStopped();
 
-std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<ijoon::TCPSocket> socket);
+std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<cppsocket::tcp_socket> socket);
 void onClientConnected(std::shared_ptr<ijoon::Session> session);
 void onClientTimeout(std::shared_ptr<ijoon::Session> session);
 void onClientDisconnected(std::shared_ptr<ijoon::Session> session);
@@ -53,63 +53,63 @@ int main(int argv, char** argc) {
 }
 
 void onServerStarted() {
-    ijn_print(DP_INFO, "[onServerStarted()]");
+    std::cout << "ServerStarted" << std::endl;
 }
 
 void onServerStopped() {
-    ijn_print(DP_INFO, "[onServerStopped()]");
+    std::cout << "ServerStopped" << std::endl;
 }
 
-std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<ijoon::TCPSocket> socket) {
+std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<cppsocket::tcp_socket> socket) {
     int ms = 500;
-    socket->option(ijoon::SOCK_RCVTIMEO_MS, (void *)&ms);
-    socket->option(ijoon::SOCK_SNDTIMEO_MS, (void *)&ms);
+    socket->option(cppsocket::SOCK_RCVTIMEO_MS, (void *)&ms);
+    socket->option(cppsocket::SOCK_SNDTIMEO_MS, (void *)&ms);
     return std::make_shared<ijoon::Session>(socket);
 }
 
 void onClientConnected(std::shared_ptr<ijoon::Session> session) {
-    ijn_print(DP_INFO, "[onClientConnected(std::shared_ptr<ijoon::Session>)] %d", session->getClientSocket()->getSocketIdentifier());
+    std::cout << "ClientConnected, " << session->getClientSocket()->get_socket_identifier() << std::endl;
 }
 
 void onClientTimeout(std::shared_ptr<ijoon::Session> session) {
     if(session == nullptr) {
-        ijn_print(DP_INFO, "[onClientTimeout(std::shared_ptr<ijoon::Session>)]");
+        std::cout << "onClientTimeout" << std::endl;
     }
     else {
-        ijn_print(DP_INFO, "[onClientTimeout(std::shared_ptr<ijoon::Session>)] %d", session->getClientSocket()->getSocketIdentifier());
+        std::cout << "ClientTimeout, " << session->getClientSocket()->get_socket_identifier() << std::endl;
     }
 }
 
 void onClientDisconnected(std::shared_ptr<ijoon::Session> session) {
-    ijn_print(DP_INFO, "[onClientDisconnected(std::shared_ptr<ijoon::Session>)] %d", session->getClientSocket()->getSocketIdentifier());
+    std::cout << "ClientDisconnected, " << session->getClientSocket()->get_socket_identifier() << std::endl;
 }
 
 void onPacket1(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet1 *pkt1) {
-    ijn_print(DP_DEBUG, "[onPacket1()] number=%d", pkt1->number());
+    std::cout << "Packet1 received, number=" << pkt1->number() << std::endl;
     session->send(header, pkt1);
 }
 
 void onPacket2(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet2 *pkt2) {
-    ijn_print(DP_DEBUG, "[onPacket2()] str=%s", pkt2->str().c_str());
+    std::cout << "Packet2, str=" << pkt2->str() << std::endl;
     session->send(header, pkt2);
 }
 
 void onPacket3(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet3 *pkt3) {
-    ijn_print(DP_DEBUG, "[onPacket3()] boolvalue=%s", pkt3->boolvalue()?"true":"false");
+    std::cout << "Packet3 received, boolvalue=" << (pkt3->boolvalue()?"true":"false") << std::endl;
     session->send(header, pkt3);
 }
 
 void onPacket4(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet4 *pkt4) {
-    ijn_print(DP_DEBUG, "[onPacket4()] floatvalue=%f, doublevalue=%lf", pkt4->floatvalue(), pkt4->doublevalue());
+    std::cout << "Packet4 received, floatvalue=" << pkt4->floatvalue() << ", doublevalue=" << pkt4->doublevalue() << std::endl;
     session->send(header, pkt4);
 }
 
 void onArrayMessage(std::shared_ptr<ijoon::Session> session, scnet::Header *header, ArrayMessage *arrayMessage) {
-    ijn_print(DP_INFO, "received array size: %d, message: ", arrayMessage->strarr_size());
+    std::cout << "received array size: %d, message: " << arrayMessage->strarr_size() << std::endl;
     for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
-        printf("%s ", arrayMessage->strarr(i).c_str());
+        std::cout << arrayMessage->strarr(i) << " ";
     }
-    printf("\n");
+    std::cout << std::endl;
     
     session->send(header, arrayMessage);
 }
@@ -123,7 +123,7 @@ long GetFileSize(std::string filename)
 
 void onImageRequest(std::shared_ptr<ijoon::Session> session, scnet::Header *header, ImageRequest *imageRequest) {
     int size = GetFileSize(imageRequest->name());
-    ijn_print(DP_DEBUG, "requested image name: %s, size: %d", imageRequest->name().c_str(), size);
+    std::cout << "requested image name=" << imageRequest->name() << ", size=" << size << std::endl;
     
     if(size < 0) {
         auto response = example::ImageResponse();
@@ -146,7 +146,7 @@ void onImageRequest(std::shared_ptr<ijoon::Session> session, scnet::Header *head
     response->set_imagebuffer(buf, size);
     
     bool ret = session->send(header, response);
-    ijn_print(DP_DEBUG, "ret : %s", ret? "true" : "false");
+    std::cout << "ret : " << (ret? "true" : "false") << std::endl;
     
     delete []buf;
     

@@ -72,15 +72,13 @@ else()
     list(APPEND scnet_include_directories ${Protobuf_INCLUDE_DIRS})
 endif()
 
-# coreutils library
-set(Coreutils_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/third-party/coreutils/coreutils)
-message("Coreutils_INCLUDE_DIRS: " ${Coreutils_INCLUDE_DIRS})
+# cppsocket library
+set(cppsocket_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/third-party/cppsocket/source)
+message("cppsocket_INCLUDE_DIRS: " ${cppsocket_INCLUDE_DIRS})
 
-set(coreutils_BUILD_APPS OFF CACHE BOOL "build app off")
-set(coreutils_BUILD_SHARED OFF CACHE BOOL "build shared off")
-add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/coreutils)
-list(APPEND scnet_library_dependencies coreutils)
-list(APPEND scnet_include_directories ${Coreutils_INCLUDE_DIRS})
+add_subdirectory(${PROJECT_SOURCE_DIR}/third-party/cppsocket)
+list(APPEND scnet_library_dependencies cppsocket)
+list(APPEND scnet_include_directories ${cppsocket_INCLUDE_DIRS})
 
 
 message("scnet_library_dependencies: ${scnet_library_dependencies}")

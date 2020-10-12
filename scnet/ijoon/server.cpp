@@ -1,19 +1,14 @@
 #include "server.h"
 #include "registry.h"
 
-ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg);
-ijoon::THREAD_RET THREAD_API sendThreadFunc(void *arg);
-ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg);
+void recvThreadFunc(ijoon::Server *server);
 
-ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg)
+void clientMainThreadFunc(ijoon::Server *server)
 {
-    ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::Server *server = (ijoon::Server *)thread->getParam();
-
     char portStr[20];
     sprintf(portStr, "%d", server->getServerPort());
 
-    while(!thread->isInterrupted()) {
+    while(server->mainThreadCondition) {
         // CALLBACK::ATTACHING
         if(server->onAttaching != nullptr) {
             server->onAttaching(server->getSession());
@@ -34,8 +29,8 @@ ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg)
             }
         }
 
-        server->recvThread = new ijoon::Thread(recvThreadFunc, "recvThread");
-        server->recvThread->start((void *)server);
+        server->recvThreadCondition.store(true);
+        server->recvThread = new std::thread(recvThreadFunc, server);
 
         // CALLBACK::ATTACHED
         if(server->onAttached != nullptr) {
@@ -56,19 +51,14 @@ ijoon::THREAD_RET THREAD_API clientMainThreadFunc(void *arg)
     if(server->onDetach != nullptr) {
         server->onDetach(server->getSession());
     }
-
-    return NULL;
 }
 
-ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
+void recvThreadFunc(ijoon::Server *server)
 {
-    ijoon::Thread *thread = (ijoon::Thread *)arg;
-    ijoon::Server *server = (ijoon::Server *)thread->getParam();
-
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     int timeoutCount = 0;
     const int timeoutMax = 50;
-    while(!thread->isInterrupted())
+    while(server->recvThreadCondition)
     {
         int fd_num = server->getSession()->getClientSocket()->event(100);
 
@@ -95,25 +85,25 @@ ijoon::THREAD_RET THREAD_API recvThreadFunc(void *arg)
     }
 
     server->recvThread = nullptr;
-    server->getSession()->getClientSocket()->close(ijoon::read);
-
-    ijn_print(DP_INFO, "recvResponseThread Finished.");
-
-    return THREAD_EXIT;
+    server->getSession()->getClientSocket()->close(cppsocket::read);
 }
 
 void ijoon::Server::attach() {
-    this->mainThread = new ijoon::Thread(clientMainThreadFunc, "mainThread");
-    this->mainThread->start(this);
+    if(this->mainThread != nullptr) return;
+    this->mainThreadCondition.store(true);
+    this->mainThread = new std::thread(clientMainThreadFunc, this);
 }
 
 void ijoon::Server::detach() {
     if(this->recvThread != nullptr) {
-        this->recvThread->interrupt();
+        this->recvThreadCondition.store(false);
     }
 
     if(this->mainThread != nullptr) {
-        this->mainThread->interrupt();
-        this->mainThread->join();
+        this->mainThreadCondition.store(false);
+        if(this->mainThread->joinable()) {
+            this->mainThread->join();
+            this->mainThread = nullptr;
+        }
     }
 }
