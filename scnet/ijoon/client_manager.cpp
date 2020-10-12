@@ -1,5 +1,4 @@
 #include "client_manager.h"
-#include "utils.h"
 #include <map>
 #include <fstream>
 #include <sys/stat.h>
@@ -92,52 +91,18 @@ ijoon::THREAD_RET THREAD_API ServerMainThread(void* param) {
                     {
                         auto sess = server->session(i);
                         if(sess == nullptr) continue;
-                        ijoon::MessageHeader messageHeader;
-                        if(!sess->recvHeader(messageHeader)) {
+                        if(!sess->recv()) {
                             if(server->onClientDisconnected != nullptr)
                                 server->onClientDisconnected(sess);
                             server->removeClient(i);
                             continue;
                         }
                         
-
                         sess->setPing(ijoon::ComputableTime::getCurrentTimeSec());
-
-                        switch (messageHeader.messageType) {
-                            case ijoon::MESSAGE_TYPE::PROTOBUF:
-                            {
-                                google::protobuf::Message *message = sess->recvProtobufBody(messageHeader);
-                                if(message == nullptr) continue;
-                                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
-                                if(callbackWrapper == nullptr) {
-                                    delete message;
-                                    break;
-                                }
-                                callbackWrapper->callback(sess, message);
-                                delete message;
-                                break;
-                            }
-                            case ijoon::MESSAGE_TYPE::RAWBYTE:
-                            {
-                                char *message = sess->recvRawBody(messageHeader);
-                                AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(messageHeader.messageType, messageHeader.packetType);
-                                if(callbackWrapper == nullptr) {
-                                    delete message;
-                                    break;
-                                }
-                                
-                                callbackWrapper->callback(sess, message, messageHeader.dataSize);
-                                delete message;
-                                break;
-                            }
-                            default:
-                                break;
-                        }
                     }
                 }
             }
         }
-
     }
     
     if(server->onServerStopped != nullptr)
@@ -178,8 +143,7 @@ ijoon::THREAD_RET THREAD_API ServerServiceThread(void* param) {
             continue;
         }
         
-        ijoon::MessageHeader messageHeader2;
-        if(!sess->recv2(messageHeader2, NULL)) {
+        if(!sess->recv()) {
             break;
         }
         

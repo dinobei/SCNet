@@ -7,21 +7,6 @@
 #include "session.h"
 
 namespace ijoon {
-    class MessageWrapper {
-    public:
-        MessageWrapper(std::shared_ptr<google::protobuf::Message> message): messageType(MESSAGE_TYPE::PROTOBUF), message(nullptr), message_pb(message) {
-            length = message->ByteSizeLong();
-        }
-
-        MessageWrapper(int packetType, char *message, unsigned int length): messageType(MESSAGE_TYPE::RAWBYTE), packetType(packetType), message(message), length(length) {}
-        
-        ijoon::MESSAGE_TYPE messageType;
-        int packetType;
-        void *message;
-        std::shared_ptr<google::protobuf::Message> message_pb;
-        unsigned int length;
-    };
-    
     class Server {
     public:
         Server(std::string ip, int port, int timeoutMillis): sess(new Session()), identifier(-1), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {}
@@ -31,15 +16,12 @@ namespace ijoon {
         // Server control method
         void attach();
         void detach();
-        void control(std::shared_ptr<google::protobuf::Message> queue);
-        void control(int packetType, char *message, unsigned int length);
-        
+
         // Getter for server
         std::string getServerIPAddress() { return serverIPAddress; }
         int getServerPort() { return serverPort; }
         int getIdentifier() { return identifier; }
         int getTimeoutMillis() { return timeoutMillis; }
-        BlockingQueue<MessageWrapper *> *getEventQueue() { return eventQueue; }
         std::shared_ptr<Session> getSession() { return sess; }
         
         // Connection lifecycle
@@ -52,14 +34,11 @@ namespace ijoon {
         
     public:
         Thread *mainThread;
-        Thread *sendThread;
         Thread *recvThread;
         
     private:
         std::shared_ptr<Session> sess;
         int identifier;
-        
-        BlockingQueue<MessageWrapper *> *eventQueue;
         
         std::string serverIPAddress;
         int serverPort;

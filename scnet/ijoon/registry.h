@@ -12,58 +12,32 @@
 #undef min
 #endif
 
-
-
-
 class AbstractCallbackWrapper {
 public:
-    virtual void callback(std::shared_ptr<ijoon::BaseSession> session, google::protobuf::Message *message) {}
+    virtual void callback(std::shared_ptr<ijoon::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) {}
     virtual void callback(std::shared_ptr<ijoon::BaseSession> session, char *message, unsigned int length) {}
 };
 
 template <class S, class T>
 class CallbackWrapper : public AbstractCallbackWrapper{
 public:
-    CallbackWrapper(std::function<void(std::shared_ptr<S>, T *)> _callbackFunc) {
+    CallbackWrapper(std::function<void(std::shared_ptr<S>, scnet::Header *, T *)> _callbackFunc) {
         callbackFunc = _callbackFunc;
     }
     ~CallbackWrapper() {}
     
-    void callback(std::shared_ptr<ijoon::BaseSession> session, google::protobuf::Message *message) override {
+    void callback(std::shared_ptr<ijoon::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) override {
         if(callbackFunc == nullptr) return;
         if(message == nullptr) {
-            
-            
-            callbackFunc(std::static_pointer_cast<S>(session), nullptr);
+            callbackFunc(std::static_pointer_cast<S>(session), header, nullptr);
             return;
         }
         
-        callbackFunc(std::static_pointer_cast<S>(session), static_cast<T *>((void *)message));
+        callbackFunc(std::static_pointer_cast<S>(session), header, static_cast<T *>((void *)message));
     }
     
 public:
-    std::function<void(std::shared_ptr<S>, T *)> callbackFunc;
-};
-
-template <class S>
-class RawCallbackWrapper : public AbstractCallbackWrapper{
-public:
-    RawCallbackWrapper(std::function<void(std::shared_ptr<S>, void *, unsigned int)> _callbackFunc) {
-        callbackFunc = _callbackFunc;
-    }
-    ~RawCallbackWrapper() {}
-    
-    void callback(std::shared_ptr<ijoon::BaseSession> session, char *message, unsigned int length) override {
-        if(message == nullptr) {
-            callbackFunc(std::static_pointer_cast<S>(session), nullptr, 0);
-            return;
-        }
-
-        callbackFunc(std::static_pointer_cast<S>(session), (void *)message, length);
-    }
-    
-public:
-    std::function<void(std::shared_ptr<S>, void *, unsigned int)> callbackFunc;
+    std::function<void(std::shared_ptr<S>, scnet::Header *, T *)> callbackFunc;
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>
@@ -106,6 +80,16 @@ public:
         registry_callback_wrapper[key] = callbackWrapper;
     }
     
+    unsigned int Register(AbstractCallbackWrapper *callbackWrapper)
+    {
+        if(callbackWrapper != nullptr) {
+            registry_callback_wrapper[packet_index] = callbackWrapper;
+            return packet_index++;
+        }
+        
+        return 0;
+    }
+    
     inline bool HasCreator(const SrcType& key) { return (registry_creater.count(key) != 0); }
     inline bool HasGetter(const std::string key) { return (registry_getter.count(key) != 0); }
     inline bool HasCallbackWrapper(const SrcType& key) { return (registry_callback_wrapper.count(key) != 0); }
@@ -130,28 +114,27 @@ public:
         return registry_getter[key];
     }
     
-    AbstractCallbackWrapper *GetCallbackWrapper(const SrcType& messageTypeInt, const SrcType& packetTypeInt, Args... args)
+    AbstractCallbackWrapper *GetCallbackWrapper(const SrcType& packetTypeInt, Args... args)
     {
-        const SrcType& key = messageTypeInt * 100000 + packetTypeInt;
-        
-        if (!HasCallbackWrapper(key))
+        if (!HasCallbackWrapper(packetTypeInt))
         {
-            // Returns nullptr if the key is not registered.
+            // Return nullptr if the key is not registered.
             return nullptr;
         }
-        return registry_callback_wrapper[key];
+        return registry_callback_wrapper[packetTypeInt];
     }
     
 private:
     std::map<SrcType, Creator> registry_creater;
     std::map<std::string, google::protobuf::uint32> registry_getter;
     std::map<SrcType, AbstractCallbackWrapper *> registry_callback_wrapper;
+    unsigned int packet_index = 1000; // TODO: settting outside
 };
 
 template <class SrcType, class ObjectPtrType, class... Args>
 class Registerer {
 public:
-    Registerer(
+    Registerer( // packetType => pb instance
                Registry<SrcType, ObjectPtrType, Args...>* registry,
                const SrcType key,
                typename Registry<SrcType, ObjectPtrType, Args...>::Creator creator
@@ -159,7 +142,7 @@ public:
         registry->Register(key, creator);
     }
 
-    Registerer(
+    Registerer( // className => packetType
                Registry<SrcType, ObjectPtrType, Args...>* registry,
                const std::string key,
                google::protobuf::uint32 type
@@ -167,13 +150,12 @@ public:
         registry->Register(key, type);
     }
     
-    Registerer(
+    Registerer( // packetType => callbackWrapper
                Registry<SrcType, ObjectPtrType, Args...>* registry,
-               const SrcType messageTypeInt,
                const SrcType packetTypeInt,
                AbstractCallbackWrapper *callbackWrapper
                ) {
-        const SrcType key = messageTypeInt * 100000 + packetTypeInt;
+        const SrcType key = packetTypeInt;
         registry->Register(key, callbackWrapper);
     }
     
@@ -205,23 +187,8 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
                     packetTypeInt); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     GetRegistry(), \
-                    ijoon::MESSAGE_TYPE::PROTOBUF, \
                     packetTypeInt, \
                     new CallbackWrapper<ijoon::Session, messageClassName>(callbackFunc))
-
-#define SCNET_RAW_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    GetRegistry(), \
-                    ijoon::MESSAGE_TYPE::RAWBYTE, \
-                    packetTypeInt, \
-                    new RawCallbackWrapper<ijoon::Session>(callbackFunc))
-
-#define SCNET_RAW_UDP_MESSAGE_REGISTRATION(packetTypeInt, callbackFunc) \
-                    static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    GetRegistry(), \
-                    ijoon::MESSAGE_TYPE::RAWBYTE, \
-                    packetTypeInt, \
-                    new RawCallbackWrapper<ijoon::RendezvousSession>(callbackFunc))
 
 #define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
@@ -234,7 +201,6 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
                     packetTypeInt); \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     GetRegistry(), \
-                    ijoon::MESSAGE_TYPE::PROTOBUF, \
                     packetTypeInt, \
                     new CallbackWrapper<ijoon::RendezvousSession, messageClassName>(callbackFunc))
 
