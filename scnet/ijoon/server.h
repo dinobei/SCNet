@@ -1,51 +1,55 @@
 #pragma once
-/* std headers */
+#include <map>
 #include <functional>
 #include <assert.h>
+#include <chrono>
 #include <thread>
 #include <atomic>
 
-/* custom headers */
 #include "session.h"
 
-namespace ijoon {
+namespace scnet {
     class Server {
     public:
-        Server(std::string ip, int port, int timeoutMillis, std::shared_ptr<Session> sess = nullptr): mainThread(nullptr), recvThread(nullptr), serverIPAddress(ip), serverPort(port), timeoutMillis(timeoutMillis) {
-            this->sess = sess==nullptr? std::shared_ptr<Session>(new Session()) : sess;
-        }
-        ~Server() {}
+        Server(ushort port, int recvTimeoutMs, bool useMultiThread);
+        ~Server();
         
-        // Server control method
-        void attach();
-        void detach();
+        bool start();
+        bool stop();
+        
+        int clientSize();
+        std::shared_ptr<Session> session(int socketId);
+        std::map<int, std::shared_ptr<Session>> &getClientMap();
+        
+        bool addClient(std::shared_ptr<cppsocket::tcp_socket> clientSocket, std::shared_ptr<Session> sess);
+        bool removeClient(std::shared_ptr<scnet::Session> session);
+        bool removeClient(std::shared_ptr<cppsocket::tcp_socket> clientSocket);
+        bool removeClient(int socketId);
+        
+        ushort getServerPort();
+        int getRecvTimeoutMs();
+        
+        bool isMultiThreadBased() { return this->useMultiThread; }
+        
+        // Server lifecycle
+        std::function<void()> onServerStarted;
+        std::function<void()> onServerStopped;
+        
+        // Client lifecycle
+        std::function<std::shared_ptr<scnet::Session>(std::shared_ptr<cppsocket::tcp_socket>)> getClientSession;
+        std::function<void(std::shared_ptr<Session>)> onClientConnected;
+        std::function<void(std::shared_ptr<Session>)> onClientTimeout;
+        std::function<void(std::shared_ptr<Session>)> onClientDisconnected;
 
-        // Getter for server
-        std::string getServerIPAddress() { return serverIPAddress; }
-        int getServerPort() { return serverPort; }
-        int getTimeoutMillis() { return timeoutMillis; }
-        std::shared_ptr<Session> getSession() { return sess; }
-        
-        // Connection lifecycle
-        std::function<void(std::shared_ptr<Session>)> onAttaching;
-        std::function<void(std::shared_ptr<Session>)> onAttachFailed;
-        std::function<void(std::shared_ptr<Session>)> onAttached;
-        std::function<void(std::shared_ptr<Session>)> onDetached;
-        std::function<void(std::shared_ptr<Session>)> onDetach;
-        std::function<void(std::shared_ptr<Session>)> onTimeout;
-        
-    public:
-        std::thread *mainThread;
-        std::atomic_bool mainThreadCondition;
-        std::thread *recvThread;
-        std::atomic_bool recvThreadCondition;
-        
+        void ServerMainThread();
+        void ServerServiceThread(int socketId);
     private:
-        std::shared_ptr<Session> sess;
-        
-        std::string serverIPAddress;
-        int serverPort;
-        
-        int timeoutMillis;
+        cppsocket::tcp_socket *servSocket;
+        std::map<int, std::shared_ptr<Session>> clientMap;
+        std::thread *thread;
+        std::atomic_bool condition;
+        ushort port;
+        int recvTimeoutMs;
+        bool useMultiThread;
     };
 }

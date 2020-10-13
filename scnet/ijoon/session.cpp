@@ -1,7 +1,7 @@
 #include "session.h"
 #include "registry.h"
 
-bool ijoon::Session::send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {
+bool scnet::Session::send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
@@ -11,7 +11,7 @@ bool ijoon::Session::send(google::protobuf::Message *message, std::function<void
     scnet::Header header;
     header.set_packettype(typeInt);
     if(cb != nullptr) {
-        header.set_req_cb(registry->Register(new CallbackWrapper<ijoon::Session, google::protobuf::Message>(cb)));
+        header.set_req_cb(registry->Register(new CallbackWrapper<scnet::Session, google::protobuf::Message>(cb)));
     }
     
     const int packet_size = header.ByteSizeLong() + message->ByteSizeLong();
@@ -44,7 +44,7 @@ bool ijoon::Session::send(google::protobuf::Message *message, std::function<void
     return true;
 }
 
-bool ijoon::Session::send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {
+bool scnet::Session::send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {
     auto registry = Registry<int, google::protobuf::Message *>().Get();
     int typeInt = registry->GetType(message->GetTypeName());
     if(typeInt < 0) {
@@ -54,7 +54,7 @@ bool ijoon::Session::send(scnet::Header *_header, google::protobuf::Message *mes
     scnet::Header header;
     header.set_packettype(typeInt);
     if(cb != nullptr) {
-        header.set_req_cb(registry->Register(new CallbackWrapper<ijoon::Session, google::protobuf::Message>(cb)));
+        header.set_req_cb(registry->Register(new CallbackWrapper<scnet::Session, google::protobuf::Message>(cb)));
     }
     if(_header != nullptr && _header->req_cb() > 0) {
         header.set_res_cb(_header->req_cb());
@@ -90,7 +90,7 @@ bool ijoon::Session::send(scnet::Header *_header, google::protobuf::Message *mes
     return true;
 }
 
-bool ijoon::Session::recv() {
+bool scnet::Session::recv() {
     const int head_length = MAGIC_PACKET_LENGTH + 4 + 2;
     char head_pkt[head_length] = {0,};
     

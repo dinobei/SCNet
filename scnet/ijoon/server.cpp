@@ -1,109 +1,248 @@
+#include <map>
+#include <fstream>
+#include <sys/stat.h>
+#ifndef __CPPSOCKET_WINDOWS__
+#include <sys/select.h>
+#endif
+
 #include "server.h"
 #include "registry.h"
 
-void recvThreadFunc(ijoon::Server *server);
+fd_set reads;
+void scnet::Server::ServerMainThread() {
+    std::cout << "server mode: " << (this->isMultiThreadBased()? "multithread based" : "multiplexing based") << std::endl;
+    if(this->onServerStarted != nullptr)
+        this->onServerStarted();
+    
+    // change to user input
+    this->servSocket = new cppsocket::tcp_socket(this->getServerPort());
 
-void clientMainThreadFunc(ijoon::Server *server)
-{
-    char portStr[20];
-    sprintf(portStr, "%d", server->getServerPort());
-
-    while(server->mainThreadCondition) {
-        // CALLBACK::ATTACHING
-        if(server->onAttaching != nullptr) {
-            server->onAttaching(server->getSession());
-        }
-
-        bool connected = server->getSession()->getClientSocket()->connect(server->getServerIPAddress(),
-                                                                          portStr,
-                                                                          server->getTimeoutMillis());
-        if(!connected)
-        {
-            if(errno != EINPROGRESS)
-            {
-                // CALLBACK::ATTACH_FAILED
-                if(server->onAttachFailed != nullptr) {
-                    server->onAttachFailed(server->getSession());
-                }
+    if(this->isMultiThreadBased()) {
+        while(this->condition) {
+            auto client = servSocket->accept();
+            if(client == nullptr) {
+                __msleep(1);
                 continue;
             }
-        }
-
-        server->recvThreadCondition.store(true);
-        server->recvThread = new std::thread(recvThreadFunc, server);
-
-        // CALLBACK::ATTACHED
-        if(server->onAttached != nullptr) {
-            server->onAttached(server->getSession());
-        }
-
-        if(server->recvThread != nullptr) {
-            server->recvThread->join();
-        }
-
-        // CALLBACK::DETACHED
-        if(server->onDetached != nullptr) {
-            server->onDetached(server->getSession());
+            
+            if(this->getClientSession == nullptr) {
+                throw std::exception();
+            }
+            auto sess = this->getClientSession(client);
+            
+            sess->updatePing();
+            this->addClient(client, sess);
         }
     }
-
-    // CALLBACK::DETACH
-    if(server->onDetach != nullptr) {
-        server->onDetach(server->getSession());
+    else {
+        fd_set cpy_reads;
+        struct timeval timeout;
+        int fd_max, fd_num;
+        FD_ZERO(&reads);
+        FD_SET(servSocket->get_socket_identifier(), &reads);
+        
+        fd_max = servSocket->get_socket_identifier();
+        auto registry = Registry<int, google::protobuf::Message* >().Get();
+        auto timeoutMs = std::chrono::milliseconds(this->getRecvTimeoutMs());
+        auto lastCheckTime = std::chrono::system_clock::now();
+        while(this->condition) {
+            cpy_reads = reads;
+            timeout.tv_sec = this->getRecvTimeoutMs() / 1000;
+            timeout.tv_usec = (this->getRecvTimeoutMs() % 1000) * 1000;
+            if( (fd_num = select(fd_max + 1, &cpy_reads, 0, 0, &timeout)) == -1)
+                break;
+            
+            auto currentTime = std::chrono::system_clock::now();
+            if(lastCheckTime + timeoutMs <= currentTime) {
+                lastCheckTime = currentTime;
+                
+                auto clientMap = this->getClientMap();
+                for(auto iter : clientMap) {
+                    if(iter.second->getPing() + timeoutMs < currentTime && this->onClientTimeout != nullptr) {
+                        this->onClientTimeout(iter.second);
+                    }
+                }
+            }
+            
+            if(fd_num == 0) continue;
+            
+            for(int i = 0 ; i < fd_max+1 ; i++)
+            {
+                if(FD_ISSET(i, &cpy_reads))
+                {
+                    if(i == servSocket->get_socket_identifier())
+                    {
+                        auto client = servSocket->accept();
+                        
+                        if(this->getClientSession == nullptr) {
+                            throw std::exception();
+                        }
+                        auto sess = this->getClientSession(client);
+                        sess->updatePing();
+                        this->addClient(client, sess);
+                        
+                        int clientSocketId = client->get_socket_identifier();
+                        FD_SET(clientSocketId, &reads);
+                        if(fd_max < clientSocketId)
+                            fd_max = clientSocketId;
+                        
+                        if(this->onClientConnected != nullptr)
+                            this->onClientConnected(sess);
+                    }
+                    else
+                    {
+                        auto sess = this->session(i);
+                        if(sess == nullptr) continue;
+                        if(!sess->recv()) {
+                            if(this->onClientDisconnected != nullptr)
+                                this->onClientDisconnected(sess);
+                            this->removeClient(i);
+                            continue;
+                        }
+                        
+                        sess->updatePing();
+                    }
+                }
+            }
+        }
     }
+    
+    if(this->onServerStopped != nullptr)
+        this->onServerStopped();
 }
 
-void recvThreadFunc(ijoon::Server *server)
-{
+void scnet::Server::ServerServiceThread(int socketId) {
+    auto sess = this->session(socketId);
+    if(sess == nullptr) return;
+    
+    if(this->onClientConnected != nullptr)
+        this->onClientConnected(sess);
+    
     auto registry = Registry<int, google::protobuf::Message *>().Get();
-    int timeoutCount = 0;
-    const int timeoutMax = 50;
-    while(server->recvThreadCondition)
-    {
-        int fd_num = server->getSession()->getClientSocket()->event(100);
-
-        if(fd_num == -1)
-        {
-            break; // select error
+    while(1) {
+        int fd_num = sess->getClientSocket()->event(this->getRecvTimeoutMs());
+        if(fd_num < 0) {
+            break;
         }
-
-        if(fd_num == 0)
-        {
-            if(timeoutMax < timeoutCount++ &&
-               server->onTimeout != nullptr) {
-                server->onTimeout(server->getSession());
-                timeoutCount = 0;
-            }
+        if(fd_num == 0) {
+            if(this->onClientTimeout != nullptr)
+                this->onClientTimeout(sess);
             continue;
         }
         
-        timeoutCount = 0;
-
-        if(!server->getSession()->recv()) {
+        if(!sess->recv()) {
             break;
         }
+        
+        sess->updatePing();
+        
     }
-
-    server->recvThread = nullptr;
-    server->getSession()->getClientSocket()->close(cppsocket::read);
+    
+    __msleep(1000);
+    this->removeClient(socketId);
+    
+    if(this->onClientDisconnected != nullptr)
+        this->onClientDisconnected(sess);
 }
 
-void ijoon::Server::attach() {
-    if(this->mainThread != nullptr) return;
-    this->mainThreadCondition.store(true);
-    this->mainThread = new std::thread(clientMainThreadFunc, this);
+scnet::Server::Server(ushort port, int recvTimeoutMs, bool useMultiThread) {
+    this->port = port;
+    this->recvTimeoutMs = recvTimeoutMs;
+    this->thread = nullptr;
+    this->useMultiThread = useMultiThread;
 }
 
-void ijoon::Server::detach() {
-    if(this->recvThread != nullptr) {
-        this->recvThreadCondition.store(false);
-    }
+scnet::Server::~Server() {
+}
 
-    if(this->mainThread != nullptr) {
-        this->mainThreadCondition.store(false);
-        if(this->mainThread->joinable()) {
-            this->mainThread->join();
-            this->mainThread = nullptr;
+ushort scnet::Server::getServerPort() {
+    return this->port;
+}
+
+int scnet::Server::getRecvTimeoutMs() {
+    return this->recvTimeoutMs;
+}
+
+bool scnet::Server::start() {
+    if(this->thread != nullptr) {
+        return false;
+    }
+    
+    this->condition.store(true);
+    this->thread = new std::thread(std::bind(&Server::ServerMainThread, this));
+    return true;
+}
+
+bool scnet::Server::stop() {
+    if(this->thread != nullptr) {
+        this->condition.store(false);
+        this->servSocket->close();
+        if(this->thread->joinable()) {
+            this->thread->join();
+            this->thread = nullptr;
         }
+        return true;
     }
+    return false;
+}
+
+bool scnet::Server::addClient(std::shared_ptr<cppsocket::tcp_socket> clientSocket, std::shared_ptr<Session> sess) {
+    if(this->clientMap.count(clientSocket->get_socket_identifier()) == 0) {
+        clientMap[clientSocket->get_socket_identifier()] = sess;
+        
+        if(isMultiThreadBased()) {
+            std::thread *thread = new std::thread(std::bind(&Server::ServerServiceThread, this, clientSocket->get_socket_identifier())); // TODO: manage ServerServiceThread
+        }
+        
+        return true;
+    }
+
+    return false;
+}
+
+bool scnet::Server::removeClient(std::shared_ptr<scnet::Session> session) {
+    if(session == nullptr) return false;
+    
+    auto socketId = session->getClientSocket()->get_socket_identifier();
+    
+    if(this->clientMap.count(socketId) == 0)
+        return false;
+    
+    FD_CLR(socketId, &reads);
+    
+    if(!useMultiThread && onClientDisconnected != nullptr) {
+        onClientDisconnected(session);
+    }
+    
+    this->clientMap.erase(socketId);
+    close(socketId);
+    return true;
+}
+
+bool scnet::Server::removeClient(std::shared_ptr<cppsocket::tcp_socket> clientSocket) {
+    return removeClient(clientSocket->get_socket_identifier());
+}
+
+bool scnet::Server::removeClient(int socketId) {
+    if(this->clientMap.count(socketId) == 0)
+        return false;
+    
+    FD_CLR(socketId, &reads);
+    
+    this->clientMap.erase(socketId);
+    close(socketId);
+    return true;
+}
+
+int scnet::Server::clientSize() {
+    return this->clientMap.size();
+}
+
+std::shared_ptr<scnet::Session> scnet::Server::session(int socketId) {
+    if(this->clientMap.count(socketId) == 0) return nullptr;
+    return this->clientMap[socketId];
+}
+
+std::map<int, std::shared_ptr<scnet::Session>> &scnet::Server::getClientMap() {
+    return clientMap;
 }

@@ -1,4 +1,4 @@
-#include "client_manager.h"
+#include "server.h"
 #include <sys/stat.h>
 #include "registry.h"
 
@@ -12,18 +12,18 @@ using namespace example;
 void onServerStarted();
 void onServerStopped();
 
-std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<cppsocket::tcp_socket> socket);
-void onClientConnected(std::shared_ptr<ijoon::Session> session);
-void onClientTimeout(std::shared_ptr<ijoon::Session> session);
-void onClientDisconnected(std::shared_ptr<ijoon::Session> session);
+std::shared_ptr<scnet::Session> getClientSession(std::shared_ptr<cppsocket::tcp_socket> socket);
+void onClientConnected(std::shared_ptr<scnet::Session> session);
+void onClientTimeout(std::shared_ptr<scnet::Session> session);
+void onClientDisconnected(std::shared_ptr<scnet::Session> session);
 
-void onPacket1(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet1 *pkt1);
-void onPacket2(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet2 *pkt2);
-void onPacket3(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet3 *pkt3);
-void onPacket4(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet4 *pkt4);
-void onArrayMessage(std::shared_ptr<ijoon::Session> session, scnet::Header *header, ArrayMessage *arrayMessage);
+void onPacket1(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet1 *pkt1);
+void onPacket2(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet2 *pkt2);
+void onPacket3(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet3 *pkt3);
+void onPacket4(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet4 *pkt4);
+void onArrayMessage(std::shared_ptr<scnet::Session> session, scnet::Header *header, ArrayMessage *arrayMessage);
 long GetFileSize(std::string filename);
-void onImageRequest(std::shared_ptr<ijoon::Session> session, scnet::Header *header, ImageRequest *imageRequest);
+void onImageRequest(std::shared_ptr<scnet::Session> session, scnet::Header *header, ImageRequest *imageRequest);
 
 int main(int argv, char** argc) {
     signal(SIGPIPE, SIG_IGN);
@@ -36,17 +36,17 @@ int main(int argv, char** argc) {
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(imageResponse, ImageResponse, nullptr);
     SCNET_PROTOBUF_MESSAGE_REGISTRATION(9, scnet::Ping, nullptr);
 
-    ijoon::ClientManager clientManager(9190, 30 * 1000, true);
-    clientManager.onServerStarted = onServerStarted;
-    clientManager.onServerStopped = onServerStopped;
-    clientManager.getClientSession = getClientSession;
-    clientManager.onClientConnected = onClientConnected;
-    clientManager.onClientTimeout = onClientTimeout;
-    clientManager.onClientDisconnected = onClientDisconnected;
-    clientManager.start();
+    scnet::Server server(9190, 30 * 1000, true);
+    server.onServerStarted = onServerStarted;
+    server.onServerStopped = onServerStopped;
+    server.getClientSession = getClientSession;
+    server.onClientConnected = onClientConnected;
+    server.onClientTimeout = onClientTimeout;
+    server.onClientDisconnected = onClientDisconnected;
+    server.start();
     getchar();
     
-    clientManager.stop();
+    server.stop();
     getchar();
     
     return 0;
@@ -60,18 +60,18 @@ void onServerStopped() {
     std::cout << "ServerStopped" << std::endl;
 }
 
-std::shared_ptr<ijoon::Session> getClientSession(std::shared_ptr<cppsocket::tcp_socket> socket) {
+std::shared_ptr<scnet::Session> getClientSession(std::shared_ptr<cppsocket::tcp_socket> socket) {
     int ms = 500;
     socket->option(cppsocket::SOCK_RCVTIMEO_MS, (void *)&ms);
     socket->option(cppsocket::SOCK_SNDTIMEO_MS, (void *)&ms);
-    return std::make_shared<ijoon::Session>(socket);
+    return std::make_shared<scnet::Session>(socket);
 }
 
-void onClientConnected(std::shared_ptr<ijoon::Session> session) {
+void onClientConnected(std::shared_ptr<scnet::Session> session) {
     std::cout << "ClientConnected, " << session->getClientSocket()->get_socket_identifier() << std::endl;
 }
 
-void onClientTimeout(std::shared_ptr<ijoon::Session> session) {
+void onClientTimeout(std::shared_ptr<scnet::Session> session) {
     if(session == nullptr) {
         std::cout << "onClientTimeout" << std::endl;
     }
@@ -80,31 +80,31 @@ void onClientTimeout(std::shared_ptr<ijoon::Session> session) {
     }
 }
 
-void onClientDisconnected(std::shared_ptr<ijoon::Session> session) {
+void onClientDisconnected(std::shared_ptr<scnet::Session> session) {
     std::cout << "ClientDisconnected, " << session->getClientSocket()->get_socket_identifier() << std::endl;
 }
 
-void onPacket1(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet1 *pkt1) {
+void onPacket1(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet1 *pkt1) {
     std::cout << "Packet1 received, number=" << pkt1->number() << std::endl;
     session->send(header, pkt1);
 }
 
-void onPacket2(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet2 *pkt2) {
+void onPacket2(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet2 *pkt2) {
     std::cout << "Packet2, str=" << pkt2->str() << std::endl;
     session->send(header, pkt2);
 }
 
-void onPacket3(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet3 *pkt3) {
+void onPacket3(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet3 *pkt3) {
     std::cout << "Packet3 received, boolvalue=" << (pkt3->boolvalue()?"true":"false") << std::endl;
     session->send(header, pkt3);
 }
 
-void onPacket4(std::shared_ptr<ijoon::Session> session, scnet::Header *header, Packet4 *pkt4) {
+void onPacket4(std::shared_ptr<scnet::Session> session, scnet::Header *header, Packet4 *pkt4) {
     std::cout << "Packet4 received, floatvalue=" << pkt4->floatvalue() << ", doublevalue=" << pkt4->doublevalue() << std::endl;
     session->send(header, pkt4);
 }
 
-void onArrayMessage(std::shared_ptr<ijoon::Session> session, scnet::Header *header, ArrayMessage *arrayMessage) {
+void onArrayMessage(std::shared_ptr<scnet::Session> session, scnet::Header *header, ArrayMessage *arrayMessage) {
     std::cout << "received array size: %d, message: " << arrayMessage->strarr_size() << std::endl;
     for(int i = 0 ; i < arrayMessage->strarr_size() ; i++) {
         std::cout << arrayMessage->strarr(i) << " ";
@@ -121,7 +121,7 @@ long GetFileSize(std::string filename)
     return rc == 0 ? stat_buf.st_size : -1;
 }
 
-void onImageRequest(std::shared_ptr<ijoon::Session> session, scnet::Header *header, ImageRequest *imageRequest) {
+void onImageRequest(std::shared_ptr<scnet::Session> session, scnet::Header *header, ImageRequest *imageRequest) {
     int size = GetFileSize(imageRequest->name());
     std::cout << "requested image name=" << imageRequest->name() << ", size=" << size << std::endl;
     

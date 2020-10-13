@@ -1,6 +1,4 @@
-#ifndef __REGISTRY_H__
-#define __REGISTRY_H__
-#include "session.h"
+#pragma once
 #include <functional>
 #include <string>
 #include <google/protobuf/message.h>
@@ -12,10 +10,12 @@
 #undef min
 #endif
 
+#include "session.h"
+
 class AbstractCallbackWrapper {
 public:
-    virtual void callback(std::shared_ptr<ijoon::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) {}
-    virtual void callback(std::shared_ptr<ijoon::BaseSession> session, char *message, unsigned int length) {}
+    virtual void callback(std::shared_ptr<scnet::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) {}
+    virtual void callback(std::shared_ptr<scnet::BaseSession> session, char *message, unsigned int length) {}
 };
 
 template <class S, class T>
@@ -26,7 +26,7 @@ public:
     }
     ~CallbackWrapper() {}
     
-    void callback(std::shared_ptr<ijoon::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) override {
+    void callback(std::shared_ptr<scnet::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) override {
         if(callbackFunc == nullptr) return;
         if(message == nullptr) {
             callbackFunc(std::static_pointer_cast<S>(session), header, nullptr);
@@ -188,7 +188,7 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     GetRegistry(), \
                     packetTypeInt, \
-                    new CallbackWrapper<ijoon::Session, messageClassName>(callbackFunc))
+                    new CallbackWrapper<scnet::Session, messageClassName>(callbackFunc))
 
 #define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
@@ -202,6 +202,5 @@ static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
 static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
                     GetRegistry(), \
                     packetTypeInt, \
-                    new CallbackWrapper<ijoon::RendezvousSession, messageClassName>(callbackFunc))
+                    new CallbackWrapper<scnet::RendezvousSession, messageClassName>(callbackFunc))
 
-#endif

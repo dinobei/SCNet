@@ -1,10 +1,11 @@
 #pragma once
 #include <iostream>
 #include <chrono>
+
 #include "message_header.h"
 #include "header.pb.h"
 
-namespace ijoon {
+namespace scnet {
 using namespace std::chrono;
 
     class Session;
