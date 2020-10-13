@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package example;
+option java_package = "com.scnet.example";
+option java_outer_classname = "PacketType";
+
+enum PacketType {
+  ping = 0;
+  dummyPacket1 = 1;
+  dummyPacket2 = 2;
+}

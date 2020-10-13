@@ -5,7 +5,7 @@ file(GLOB_RECURSE source_files *.cpp)
 
 # Compile protobuf message
 set(proto_output_path ${CMAKE_CURRENT_BINARY_DIR})
-set(proto_input_path ${PROJECT_SOURCE_DIR}/third-party/SCNet-pb)
+set(proto_input_path ${PROJECT_SOURCE_DIR}/proto/example)
 file(GLOB proto_files ${proto_input_path}/*.proto)
 
 foreach(proto_file ${proto_files})

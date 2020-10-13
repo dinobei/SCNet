@@ -1,6 +1,3 @@
-[submodule "third-party/SCNet-pb"]
-	path = third-party/SCNet-pb
-	url = http://works.ijoon.net/Developer/SCNet-pb
 [submodule "third-party/protobuf"]
 	path = third-party/protobuf
 	url = https://github.com/google/protobuf.git

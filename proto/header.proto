@@ -10,6 +10,3 @@ message Header {
   int32 res_cb = 3;
   uint32 authToken = 4;
 }
-
-message Ping {
-}

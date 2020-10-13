@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package example;
+option java_package = "com.scnet.example";
+option java_outer_classname = "SCNetExample";
+
+message Ping {
+}
+
+message DummyPacket1 {
+  string title = 1;
+  int32 number = 2;
+}
+
+message DummyPacket2 {
+  repeated string strArr = 3;
+}

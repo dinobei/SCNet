@@ -13,7 +13,7 @@ include_directories(${${the_library}_include_directories})
 
 # Compile protobuf message
 set(proto_output_path ${CMAKE_CURRENT_BINARY_DIR})
-set(proto_input_path ${PROJECT_SOURCE_DIR}/scnet/pb)
+set(proto_input_path ${PROJECT_SOURCE_DIR}/proto)
 file(GLOB proto_files ${proto_input_path}/*.proto)
 
 foreach(proto_file ${proto_files})

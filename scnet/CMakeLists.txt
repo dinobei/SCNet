@@ -1,2 +1,1 @@
-add_subdirectory(ijoon)
-add_subdirectory(pb)
+add_subdirectory(scnet)
