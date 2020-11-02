@@ -82,7 +82,7 @@ void onDummyPacket1(std::shared_ptr<scnet::Session> session, scnet::Header *head
 }
 
 void onDummyPacket2(std::shared_ptr<scnet::Session> session, scnet::Header *header, DummyPacket2 *pkt2) {
-    std::cout << "DummyPacket2, array size: %d, message: " << pkt2->strarr_size() << std::endl;
+    std::cout << "DummyPacket2, array size: " << pkt2->strarr_size() << ", message: ";
     for(int i = 0 ; i < pkt2->strarr_size() ; i++) {
         std::cout << pkt2->strarr(i) << " ";
     }
