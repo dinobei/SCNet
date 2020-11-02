@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package example;
+option swift_prefix = "";
 option java_package = "com.scnet.example";
 option java_outer_classname = "SCNetExample";
 
