@@ -12,10 +12,10 @@ using namespace std::chrono;
     class BaseSession {
     public:
         virtual ~BaseSession() {}
-        virtual bool send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {return false;} // for test
-        virtual bool send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {return false;} // for test
+        virtual bool send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {return false;}
+        virtual bool send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {return false;}
         
-        virtual bool recv() {return false;} // for test
+        virtual bool recv() {return false;}
 
         system_clock::time_point getPing() { return this->ping; }
         void updatePing() {
@@ -31,7 +31,7 @@ using namespace std::chrono;
         Session() : cs(std::shared_ptr<cppsocket::tcp_socket>(new cppsocket::tcp_socket())) {}
         Session(std::shared_ptr<cppsocket::tcp_socket> cs): cs(cs) {}
         ~Session() = default;
-        bool send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) override;
+        bool send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb = nullptr) override;
         bool send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb = nullptr) override;
         bool recv() override;
 

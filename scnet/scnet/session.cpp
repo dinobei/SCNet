@@ -33,7 +33,7 @@ bool scnet::Session::send(google::protobuf::Message *message, std::function<void
     message->SerializeToArray(buf, message->ByteSizeLong());
     
     snd_mtx.lock();
-    if(!this->cs->safe_send((char *)ori_buf, 0, total_size , 0)) {
+    if(!this->cs->safe_send(ori_buf, 0, total_size , 0)) {
         snd_mtx.unlock();
         delete[] ori_buf;
         return false;
