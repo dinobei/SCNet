@@ -105,7 +105,7 @@ bool scnet::Session::recv() {
         return false;
     }
     
-    const int pkt_size = head_pkt[2] << 24 | head_pkt[3] << 16 | head_pkt[4] << 8 | head_pkt[5];
+    const int pkt_size = (unsigned char)head_pkt[2] << 24 | (unsigned char)head_pkt[3] << 16 | (unsigned char)head_pkt[4] << 8 | (unsigned char)head_pkt[5];
     const ushort header_size = head_pkt[6] << 8 | head_pkt[7];
     
     char *pkt = new char[pkt_size];
