@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <chrono>
+#include <functional>
 
 #include "message_header.h"
 #include "header.pb.h"
