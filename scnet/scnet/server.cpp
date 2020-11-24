@@ -94,9 +94,9 @@ void scnet::Server::ServerMainThread() {
                         auto sess = this->session(i);
                         if(sess == nullptr) continue;
                         if(!sess->recv()) {
+                            this->removeClient(i);
                             if(this->onClientDisconnected != nullptr)
                                 this->onClientDisconnected(sess);
-                            this->removeClient(i);
                             continue;
                         }
                         
@@ -210,11 +210,11 @@ bool scnet::Server::removeClient(std::shared_ptr<scnet::Session> session) {
     
     FD_CLR(socketId, &reads);
     
+    this->clientMap.erase(socketId);
     if(!useMultiThread && onClientDisconnected != nullptr) {
         onClientDisconnected(session);
     }
     
-    this->clientMap.erase(socketId);
     close(socketId);
     return true;
 }
