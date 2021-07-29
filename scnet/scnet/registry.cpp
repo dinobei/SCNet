@@ -2,6 +2,6 @@
 
 #include "registry.h"
 
-Registry<int, google::protobuf::Message *> *GetRegistry() {
-	return Registry<int, google::protobuf::Message *>().Get();
+Registry<google::protobuf::Message *> *GetRegistry() {
+	return Registry<google::protobuf::Message *>().Get();
 }

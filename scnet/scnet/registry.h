@@ -27,7 +27,10 @@ public:
     ~CallbackWrapper() {}
     
     void callback(std::shared_ptr<scnet::BaseSession> session, scnet::Header *header, google::protobuf::Message *message) override {
-        if(callbackFunc == nullptr) return;
+        if(callbackFunc == nullptr) {
+            std::cout << "[warning] unprocessed message: " << header->packettype() << std::endl;
+            return;
+        }
         if(message == nullptr) {
             callbackFunc(std::static_pointer_cast<S>(session), header, nullptr);
             return;
@@ -40,20 +43,20 @@ public:
     std::function<void(std::shared_ptr<S>, scnet::Header *, T *)> callbackFunc;
 };
 
-template <class SrcType, class ObjectPtrType, class... Args>
+template <class ObjectPtrType, class... Args>
 class Registry
 {
 public:
     typedef std::function<ObjectPtrType(Args...)> Creator;
     
-    static Registry<SrcType, ObjectPtrType> *Get() {
-        static Registry<SrcType, ObjectPtrType> sharedRegistry = Registry<SrcType, ObjectPtrType>();
+    static Registry<ObjectPtrType> *Get() {
+        static Registry<ObjectPtrType> sharedRegistry = Registry<ObjectPtrType>();
         return &sharedRegistry;
     }
 
-    Registry() : registry_creater(), registry_getter() {}
+    Registry() : registry_creater() {}
 
-    void Register(const SrcType& key, Creator creator)
+    void Register(const std::string& key, Creator creator)
     {
         if (HasCreator(key)) {
             printf("Key already registered.\n");
@@ -61,17 +64,8 @@ public:
         }
         registry_creater[key] = creator;
     }
-
-    void Register(const std::string key, google::protobuf::uint32 type)
-    {
-        if (HasGetter(key)) {
-            printf("Key already registered.\n");
-            std::exit(1);
-        }
-        registry_getter[key] = type;
-    }
     
-    void Register(const SrcType& key, AbstractCallbackWrapper *callbackWrapper)
+    void Register(const std::string& key, AbstractCallbackWrapper *callbackWrapper)
     {
         if (HasCallbackWrapper(key)) {
             printf("key already registered.\n");
@@ -80,21 +74,10 @@ public:
         registry_callback_wrapper[key] = callbackWrapper;
     }
     
-    unsigned int Register(AbstractCallbackWrapper *callbackWrapper)
-    {
-        if(callbackWrapper != nullptr) {
-            registry_callback_wrapper[packet_index] = callbackWrapper;
-            return packet_index++;
-        }
-        
-        return 0;
-    }
-    
-    inline bool HasCreator(const SrcType& key) { return (registry_creater.count(key) != 0); }
-    inline bool HasGetter(const std::string key) { return (registry_getter.count(key) != 0); }
-    inline bool HasCallbackWrapper(const SrcType& key) { return (registry_callback_wrapper.count(key) != 0); }
+    inline bool HasCreator(const std::string& key) { return (registry_creater.count(key) != 0); }
+    inline bool HasCallbackWrapper(const std::string& key) { return (registry_callback_wrapper.count(key) != 0); }
 
-    ObjectPtrType Create(const SrcType& key, Args... args)
+    ObjectPtrType Create(const std::string& key, Args... args)
     {
         if (!HasCreator(key))
         {
@@ -103,59 +86,39 @@ public:
         }
         return registry_creater[key](args...);
     }
-    
-    int GetType(const std::string key)
+        
+    AbstractCallbackWrapper *GetCallbackWrapper(const std::string& packetType, Args... args)
     {
-        if(!HasGetter(key))
-        {
-            return -1;
-        }
-
-        return registry_getter[key];
-    }
-    
-    AbstractCallbackWrapper *GetCallbackWrapper(const SrcType& packetTypeInt, Args... args)
-    {
-        if (!HasCallbackWrapper(packetTypeInt))
+        if (!HasCallbackWrapper(packetType))
         {
             // Return nullptr if the key is not registered.
             return nullptr;
         }
-        return registry_callback_wrapper[packetTypeInt];
+        return registry_callback_wrapper[packetType];
     }
     
 private:
-    std::map<SrcType, Creator> registry_creater;
-    std::map<std::string, google::protobuf::uint32> registry_getter;
-    std::map<SrcType, AbstractCallbackWrapper *> registry_callback_wrapper;
+    std::map<std::string, Creator> registry_creater;
+    std::map<std::string, AbstractCallbackWrapper *> registry_callback_wrapper;
     unsigned int packet_index = 1000; // TODO: settting outside
 };
 
-template <class SrcType, class ObjectPtrType, class... Args>
+template <class ObjectPtrType, class... Args>
 class Registerer {
 public:
     Registerer( // packetType => pb instance
-               Registry<SrcType, ObjectPtrType, Args...>* registry,
-               const SrcType key,
-               typename Registry<SrcType, ObjectPtrType, Args...>::Creator creator
+               Registry<ObjectPtrType, Args...>* registry,
+               const std::string key,
+               typename Registry<ObjectPtrType, Args...>::Creator creator
                ) {
         registry->Register(key, creator);
     }
-
-    Registerer( // className => packetType
-               Registry<SrcType, ObjectPtrType, Args...>* registry,
-               const std::string key,
-               google::protobuf::uint32 type
-               ) {
-        registry->Register(key, type);
-    }
     
     Registerer( // packetType => callbackWrapper
-               Registry<SrcType, ObjectPtrType, Args...>* registry,
-               const SrcType packetTypeInt,
+               Registry<ObjectPtrType, Args...>* registry,
+               const std::string key,
                AbstractCallbackWrapper *callbackWrapper
                ) {
-        const SrcType key = packetTypeInt;
         registry->Register(key, callbackWrapper);
     }
     
@@ -165,7 +128,7 @@ public:
     }
 };
 
-Registry<int, google::protobuf::Message *> *GetRegistry();
+Registry<google::protobuf::Message *> *GetRegistry();
 
 // Reference: https://stackoverflow.com/a/17624752
 // This is some crazy magic that helps produce __BASE__247
@@ -176,31 +139,12 @@ Registry<int, google::protobuf::Message *> *GetRegistry();
 #define PP_CAT_II(p, res) res
 #define UNIQUE_NAME(base) PP_CAT(base, __LINE__)
 
-#define SCNET_PROTOBUF_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    GetRegistry(), \
-                    packetTypeInt, \
-                    Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
+#define SCNET_PROTOBUF_MESSAGE_REGISTRATION(messageClassName, callbackFunc) \
+static Registerer<google::protobuf::Message* > UNIQUE_NAME(a)( \
                     GetRegistry(), \
                     messageClassName().GetTypeName(), \
-                    packetTypeInt); \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
+                    Registerer<google::protobuf::Message* >::DefaultCreator<messageClassName>); \
+static Registerer<google::protobuf::Message* > UNIQUE_NAME(c)( \
                     GetRegistry(), \
-                    packetTypeInt, \
+                    messageClassName().GetTypeName(), \
                     new CallbackWrapper<scnet::Session, messageClassName>(callbackFunc))
-
-#define SCNET_PROTOBUF_UDP_MESSAGE_REGISTRATION(packetTypeInt, messageClassName, callbackFunc) \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(a)( \
-                    GetRegistry(), \
-                    packetTypeInt, \
-                    Registerer<int, google::protobuf::Message* >::DefaultCreator<messageClassName>); \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(b)( \
-                    GetRegistry(), \
-                    messageClassName().GetTypeName(), \
-                    packetTypeInt); \
-static Registerer<int, google::protobuf::Message* > UNIQUE_NAME(c)( \
-                    GetRegistry(), \
-                    packetTypeInt, \
-                    new CallbackWrapper<scnet::RendezvousSession, messageClassName>(callbackFunc))
-

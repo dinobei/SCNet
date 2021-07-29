@@ -42,7 +42,6 @@ void scnet::Server::ServerMainThread() {
         FD_SET(servSocket->get_socket_identifier(), &reads);
         
         fd_max = servSocket->get_socket_identifier();
-        auto registry = Registry<int, google::protobuf::Message* >().Get();
         auto timeoutMs = std::chrono::milliseconds(this->getRecvTimeoutMs());
         auto lastCheckTime = std::chrono::system_clock::now();
         while(this->condition) {
@@ -118,15 +117,32 @@ void scnet::Server::ServerServiceThread(int socketId) {
     if(this->onClientConnected != nullptr)
         this->onClientConnected(sess);
     
-    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    auto startTime = std::chrono::system_clock::now();
+    auto prevTime = std::chrono::system_clock::now();
+    auto timeoutDedicatedUpdate = std::chrono::milliseconds(1000);
     while(1) {
         int fd_num = sess->getClientSocket()->event(this->getRecvTimeoutMs());
         if(fd_num < 0) {
             break;
         }
+        
+        auto currentTime = std::chrono::system_clock::now();
+        if(prevTime + timeoutDedicatedUpdate < currentTime) {
+            prevTime = currentTime;
+            for(auto iter = clientMap.begin() ; iter != clientMap.end() ; ++iter) {
+                auto sess = iter->second;
+                sess->updateDedicatedCallbacks();
+            }
+        }
+        
         if(fd_num == 0) {
-            if(this->onClientTimeout != nullptr)
-                this->onClientTimeout(sess);
+            auto timeoutMs = std::chrono::milliseconds(this->getRecvTimeoutMs());
+            if(startTime + timeoutMs <= currentTime) {
+                startTime = currentTime;
+                if(this->onClientTimeout != nullptr)
+                    this->onClientTimeout(sess);
+            }
+            
             continue;
         }
         

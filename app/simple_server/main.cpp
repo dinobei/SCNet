@@ -21,9 +21,9 @@ void onClientDisconnected(std::shared_ptr<scnet::Session> session);
 
 int main(int argv, char** argc) {
     signal(SIGPIPE, SIG_IGN);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(dummyPacket1, DummyPacket1, onDummyPacket1);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(dummyPacket2, DummyPacket2, onDummyPacket2);
-    SCNET_PROTOBUF_MESSAGE_REGISTRATION(ping, Ping, onPing);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(DummyPacket1, onDummyPacket1);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(DummyPacket2, onDummyPacket2);
+    SCNET_PROTOBUF_MESSAGE_REGISTRATION(Ping, onPing);
 
     scnet::Server server(9190, 30 * 1000, true);
     server.onServerStarted = onServerStarted;
@@ -77,12 +77,12 @@ void onClientDisconnected(std::shared_ptr<scnet::Session> session) {
 }
 
 void onDummyPacket1(std::shared_ptr<scnet::Session> session, scnet::Header *header, DummyPacket1 *pkt1) {
-    std::cout << "DummyPacket1 received, number=" << pkt1->number() << std::endl;
+    std::cout << "DummyPacket1 received, title: " << pkt1->title() << ", number: " << pkt1->number() << std::endl;
     session->send(header, pkt1);
 }
 
 void onDummyPacket2(std::shared_ptr<scnet::Session> session, scnet::Header *header, DummyPacket2 *pkt2) {
-    std::cout << "DummyPacket2, array size: " << pkt2->strarr_size() << ", message: ";
+    std::cout << "DummyPacket2 received, array size: " << pkt2->strarr_size() << ", message: ";
     for(int i = 0 ; i < pkt2->strarr_size() ; i++) {
         std::cout << pkt2->strarr(i) << " ";
     }

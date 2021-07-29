@@ -55,9 +55,11 @@ void clientMainThreadFunc(scnet::Client *server)
 
 void recvThreadFunc(scnet::Client *server)
 {
-    auto registry = Registry<int, google::protobuf::Message *>().Get();
+    auto registry = Registry<google::protobuf::Message *>().Get();
     int timeoutCount = 0;
     const int timeoutMax = 50;
+    auto prevTime = std::chrono::system_clock::now();
+    auto timeoutDedicatedUpdate = std::chrono::milliseconds(1000);
     while(server->recvThreadCondition)
     {
         int fd_num = server->getSession()->getClientSocket()->event(100);
@@ -67,6 +69,11 @@ void recvThreadFunc(scnet::Client *server)
             break; // select error
         }
 
+        auto currentTime = std::chrono::system_clock::now();
+        if(prevTime + timeoutDedicatedUpdate < currentTime) {
+            server->getSession()->updateDedicatedCallbacks();
+        }
+        
         if(fd_num == 0)
         {
             if(timeoutMax < timeoutCount++ &&
@@ -74,6 +81,7 @@ void recvThreadFunc(scnet::Client *server)
                 server->onTimeout(server->getSession());
                 timeoutCount = 0;
             }
+            
             continue;
         }
         

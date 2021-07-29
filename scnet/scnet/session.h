@@ -9,12 +9,17 @@
 namespace scnet {
 using namespace std::chrono;
 
+    struct CallbackContext;
     class Session;
+    typedef std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> DedicatedCallback;
     class BaseSession {
     public:
         virtual ~BaseSession() {}
-        virtual bool send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {return false;}
-        virtual bool send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb) {return false;}
+        virtual bool send(google::protobuf::Message *message,
+                          DedicatedCallback cb,
+                          std::function<void()> cbTimeout,
+                          std::function<void()> sessionEnded) {return false;}
+        virtual bool send(scnet::Header *_header, google::protobuf::Message *message) {return false;}
         
         virtual bool recv() {return false;}
 
@@ -25,6 +30,17 @@ using namespace std::chrono;
         
     private:
         system_clock::time_point ping;
+    protected:
+        struct CallbackContext {
+            DedicatedCallback onReceived;
+            std::function<void()> onTimeout;
+            std::function<void()> onEnded;
+            time_t reqUts;
+            time_t resUts;
+            time_t timeout;
+            time_t ctxTimeout;
+        };
+        std::map<int, CallbackContext> cbCtxMap;
     };
 
     class Session: public BaseSession {
@@ -32,11 +48,15 @@ using namespace std::chrono;
         Session() : cs(std::shared_ptr<cppsocket::tcp_socket>(new cppsocket::tcp_socket())) {}
         Session(std::shared_ptr<cppsocket::tcp_socket> cs): cs(cs) {}
         ~Session() = default;
-        bool send(google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb = nullptr) override;
-        bool send(scnet::Header *_header, google::protobuf::Message *message, std::function<void(std::shared_ptr<Session>, scnet::Header *, google::protobuf::Message *)> cb = nullptr) override;
+        bool send(google::protobuf::Message *message,
+                  DedicatedCallback cb = nullptr,
+                  std::function<void()> cbTimeout = nullptr,
+                  std::function<void()> sessionEnded = nullptr) override;
+        bool send(scnet::Header *_header, google::protobuf::Message *message) override;
         bool recv() override;
 
         std::shared_ptr<cppsocket::tcp_socket> getClientSocket() {return this->cs;}
+        void updateDedicatedCallbacks();
 
     private:
         std::shared_ptr<cppsocket::tcp_socket> cs;
