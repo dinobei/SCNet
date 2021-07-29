@@ -108,17 +108,21 @@ class Registerer {
 public:
     Registerer( // packetType => pb instance
                Registry<ObjectPtrType, Args...>* registry,
-               const std::string key,
+               std::string key,
                typename Registry<ObjectPtrType, Args...>::Creator creator
                ) {
+        std::transform(key.begin(), key.end(), key.begin(),
+            [](unsigned char c){ return std::tolower(c); });
         registry->Register(key, creator);
     }
     
     Registerer( // packetType => callbackWrapper
                Registry<ObjectPtrType, Args...>* registry,
-               const std::string key,
+               std::string key,
                AbstractCallbackWrapper *callbackWrapper
                ) {
+        std::transform(key.begin(), key.end(), key.begin(),
+            [](unsigned char c){ return std::tolower(c); });
         registry->Register(key, callbackWrapper);
     }
     

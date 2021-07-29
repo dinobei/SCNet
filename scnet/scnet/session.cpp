@@ -4,9 +4,13 @@
 int message_id = 1;
 bool scnet::Session::send(google::protobuf::Message *message, DedicatedCallback onReceived, std::function<void()> onTimeout, std::function<void()> onEnded) {
     auto registry = Registry<google::protobuf::Message *>().Get();
-
+    
+    std::string packet_type = message->GetTypeName();
+    std::transform(packet_type.begin(), packet_type.end(), packet_type.begin(),
+        [](unsigned char c){ return std::tolower(c); });
+    
     scnet::Header header;
-    header.set_packettype(message->GetTypeName());
+    header.set_packettype(packet_type);
     if(onReceived != nullptr) {
         auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         CallbackContext cbCtx{onReceived, onTimeout, onEnded, currentTime, 0, 3*1000, 3600*1000};
@@ -46,9 +50,13 @@ bool scnet::Session::send(google::protobuf::Message *message, DedicatedCallback 
 bool scnet::Session::send(scnet::Header *_header, google::protobuf::Message *message) {
     auto registry = Registry<google::protobuf::Message *>().Get();
 
+    std::string packet_type = message->GetTypeName();
+    std::transform(packet_type.begin(), packet_type.end(), packet_type.begin(),
+        [](unsigned char c){ return std::tolower(c); });
+    
     scnet::Header header;
     header.set_id(_header->id());
-    header.set_packettype(message->GetTypeName());
+    header.set_packettype(packet_type);
     
     const int packet_size = header.ByteSizeLong() + message->ByteSizeLong();
     const int total_size = MAGIC_PACKET_LENGTH + 4 + 2 + packet_size;
