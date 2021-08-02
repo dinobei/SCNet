@@ -2,7 +2,7 @@
 #include "registry.h"
 
 int message_id = 1;
-bool scnet::Session::send(google::protobuf::Message *message, DedicatedCallback onReceived, std::function<void()> onTimeout, std::function<void()> onEnded) {
+bool scnet::Session::send(scnet::Header *_header, google::protobuf::Message *message, DedicatedCallback onReceived, std::function<void()> onTimeout, std::function<void()> onEnded) {
     auto registry = Registry<google::protobuf::Message *>().Get();
     
     std::string packet_type = message->GetTypeName();
@@ -10,6 +10,7 @@ bool scnet::Session::send(google::protobuf::Message *message, DedicatedCallback 
         [](unsigned char c){ return std::tolower(c); });
     
     scnet::Header header;
+    if(_header != nullptr) header.set_resof(_header->id());
     header.set_packettype(packet_type);
     if(onReceived != nullptr) {
         auto currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -47,43 +48,11 @@ bool scnet::Session::send(google::protobuf::Message *message, DedicatedCallback 
     return true;
 }
 
-bool scnet::Session::send(scnet::Header *_header, google::protobuf::Message *message) {
-    auto registry = Registry<google::protobuf::Message *>().Get();
-
-    std::string packet_type = message->GetTypeName();
-    std::transform(packet_type.begin(), packet_type.end(), packet_type.begin(),
-        [](unsigned char c){ return std::tolower(c); });
-    
-    scnet::Header header;
-    header.set_id(_header->id());
-    header.set_packettype(packet_type);
-    
-    const int packet_size = header.ByteSizeLong() + message->ByteSizeLong();
-    const int total_size = MAGIC_PACKET_LENGTH + 4 + 2 + packet_size;
-    char *buf = new char[total_size];
-    char *ori_buf = buf;
-    memcpy(buf, MAGIC_PACKET, 2);
-    buf += 2;
-    buf[0] = (packet_size >> 24) & 0xFF;
-    buf[1] = (packet_size >> 16) & 0xFF;
-    buf[2] = (packet_size >> 8) & 0xFF;
-    buf[3] = packet_size & 0xFF;
-    buf += 4;
-    buf[0] = (header.ByteSizeLong() >> 8) & 0xFF;
-    buf[1] = header.ByteSizeLong() & 0xFF;
-    buf += 2;
-    header.SerializeToArray(buf, header.ByteSizeLong());
-    buf += header.ByteSizeLong();
-    message->SerializeToArray(buf, message->ByteSizeLong());
-    
-    std::lock_guard<std::mutex> lg(snd_mtx);
-    if(!this->cs->safe_send((char *)ori_buf, 0, total_size , 0)) {
-        delete[] ori_buf;
-        return false;
-    }
-    
-    delete []ori_buf;
-    return true;
+bool scnet::Session::send(google::protobuf::Message *message,
+                          DedicatedCallback cb,
+                          std::function<void()> cbTimeout,
+                          std::function<void()> sessionEnded) {
+    return send(nullptr, message, cb, cbTimeout, sessionEnded);
 }
 
 bool scnet::Session::recv() {
@@ -124,16 +93,14 @@ bool scnet::Session::recv() {
     }
     delete[] pkt;
 
-    if(header.id() > 0) {
-        auto iter = cbCtxMap.find(header.id());
-        if(iter != cbCtxMap.end()) {
-            auto cbCtx = iter->second;
-            cbCtxMap[header.id()].resUts = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            auto sess = std::shared_ptr<Session>(this, [](Session *sess) {});
-            cbCtx.onReceived(sess, &header, message);
-            delete message;
-            return true;
-        }
+    auto iter = cbCtxMap.find(header.resof());
+    if(iter != cbCtxMap.end()) {
+        auto cbCtx = iter->second;
+        cbCtxMap[header.resof()].resUts = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        auto sess = std::shared_ptr<Session>(this, [](Session *sess) {});
+        cbCtx.onReceived(sess, &header, message);
+        delete message;
+        return true;
     }
     
     AbstractCallbackWrapper *callbackWrapper = registry->GetCallbackWrapper(header.packettype());

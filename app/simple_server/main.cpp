@@ -68,7 +68,7 @@ void onClientTimeout(std::shared_ptr<scnet::Session> session) {
         std::cout << "ClientTimeout, " << session->getClientSocket()->get_socket_identifier() << std::endl;
         
         auto ping = Ping();
-        session->send(&ping, nullptr);
+        session->send(&ping);
     }
 }
 

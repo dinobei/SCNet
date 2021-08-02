@@ -8,5 +8,6 @@ option java_outer_classname = "SCNetPacket";
 message Header {
   string packetType = 1;
   int32 id = 2;
-  string authToken = 3;
+  int32 resOf = 3;
+  string authToken = 4;
 }

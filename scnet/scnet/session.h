@@ -15,11 +15,15 @@ using namespace std::chrono;
     class BaseSession {
     public:
         virtual ~BaseSession() {}
+        virtual bool send(scnet::Header *_header,
+                          google::protobuf::Message *message,
+                          DedicatedCallback cb,
+                          std::function<void()> cbTimeout,
+                          std::function<void()> sessionEnded) {return false;}
         virtual bool send(google::protobuf::Message *message,
                           DedicatedCallback cb,
                           std::function<void()> cbTimeout,
                           std::function<void()> sessionEnded) {return false;}
-        virtual bool send(scnet::Header *_header, google::protobuf::Message *message) {return false;}
         
         virtual bool recv() {return false;}
 
@@ -48,11 +52,15 @@ using namespace std::chrono;
         Session() : cs(std::shared_ptr<cppsocket::tcp_socket>(new cppsocket::tcp_socket())) {}
         Session(std::shared_ptr<cppsocket::tcp_socket> cs): cs(cs) {}
         ~Session() = default;
+        bool send(scnet::Header *_header,
+                  google::protobuf::Message *message,
+                  DedicatedCallback cb = nullptr,
+                  std::function<void()> cbTimeout = nullptr,
+                  std::function<void()> sessionEnded = nullptr) override;
         bool send(google::protobuf::Message *message,
                   DedicatedCallback cb = nullptr,
                   std::function<void()> cbTimeout = nullptr,
                   std::function<void()> sessionEnded = nullptr) override;
-        bool send(scnet::Header *_header, google::protobuf::Message *message) override;
         bool recv() override;
 
         std::shared_ptr<cppsocket::tcp_socket> getClientSocket() {return this->cs;}
